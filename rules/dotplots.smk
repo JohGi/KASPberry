@@ -119,7 +119,7 @@ rule build_dotplot_gallery_html:
         r"""
         mkdir -p "{DOTPLOT_COMBINED_DIR}" "$(dirname "{log.stdout}")"
         python3 "{SCRIPTS_DIR}/build_dotplot_gallery_html.py" \
-            --samples "{SAMPLES_TSV}" \
+            --samples "{GENOTYPES_TSV}" \
             --svg-dir "{DOTPLOT_SVG_DIR}" \
             --output "{output.html}" \
             --pivot "{params.pivot}" \

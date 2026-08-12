@@ -33,7 +33,7 @@ rule build_dotplot_manifest:
         mkdir -p "{DOTPLOT_COMBINED_DIR}" "$(dirname "{log.stdout}")"
 
         python3 "{SCRIPTS_DIR}/build_dotplot_manifest.py" \
-            --genotypes "{SAMPLES_TSV}" \
+            --genotypes "{GENOTYPES_TSV}" \
             --svg-dir "{DOTPLOT_ONLY_SVG_DIR}" \
             --output "{output.manifest}" \
             1> "{log.stdout}" \
@@ -42,7 +42,7 @@ rule build_dotplot_manifest:
 
 rule generate_region_viewer:
     input:
-        samples_tsv=SAMPLES_TSV,
+        samples_tsv=GENOTYPES_TSV,
         block_coords_tsv=BLOCK_COORDINATES_TSV,
         snp_long=SNP_POS_LONG_TSV,
         fastas=CLEAN_FASTAS,
@@ -103,7 +103,7 @@ rule filter_snp_long_by_selected_markers:
 
 rule generate_region_viewer_selected_snps:
     input:
-        samples_tsv=SAMPLES_TSV,
+        samples_tsv=GENOTYPES_TSV,
         block_coords_tsv=BLOCK_COORDINATES_TSV,
         snp_long=REGION_TRACK_DIR / "snp_positions_long.{marker_set}.tsv",
         fastas=CLEAN_FASTAS,

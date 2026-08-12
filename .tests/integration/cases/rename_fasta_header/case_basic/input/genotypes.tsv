@@ -1,2 +1,2 @@
 genotype	group	region_fasta	genome_fasta	source_seq	region_start
-Dic2		Dic2.fasta			1066
+Dic2		Dic2.fasta		chrA	1066

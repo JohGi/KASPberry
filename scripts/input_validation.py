@@ -20,6 +20,9 @@ ANNOTATION_COLUMNS = {
 def check_genotypes_table(df: pl.DataFrame) -> None:
     """Validate constraints involving the genotype table as a whole."""
 
+    if df.height == 0:
+        raise ValueError("Genotypes table must not be empty")
+
     missing = GENOTYPE_COLUMNS - set(df.columns)
     if missing:
         raise ValueError(
@@ -52,6 +55,21 @@ def check_genotypes_table(df: pl.DataFrame) -> None:
         raise ValueError(
             "Column 'group' must contain either no groups or exactly "
             f"two distinct groups. Found: {sorted(groups)}"
+        )
+
+    has_genome = pl.col("genome_fasta").is_not_null()
+    has_source = pl.col("source_seq").is_not_null()
+    has_start = pl.col("region_start").is_not_null()
+    incomplete_metadata = df.filter(
+        (has_genome & ~(has_source & has_start))
+        | (has_source ^ has_start)
+    )
+    if incomplete_metadata.height:
+        names = incomplete_metadata.get_column("genotype").to_list()
+        raise ValueError(
+            "genome_fasta, source_seq, and region_start must be provided "
+            "together in genotypes.tsv for: "
+            + ", ".join(names)
         )
 
 

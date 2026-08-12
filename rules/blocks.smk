@@ -1,6 +1,6 @@
 rule rename_fasta_header:
     input:
-        lambda wildcards: FASTA_BY_SAMPLE[wildcards.sample]
+        lambda wildcards: REGION_FASTA_BY_GENOTYPE[wildcards.sample]
     output:
         CLEAN_FASTA_DIR / "{sample}.fasta"
     benchmark:
@@ -73,7 +73,7 @@ rule filter_sibeliaz_blocks:
         stdout=LOG_DIR / "filter_sibeliaz_blocks" / "filter_sibeliaz_blocks.stdout",
         stderr=LOG_DIR / "filter_sibeliaz_blocks" / "filter_sibeliaz_blocks.stderr"
     params:
-        nb_samples=NB_SAMPLES,
+        nb_samples=NB_GENOTYPES,
         min_len=config.get("snps", {}).get("min_block_length", 450)
     shell:
         r"""
@@ -90,7 +90,7 @@ rule filter_sibeliaz_blocks:
 rule map_block_coordinates:
     input:
         gff=FILTERED_GFF,
-        samples_tsv=SAMPLES_TSV
+        samples_tsv=GENOTYPES_TSV
     output:
         BLOCK_COORDINATES_TSV
     benchmark:

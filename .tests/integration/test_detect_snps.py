@@ -33,7 +33,7 @@ def test_detect_snps_cases(
     integration_config_dir: Path,
     case: dict[str, str],
 ) -> None:
-    """Run integration tests for the collect_blocks checkpoint."""
+    """Run integration tests for SNP detection."""
     case_dir = integration_cases_dir / RULE_NAME / case["case_name"]
 
     copy_case_input(case_dir / "input", tmp_path)

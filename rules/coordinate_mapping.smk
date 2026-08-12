@@ -2,7 +2,7 @@ rule map_snp_coordinates:
     input:
         vcf=get_final_snp_output(),
         block_coords=BLOCK_COORDINATES_TSV,
-        samples_tsv=SAMPLES_TSV
+        samples_tsv=GENOTYPES_TSV
     output:
         long=SNP_POS_LONG_TSV,
         wide=SNP_POS_WIDE_TSV

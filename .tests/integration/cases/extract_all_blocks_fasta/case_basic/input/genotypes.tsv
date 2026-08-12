@@ -1,6 +1,6 @@
 genotype	group	region_fasta	genome_fasta	source_seq	region_start
-Karur		Karur.fasta			1096
-Soldur		Soldur.fasta			1263
-Belalur		Balalur.fasta			1029
-Lloyd		Lloyd.fasta			1045
-Dic2		Dic2.fasta			1066
+Karur		Karur.fasta		chrA	1096
+Soldur		Soldur.fasta		chrA	1263
+Belalur		Balalur.fasta		chrA	1029
+Lloyd		Lloyd.fasta		chrA	1045
+Dic2		Dic2.fasta		chrA	1066

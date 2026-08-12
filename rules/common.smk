@@ -17,73 +17,16 @@ wildcard_constraints:
     pair_id="[^/]+"
 
 
-def read_samples(samples_file: str) -> list[dict[str, str]]:
-    """Read genotype records using the legacy sample-oriented interface."""
-    records = read_genotypes(samples_file)
-    return [
-        {
-            "fasta": row["region_fasta"],
-            "sample": row["genotype"],
-            **row,
-        }
-        for row in records
-    ]
-
-
 def resolve_snp_filter_groups(
-    sample_names: list[str],
-    config: dict,
+    genotypes: list[dict[str, str]],
 ) -> tuple[list[str], list[str], bool]:
-    """Resolve SNP filtering groups from config.
-
-    If both groups are empty, SNP filtering is disabled.
-
-    If one group is empty and the other is not, the empty group is filled
-    with all samples not present in the non-empty group.
-
-    Returns:
-        A tuple containing:
-            - resolved group A
-            - resolved group B
-            - whether SNP filtering is enabled
-    """
-    groups = sorted({row["group"] for row in SAMPLES if row.get("group")})
-    group_a = [row["sample"] for row in SAMPLES if len(groups) == 2 and row.get("group") == groups[0]]
-    group_b = [row["sample"] for row in SAMPLES if len(groups) == 2 and row.get("group") == groups[1]]
-
-    if not group_a and not group_b:
+    """Resolve SNP filtering groups from the genotype table."""
+    groups = sorted({row["group"] for row in genotypes if row.get("group")})
+    if len(groups) != 2:
         return [], [], False
 
-    if False and not group_a:
-        excluded_samples = set(group_b)
-        group_a = [
-            sample for sample in sample_names
-            if sample not in excluded_samples
-        ]
-
-    if False and not group_b:
-        excluded_samples = set(group_a)
-        group_b = [
-            sample for sample in sample_names
-            if sample not in excluded_samples
-        ]
-
-    unknown_samples = sorted(
-        (set(group_a) | set(group_b)) - set(sample_names)
-    )
-    if unknown_samples:
-        raise ValueError(
-            f"Unknown sample names in snp_group_filtering groups: {unknown_samples}"
-        )
-
-    overlap_samples = sorted(set(group_a) & set(group_b))
-    if overlap_samples:
-        raise ValueError(
-            f"Samples cannot belong to both snp_group_filtering groups: {overlap_samples}"
-        )
-
-    if not group_a or not group_b:
-        raise ValueError("Resolved snp_group_filtering groups cannot be empty.")
+    group_a = [row["genotype"] for row in genotypes if row.get("group") == groups[0]]
+    group_b = [row["genotype"] for row in genotypes if row.get("group") == groups[1]]
 
     return group_a, group_b, True
 
@@ -131,7 +74,7 @@ def get_pair_sample_b(wildcards) -> str:
     return sample_b
 
 
-def get_gff_tracks(config, sample_names):
+def get_gff_tracks(config, genotype_names):
     """Return configured GFF tracks after validating their structure."""
 
     annotation_path = config.get("inputs", {}).get("annotations")
@@ -155,43 +98,10 @@ def get_gff_tracks(config, sample_names):
 
     check_annotations_table(
         annotations_df,
-        genotype_names=set(sample_names),
+        genotype_names=set(genotype_names),
     )
 
-    gff_tracks = read_annotations(annotation_path, set(sample_names))
-
-    if gff_tracks is None:
-        return {}
-
-    if not isinstance(gff_tracks, dict):
-        raise ValueError("Config key 'gff_tracks' must be a dictionary.")
-
-    unknown_samples = set(gff_tracks) - set(sample_names)
-    if unknown_samples:
-        raise ValueError(
-            "Unknown samples in gff_tracks: "
-            + ", ".join(sorted(unknown_samples))
-        )
-
-    for sample_name, sample_tracks in gff_tracks.items():
-        if not isinstance(sample_tracks, dict):
-            raise ValueError(
-                f"Config key 'gff_tracks.{sample_name}' must be a dictionary."
-            )
-
-        for track_name, gff_path in sample_tracks.items():
-            if not isinstance(track_name, str):
-                raise ValueError(
-                    f"Track names in gff_tracks.{sample_name} must be strings."
-                )
-
-            if not isinstance(gff_path, str):
-                raise ValueError(
-                    f"GFF path for gff_tracks.{sample_name}.{track_name} "
-                    "must be a string."
-                )
-
-    return gff_tracks
+    return read_annotations(annotation_path, set(genotype_names))
 
 
 def get_gff_track_files(gff_tracks):
@@ -297,9 +207,9 @@ def get_region_viewer_outputs():
     return [REGION_TRACK_HTML, *REGION_TRACK_SELECTED_HTMLS]
 
 SCHEMA_DIR = Path(workflow.current_basedir) / "../workflow/schemas"
-SAMPLES_TSV = Path(config["inputs"]["genotypes"])
+GENOTYPES_TSV = Path(config["inputs"]["genotypes"])
 GENOTYPES_DF = pl.read_csv(
-    SAMPLES_TSV,
+    GENOTYPES_TSV,
     separator="\t",
     null_values="",
 )
@@ -309,9 +219,11 @@ validate(
     set_default=False,
 )
 check_genotypes_table(GENOTYPES_DF)
-SAMPLES = read_samples(SAMPLES_TSV)
-SAMPLE_NAMES = [record["sample"] for record in SAMPLES]
-FASTA_BY_SAMPLE = {record["sample"]: record["fasta"] for record in SAMPLES}
+GENOTYPES = read_genotypes(GENOTYPES_TSV)
+GENOTYPE_NAMES = [record["genotype"] for record in GENOTYPES]
+REGION_FASTA_BY_GENOTYPE = {
+    record["genotype"]: record["region_fasta"] for record in GENOTYPES
+}
 
 OUTDIR = Path(config["project"]["output_dir"])
 SCRIPTS_DIR = Path(workflow.current_basedir) / "../scripts"
@@ -362,7 +274,7 @@ KIMURA2P_DISTMAT_CHUNK_DIR = KIMURA2P_DISTMAT_DIR / "chunks"
 LOG_DIR = OUTDIR / "logs"
 BENCHMARK_DIR = OUTDIR / "benchmarks"
 
-CLEAN_FASTAS = expand(CLEAN_FASTA_DIR / "{sample}.fasta", sample=SAMPLE_NAMES)
+CLEAN_FASTAS = expand(CLEAN_FASTA_DIR / "{sample}.fasta", sample=GENOTYPE_NAMES)
 ALL_GENOMES_FASTA = MULTIFASTA_DIR / "all_genomes.fasta"
 SIBELIAZ_GFF = SIBELIAZ_DIR / "blocks_coords.gff"
 FILTERED_GFF = FILTERED_BLOCKS_DIR / "filtered_blocks.gff"
@@ -375,7 +287,7 @@ GROUP_B_LIST = FILTERED_SNP_DIR / "group_b_samples.list"
 FILTERED_SNP_VCF = FILTERED_SNP_DIR / "filtered_snps.vcf"
 SNP_POS_LONG_TSV = SNP_POS_DIR / "snp_positions_long.tsv"
 SNP_POS_WIDE_TSV = SNP_POS_DIR / "snp_positions_wide.tsv"
-DOTPLOT_PAIRS = resolve_dotplot_pairs(SAMPLE_NAMES, config)
+DOTPLOT_PAIRS = resolve_dotplot_pairs(GENOTYPE_NAMES, config)
 DOTPLOT_PAIR_IDS = [build_pair_id(sample_a, sample_b) for sample_a, sample_b in DOTPLOT_PAIRS]
 DOTPLOT_PAFS = expand(
     DOTPLOT_PAF_DIR / "{pair_id}.paf",
@@ -413,16 +325,15 @@ REGION_TRACK_SELECTED_HTMLS = expand(
 MASHTREE_MATRIX = MASH_DISTANCES_DIR / "mashtree.matrix.tsv"
 MASHTREE_TREE = MASH_DISTANCES_DIR / "mashtree.dnd"
 MASKED_BLOCK_N_STATS_TSV = BLOCK_STATS_DIR / "masked_block_n_stats.tsv"
-GFF_TRACKS = get_gff_tracks(config, SAMPLE_NAMES)
+GFF_TRACKS = get_gff_tracks(config, GENOTYPE_NAMES)
 GFF_TRACK_FILES = get_gff_track_files(GFF_TRACKS)
 GFF_TRACKS_JSON = REGION_TRACK_DIR / "gff_tracks.json"
 
-NB_SAMPLES = len(SAMPLES)
+NB_GENOTYPES = len(GENOTYPES)
 te_lib_value = config.get("snps", {}).get("repeat_masking", {}).get("library", "")
 TE_LIB = Path(te_lib_value) if te_lib_value else None
 USE_MASKING = TE_LIB is not None
 
 SNP_FILTER_GROUP_A, SNP_FILTER_GROUP_B, USE_SNP_GROUP_FILTERING = resolve_snp_filter_groups(
-    sample_names=SAMPLE_NAMES,
-    config=config,
+    genotypes=GENOTYPES,
 )

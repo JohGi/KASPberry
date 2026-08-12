@@ -33,7 +33,7 @@ def test_map_block_coordinates_cases(
     integration_config_dir: Path,
     case: dict[str, str],
 ) -> None:
-    """Run integration tests for the collect_blocks checkpoint."""
+    """Run integration tests for block coordinate mapping."""
     case_dir = integration_cases_dir / RULE_NAME / case["case_name"]
 
     copy_case_input(case_dir / "input", tmp_path)

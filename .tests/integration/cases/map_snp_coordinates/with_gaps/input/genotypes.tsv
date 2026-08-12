@@ -1,4 +1,4 @@
 genotype	group	region_fasta	genome_fasta	source_seq	region_start
-SampleA	A	/path/to/SampleA.fasta			100
-SampleB	B	/path/to/SampleB.fasta			200
-SampleC		/path/to/SampleC.fasta			300
+SampleA	A	/path/to/SampleA.fasta		chrA	100
+SampleB	B	/path/to/SampleB.fasta		chrA	200
+SampleC		/path/to/SampleC.fasta		chrA	300
