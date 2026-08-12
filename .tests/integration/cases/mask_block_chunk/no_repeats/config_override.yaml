@@ -1,2 +1,3 @@
-repeat_masking:
-  te_lib: mini_TE_lib.fasta
+snps:
+  repeat_masking:
+    library: "mini_TE_lib.fasta"

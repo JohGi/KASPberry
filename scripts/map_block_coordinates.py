@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import logging
 from pathlib import Path
 
@@ -20,7 +21,7 @@ class SampleOffset:
     """Store the source-sequence start offset for one sample."""
 
     sample: str
-    zone_start_in_source_seq: int = 1
+    zone_start_in_source_seq: int | None = None
 
 
 @define(frozen=True)
@@ -127,30 +128,17 @@ def read_sample_offsets(samples_tsv_path: Path) -> dict[str, SampleOffset]:
     """Read per-sample source-sequence offsets from the samples TSV."""
     sample_offsets: dict[str, SampleOffset] = {}
 
-    with samples_tsv_path.open("r", encoding="utf-8") as handle:
-        for line_number, line in enumerate(handle, start=1):
-            stripped = line.rstrip("\n")
-            if not stripped.strip() or stripped.lstrip().startswith("#"):
-                continue
-
-            fields = stripped.split("\t")
-
-            if len(fields) < 2:
-                raise ValueError(
-                    f"Expected at least 2 tab-separated columns in {samples_tsv_path} "
-                    f"at line {line_number}: {line.rstrip()}"
-                )
-
-            sample = fields[1].strip()
+    with samples_tsv_path.open("r", encoding="utf-8", newline="") as handle:
+        for line_number, row in enumerate(csv.DictReader(handle, delimiter="\t"), start=2):
+            sample = (row.get("genotype") or "").strip()
             if not sample:
                 raise ValueError(
                     f"Empty sample name in {samples_tsv_path} at line {line_number}: "
                     f"{line.rstrip()}"
                 )
 
-            zone_start_in_source_seq = 1
-            if len(fields) >= 3 and fields[2].strip():
-                zone_start_in_source_seq = int(fields[2].strip())
+            value = (row.get("region_start") or "").strip()
+            zone_start_in_source_seq = int(value) if value else None
 
             sample_offsets[sample] = SampleOffset(
                 sample=sample,
@@ -185,10 +173,7 @@ def read_block_records(
             block_end_in_zone = int(fields[4])
             block_id = extract_block_id(fields[8], gff_path, line_number)
 
-            zone_start_in_source_seq = sample_offsets.get(
-                sample,
-                SampleOffset(sample=sample, zone_start_in_source_seq=1),
-            ).zone_start_in_source_seq
+            zone_start_in_source_seq = sample_offsets.get(sample, SampleOffset(sample)).zone_start_in_source_seq
 
             block_start_in_source_seq = compute_projected_position(
                 zone_start_in_source_seq,

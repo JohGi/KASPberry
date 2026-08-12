@@ -33,7 +33,7 @@ rule build_dotplot_manifest:
         mkdir -p "{DOTPLOT_COMBINED_DIR}" "$(dirname "{log.stdout}")"
 
         python3 "{SCRIPTS_DIR}/build_dotplot_manifest.py" \
-            --samples "{SAMPLES_TSV}" \
+            --genotypes "{SAMPLES_TSV}" \
             --svg-dir "{DOTPLOT_ONLY_SVG_DIR}" \
             --output "{output.manifest}" \
             1> "{log.stdout}" \

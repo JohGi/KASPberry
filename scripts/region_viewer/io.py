@@ -10,6 +10,7 @@ import json
 import logging
 import re
 import os
+import csv
 from urllib.parse import unquote
 
 from .models import BlockAlignment, BlockFeature, DistanceMatrix, DotplotRecord, GffGeneFeature, GffTrack, SampleData, SampleRecord, SnpFeature
@@ -20,34 +21,35 @@ COORD_SUFFIX_PATTERN = re.compile(r":\d+-\d+$")
 
 
 def read_samples(path: Path) -> list[SampleRecord]:
-    """Read the samples TSV."""
+    """Read genotype definitions from the KASPberry genotype table."""
     records: list[SampleRecord] = []
 
-    with path.open(encoding="utf-8") as handle:
-        for line_number, line in enumerate(handle, start=1):
-            stripped = line.strip()
-            if not stripped or stripped.startswith("#"):
-                continue
+    with path.open(newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
 
-            fields = stripped.split()
-            if len(fields) < 2:
-                raise ValueError(
-                    f"Expected at least 2 columns in samples TSV at line {line_number}: {line.rstrip()}"
-                )
+        if reader.fieldnames is None:
+            raise ValueError(f"Genotype table has no header: {path}")
 
-            fasta_path = Path(fields[0])
-            sample = fields[1]
-            zone_start = int(fields[2]) if len(fields) > 2 else 1
+        required_columns = {"genotype", "region_fasta", "region_start"}
+        missing_columns = required_columns - set(reader.fieldnames)
+
+        if missing_columns:
+            raise ValueError(
+                f"Missing required columns in genotype table {path}: "
+                f"{sorted(missing_columns)}"
+            )
+
+        for row in reader:
             records.append(
                 SampleRecord(
-                    fasta_path=fasta_path,
-                    sample=sample,
-                    zone_start_in_source_seq=zone_start,
+                    fasta_path=Path(row["region_fasta"]),
+                    sample=row["genotype"],
+                    zone_start_in_source_seq=int(row["region_start"]),
                 )
             )
 
     if not records:
-        raise ValueError(f"Samples TSV is empty: {path}")
+        raise ValueError(f"Genotype table is empty: {path}")
 
     return records
 

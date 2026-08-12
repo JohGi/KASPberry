@@ -106,24 +106,34 @@ def build_config_from_args(args: argparse.Namespace) -> GalleryConfig:
 
 
 def read_samples(samples_path: Path) -> list[SampleRecord]:
-    """Read samples from a tab-separated sample sheet."""
+    """Read samples from the KASPberry genotype table."""
     records: list[SampleRecord] = []
 
     with open(samples_path, newline="", encoding="utf-8") as handle:
-        reader = csv.reader(handle, delimiter="\t")
+        reader = csv.DictReader(handle, delimiter="\t")
+
+        if reader.fieldnames is None:
+            raise ValueError(f"Genotype table has no header: {samples_path}")
+
+        required_columns = {"genotype", "region_fasta"}
+        missing_columns = required_columns - set(reader.fieldnames)
+
+        if missing_columns:
+            raise ValueError(
+                f"Missing required columns in genotype table {samples_path}: "
+                f"{sorted(missing_columns)}"
+            )
+
         for row in reader:
-            if not row:
-                continue
-            if len(row) not in {2, 3}:
-                raise ValueError(
-                    f"Invalid line in sample sheet {samples_path!r}: "
-                    f"expected 2 or 3 tab-separated columns, got {len(row)} -> {row!r}"
+            records.append(
+                SampleRecord(
+                    fasta=row["region_fasta"],
+                    sample=row["genotype"],
                 )
-            fasta_path, sample_name = row[:2]
-            records.append(SampleRecord(fasta=str(fasta_path), sample=sample_name))
+            )
 
     if not records:
-        raise ValueError(f"Sample sheet {samples_path!r} is empty.")
+        raise ValueError(f"Genotype table is empty: {samples_path}")
 
     return records
 

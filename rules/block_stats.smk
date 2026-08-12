@@ -36,7 +36,7 @@ rule align_unmasked_block_chunk:
         fasta_dir=str(BLOCK_FASTA_SPLIT_DIR),
         outdir=str(UNMASKED_ALIGN_DIR),
         fasta_suffix=".fasta",
-        extra_options=config["mafft"]["extra_options"]
+        extra_options=" ".join(config.get("advanced", {}).get("alignment", {}).get("mafft_options", []))
     shell:
         r"""
         mkdir -p "{params.outdir}" "$(dirname "{log.stdout}")"

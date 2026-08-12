@@ -1,6 +1,8 @@
 const REGION_DATA = {{ REGION_DATA }};
 const CONFIG = {{ CONFIG }};
 
+Konva.pixelRatio = 1;
+
 const SCROLLBAR = {
   height: 18,
   bottomPadding: 10,
@@ -724,23 +726,36 @@ function renderGlobalSummaryStats() {
 }
 
 function formatSnpGroups(settings) {
-  const groupA = settings.snp_group_a || [];
-  const groupB = settings.snp_group_b || [];
+  const groups = settings.snp_groups || {};
 
-  if (groupA.length === 0 && groupB.length === 0) {
+  const entries = Object.entries(groups);
+
+  if (entries.length === 0) {
     return "none";
   }
 
-  if (groupA.length === 0) {
-    return `all other samples vs ${groupB.join(", ")}`;
-  }
-
-  if (groupB.length === 0) {
-    return `${groupA.join(", ")} vs all other samples`;
-  }
-
-  return `${groupA.join(", ")} vs ${groupB.join(", ")}`;
+  return entries
+    .map(([group, samples]) => `${group}: ${samples.join(", ")}`)
+    .join(" | ");
 }
+// function formatSnpGroups(settings) {
+//   const groupA = settings.snp_group_a || [];
+//   const groupB = settings.snp_group_b || [];
+
+//   if (groupA.length === 0 && groupB.length === 0) {
+//     return "none";
+//   }
+
+//   if (groupA.length === 0) {
+//     return `all other samples vs ${groupB.join(", ")}`;
+//   }
+
+//   if (groupB.length === 0) {
+//     return `${groupA.join(", ")} vs all other samples`;
+//   }
+
+//   return `${groupA.join(", ")} vs ${groupB.join(", ")}`;
+// }
 
 function renderAnalysisSettings() {
   const settings = REGION_DATA.analysis_settings;

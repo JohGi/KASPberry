@@ -1,0 +1,43 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+
+title: KASPberry genotype table
+description: Schema for rows of the KASPberry genotypes.tsv input table.
+
+type: object
+additionalProperties: false
+
+required:
+  - genotype
+  - region_fasta
+
+properties:
+
+  genotype:
+    type: string
+    minLength: 1
+    description: Unique genotype identifier.
+
+  group:
+    type: string
+    minLength: 1
+    description: Optional diagnostic group.
+
+  region_fasta:
+    type: string
+    minLength: 1
+    description: FASTA file containing the genomic region analysed for this genotype.
+
+  genome_fasta:
+    type: string
+    minLength: 1
+    description: Optional whole-genome FASTA used for KASP assay validation.
+
+  source_seq:
+    type: string
+    minLength: 1
+    description: Optional identifier of the source sequence containing the analysed region.
+
+  region_start:
+    type: integer
+    minimum: 1
+    description: Optional 1-based start coordinate of the regional FASTA in the source sequence.

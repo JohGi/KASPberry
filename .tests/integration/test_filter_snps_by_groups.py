@@ -55,7 +55,6 @@ def test_filter_snps_by_groups_cases(
     configfile = prepare_test_config(
         base_config=integration_config_dir / "base_config.yaml",
         workdir=tmp_path,
-        override_config=case_dir / "config_override.yaml",
     )
 
     # Run Snakemake

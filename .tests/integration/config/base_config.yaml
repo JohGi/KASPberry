@@ -1,24 +1,26 @@
-samples: samples.tsv
-outdir: results
+project:
+  name: "Integration test"
+  output_dir: results
 
-sibeliaz:
-  min_block_len: ""
+inputs:
+  genotypes: genotypes.tsv
+  annotations: null
 
-block_filtering:
-  min_len: ""
+snps:
+  min_block_length: 1
+  min_snp_flank: 0
+  repeat_masking:
+    library: null
 
-repeat_masking:
-  te_lib: ""
+viewer:
+  dotplot_reference: null
 
-mafft:
-  extra_options: ""
+advanced:
+  sibeliaz:
+    extra_options: []
 
-snp_detection:
-  min_flank: ""
+  batching:
+    blocks_per_chunk: 1
 
-snp_group_filtering:
-  group_a: []
-  group_b: []
-
-batching:
-  blocks_per_job: ""
+  alignment:
+    mafft_options: []

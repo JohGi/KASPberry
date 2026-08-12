@@ -1,42 +1,27 @@
-samples: dev/integration_case_builder/dataset/generated/samples.tsv
-outdir: results
+project:
+  name: "Test dataset"
+  output_dir: results
 
-sibeliaz:
-  min_block_len: 30
+inputs:
+  genotypes: dev/integration_case_builder/dataset/generated/genotypes.tsv
+  annotations: dev/integration_case_builder/dataset/annotations.tsv
 
-block_filtering:
-  min_len: 450
+snps:
+  min_block_length: 450
+  min_snp_flank: 0
+  repeat_masking:
+    library: ".tests/integration/resources/mini_TE_lib.fasta"
 
-repeat_masking:
-  te_lib: ".tests/integration/resources/mini_TE_lib.fasta"
+kasp:
+  polymarker_genomes: 2
 
-mafft:
-  extra_options: "" #--genafpair --maxiterate 1000
+viewer:
+  dotplot_reference: null
 
-snp_detection:
-  min_flank: 0 #100
-
-snp_group_filtering:
-  group_a:
-    - Karur
-  group_b:
-    - Soldur
-
-batching:
-  blocks_per_job: 2
-
-visualization:
-  dotplot_pivot: ""
-  title: "Test dataset"
-  selected_marker_sets:
-    "OK KASP": "dev/integration_case_builder/dataset/selected_snps/ok_kasp.tsv"
-    "OK PCR in silico": "dev/integration_case_builder/dataset/selected_snps/ok_pcr.tsv"
-
-gff_tracks:
-  Belalur:
-    LiftOn (Svevo2) genes: "dev/integration_case_builder/dataset/gffs/Belalur_all.gff"
-    LRR genes: "dev/integration_case_builder/dataset/gffs/Belalur_LRR.gff"
-  Dic2:
-    LiftOn (Svevo2) genes: "dev/integration_case_builder/dataset/gffs/Dic2_all.gff"
-  Soldur:
-    WAK genes: "dev/integration_case_builder/dataset/gffs/Soldur_wak.gff"
+advanced:
+  sibeliaz:
+    extra_options: []
+  batching:
+    blocks_per_chunk: 2
+  alignment:
+    mafft_options: []

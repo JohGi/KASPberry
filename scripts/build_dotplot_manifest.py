@@ -17,31 +17,41 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Build a JSON manifest for pairwise dotplot-only SVG files."
     )
-    parser.add_argument("--samples", required=True, help="Input sample sheet TSV.")
+    parser.add_argument("--genotypes", required=True, help="Input genotype TSV.")
     parser.add_argument("--svg-dir", required=True, help="Directory containing SVG files.")
     parser.add_argument("--output", required=True, help="Output JSON manifest path.")
     return parser.parse_args()
 
 
-def read_sample_names(samples_path: Path) -> list[str]:
-    """Read sample names from a 2- or 3-column sample sheet."""
-    sample_names: list[str] = []
+def read_genotype_names(genotypes_path: Path) -> list[str]:
+    """Read genotype names from the KASPberry genotype table."""
+    genotype_names: list[str] = []
 
-    with samples_path.open(newline="", encoding="utf-8") as handle:
-        reader = csv.reader(handle, delimiter="\t")
+    with genotypes_path.open(newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+
+        if reader.fieldnames is None:
+            raise ValueError(f"Genotype table has no header: {genotypes_path}")
+
+        if "genotype" not in reader.fieldnames:
+            raise ValueError(
+                f"Missing required 'genotype' column in {genotypes_path}"
+            )
+
         for row in reader:
-            if not row:
-                continue
-            if len(row) not in {2, 3}:
+            genotype = row["genotype"].strip()
+
+            if not genotype:
                 raise ValueError(
-                    f"Invalid line in {samples_path}: expected 2 or 3 columns, got {len(row)}."
+                    f"Empty genotype name in {genotypes_path}"
                 )
-            sample_names.append(row[1])
 
-    if not sample_names:
-        raise ValueError(f"Sample sheet is empty: {samples_path}")
+            genotype_names.append(genotype)
 
-    return sample_names
+    if not genotype_names:
+        raise ValueError(f"Genotype table is empty: {genotypes_path}")
+
+    return genotype_names
 
 
 def build_pair_id(sample_a: str, sample_b: str) -> str:
@@ -96,9 +106,10 @@ def main() -> None:
     args = parse_args()
     output_path = Path(args.output)
 
-    sample_names = read_sample_names(Path(args.samples))
+    genotype_names = read_genotype_names(Path(args.genotypes))
+
     records = build_dotplot_records(
-        sample_names=sample_names,
+        sample_names=genotype_names,
         svg_dir=Path(args.svg_dir),
         output_path=output_path,
     )

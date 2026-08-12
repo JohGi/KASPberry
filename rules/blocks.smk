@@ -48,14 +48,14 @@ rule run_sibeliaz:
     threads: 1
     params:
         outdir=str(SIBELIAZ_DIR),
-        min_block_len=config["sibeliaz"]["min_block_len"]
+        extra_options=config.get("advanced", {}).get("sibeliaz", {}).get("extra_options", [])
     shell:
         r"""
         mkdir -p "{params.outdir}" "$(dirname "{log.stdout}")"
         sibeliaz \
             -n \
             -t {threads} \
-            -f {params.min_block_len} \
+            {params.extra_options} \
             -o "{params.outdir}" \
             {input} \
             1> "{log.stdout}" \
@@ -74,7 +74,7 @@ rule filter_sibeliaz_blocks:
         stderr=LOG_DIR / "filter_sibeliaz_blocks" / "filter_sibeliaz_blocks.stderr"
     params:
         nb_samples=NB_SAMPLES,
-        min_len=config["block_filtering"]["min_len"]
+        min_len=config.get("snps", {}).get("min_block_length", 450)
     shell:
         r"""
         mkdir -p "{FILTERED_BLOCKS_DIR}" "$(dirname "{log.stdout}")"
@@ -185,7 +185,7 @@ checkpoint split_block_list_into_chunks:
         stdout=LOG_DIR / "split_block_list_into_chunks" / "split_block_list_into_chunks.stdout",
         stderr=LOG_DIR / "split_block_list_into_chunks" / "split_block_list_into_chunks.stderr"
     params:
-        chunk_size=config["batching"]["blocks_per_job"]
+        chunk_size=config.get("advanced", {}).get("batching", {}).get("blocks_per_chunk", 2)
     shell:
         r"""
         mkdir -p "{FILTERED_BLOCKS_DIR}" "$(dirname "{log.stdout}")"

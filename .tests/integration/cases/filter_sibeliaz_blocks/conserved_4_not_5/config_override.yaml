@@ -1,2 +1,2 @@
-block_filtering:
-  min_len: 450
+snps:
+  min_block_length: 450

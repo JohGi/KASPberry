@@ -10,7 +10,7 @@ __pycache__/
 *.pyc
 
 # Workflow outputs
-/results/
+/results*/
 logs/
 
 # OS/editor noise

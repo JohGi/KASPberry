@@ -1,7 +1,7 @@
 [workspace]
 authors = ["JohGi <tjohanna.girodolle@gmail.com>"]
 channels = ["conda-forge", "bioconda"]
-name = "from_fasta_to_snps"
+name = "kaspberry"
 platforms = ["linux-64"]
 version = "0.1.0"
 

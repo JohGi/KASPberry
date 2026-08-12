@@ -472,9 +472,9 @@ class DatasetWriter:
         """Return the pseudo-chromosome FASTA output directory."""
         return self.output_dir / "pseudochromosomes"
 
-    def samples_tsv_path(self) -> Path:
-        """Return the samples.tsv path."""
-        return self.output_dir / "samples.tsv"
+    def genotypes_tsv_path(self) -> Path:
+        """Return the public genotypes.tsv path."""
+        return self.output_dir / "genotypes.tsv"
 
     def qtl_summary_tsv_path(self) -> Path:
         """Return the QTL summary TSV path."""
@@ -512,16 +512,18 @@ class DatasetWriter:
                 output_path=self.pseudochromosome_fasta_path(genotype_name),
             )
 
-    def write_samples_tsv(self, records: dict[str, PseudoChromosomeRecord]) -> None:
-        """Write the samples.tsv file."""
-        with self.samples_tsv_path().open("w", encoding="utf-8") as handle:
+    def write_genotypes_tsv(self, records: dict[str, PseudoChromosomeRecord]) -> None:
+        """Write the headered genotypes.tsv file."""
+        with self.genotypes_tsv_path().open("w", encoding="utf-8") as handle:
+            handle.write("genotype\tgroup\tregion_fasta\tgenome_fasta\tsource_seq\tregion_start\n")
             for genotype_name in GENOTYPE_NAMES:
                 record = records[genotype_name]
                 qtl_fasta_path = self.qtl_fasta_path(genotype_name)
+                genome_fasta_path = self.pseudochromosome_fasta_path(genotype_name)
+                group = {"Karur": "A", "Soldur": "B"}.get(genotype_name, "")
                 handle.write(
-                    f"{qtl_fasta_path}\t"
-                    f"{record.genotype_name}\t"
-                    f"{record.qtl_start_1based}\n"
+                    f"{genotype_name}\t{group}\t{qtl_fasta_path}\t{genome_fasta_path}\t"
+                    f"{self.fasta_record_name(genotype_name)}\t{record.qtl_start_1based}\n"
                 )
 
     def write_summary_tsvs(self, records: dict[str, PseudoChromosomeRecord]) -> None:
@@ -600,7 +602,7 @@ def main() -> None:
     dataset_writer = DatasetWriter(output_dir=Path(args.output_dir))
     dataset_writer.create_directories()
     dataset_writer.write_fastas(records)
-    dataset_writer.write_samples_tsv(records)
+    dataset_writer.write_genotypes_tsv(records)
     dataset_writer.write_summary_tsvs(records)
 
 

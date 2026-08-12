@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import logging
 from pathlib import Path
 
@@ -44,7 +45,7 @@ class LongRow:
     pos_in_block: int | None
     block_start_in_zone: int | None
     pos_in_zone: int | None
-    zone_start_in_source_seq: int
+    zone_start_in_source_seq: int | None
     pos_in_source_seq: int | None
 
 
@@ -223,10 +224,7 @@ class SnpPositionProjector:
         for sample in self.sample_order:
             projection = projector.get_projection(variant.aln_pos, sample)
             block_start_in_zone = self.block_starts_in_zone.get((variant.block_id, sample))
-            zone_start_in_source_seq = self.sample_offsets.get(
-                sample,
-                SampleOffset(sample=sample, zone_start_in_source_seq=1),
-            ).zone_start_in_source_seq
+            zone_start_in_source_seq = self.sample_offsets.get(sample, SampleOffset(sample)).zone_start_in_source_seq
             pos_in_zone = compute_projected_position(block_start_in_zone, projection.pos_in_block)
             pos_in_source_seq = compute_projected_position(
                 zone_start_in_source_seq,
@@ -385,23 +383,10 @@ def read_sample_offsets(samples_tsv_path: Path) -> dict[str, SampleOffset]:
     """Read per-sample source-sequence offsets from the workflow samples TSV."""
     sample_offsets: dict[str, SampleOffset] = {}
 
-    with samples_tsv_path.open("r", encoding="utf-8") as handle:
-        for line_number, line in enumerate(handle, start=1):
-            stripped = line.rstrip("\n")
-            if not stripped.strip() or stripped.lstrip().startswith("#"):
-                continue
-
-            fields = stripped.split("\t")
-            if len(fields) < 2:
-                raise ValueError(
-                    f"Expected at least 2 columns in samples TSV at line {line_number}: {line.rstrip()}"
-                )
-
-            sample = fields[1].strip()
-            zone_start_in_source_seq = 1
-
-            if len(fields) >= 3 and fields[2].strip():
-                zone_start_in_source_seq = int(fields[2].strip())
+    with samples_tsv_path.open("r", encoding="utf-8", newline="") as handle:
+        for row in csv.DictReader(handle, delimiter="\t"):
+            sample = (row.get("genotype") or "").strip()
+            zone_start_in_source_seq = int(row["region_start"]) if (row.get("region_start") or "").strip() else 1
 
             sample_offsets[sample] = SampleOffset(
                 sample=sample,

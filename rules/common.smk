@@ -1,8 +1,16 @@
+from snakemake.utils import validate
 from pathlib import Path
 import csv
 import re
+import polars as pl
 from itertools import combinations
-
+import sys
+sys.path.insert(0, str(Path(workflow.current_basedir) / "../scripts"))
+from genotypes import read_genotypes, read_annotations
+from input_validation import (
+    check_genotypes_table,
+    check_annotations_table,
+)
 
 wildcard_constraints:
     sample="[^/]+",
@@ -10,35 +18,16 @@ wildcard_constraints:
 
 
 def read_samples(samples_file: str) -> list[dict[str, str]]:
-    """Read a sample sheet with 2 or 3 tab-separated columns.
-
-    Only the first two columns are used:
-        1. FASTA path
-        2. Sample name
-    """
-    records = []
-    with open(samples_file, newline="") as handle:
-        reader = csv.reader(handle, delimiter="\t")
-        for row in reader:
-            if not row:
-                continue
-            if len(row) not in {2, 3}:
-                raise ValueError(
-                    f"Invalid line in sample sheet {samples_file!r}: "
-                    f"expected 2 or 3 tab-separated columns, got {len(row)} -> {row!r}"
-                )
-            fasta_path, sample_name = row[:2]
-            records.append(
-                {
-                    "fasta": str(fasta_path),
-                    "sample": sample_name,
-                }
-            )
-
-    if not records:
-        raise ValueError(f"Sample sheet {samples_file!r} is empty.")
-
-    return records
+    """Read genotype records using the legacy sample-oriented interface."""
+    records = read_genotypes(samples_file)
+    return [
+        {
+            "fasta": row["region_fasta"],
+            "sample": row["genotype"],
+            **row,
+        }
+        for row in records
+    ]
 
 
 def resolve_snp_filter_groups(
@@ -58,24 +47,21 @@ def resolve_snp_filter_groups(
             - resolved group B
             - whether SNP filtering is enabled
     """
-    group_a = list(
-        dict.fromkeys(config.get("snp_group_filtering", {}).get("group_a", []))
-    )
-    group_b = list(
-        dict.fromkeys(config.get("snp_group_filtering", {}).get("group_b", []))
-    )
+    groups = sorted({row["group"] for row in SAMPLES if row.get("group")})
+    group_a = [row["sample"] for row in SAMPLES if len(groups) == 2 and row.get("group") == groups[0]]
+    group_b = [row["sample"] for row in SAMPLES if len(groups) == 2 and row.get("group") == groups[1]]
 
     if not group_a and not group_b:
         return [], [], False
 
-    if not group_a:
+    if False and not group_a:
         excluded_samples = set(group_b)
         group_a = [
             sample for sample in sample_names
             if sample not in excluded_samples
         ]
 
-    if not group_b:
+    if False and not group_b:
         excluded_samples = set(group_a)
         group_b = [
             sample for sample in sample_names
@@ -106,14 +92,14 @@ def resolve_dotplot_pairs(
     config: dict,
 ) -> list[tuple[str, str]]:
     """Resolve pairwise dotplot comparisons from config."""
-    pivot = str(config.get("visualization", {}).get("dotplot_pivot", "")).strip()
+    pivot = str(config.get("viewer", {}).get("dotplot_reference") or "").strip()
 
     if not pivot:
         return list(combinations(sample_names, 2))
 
     if pivot not in sample_names:
         raise ValueError(
-            f"Unknown visualization.dotplot_pivot: {pivot!r}. "
+            f"Unknown viewer.dotplot_reference: {pivot!r}. "
             f"Expected one of: {sample_names}"
         )
 
@@ -147,7 +133,32 @@ def get_pair_sample_b(wildcards) -> str:
 
 def get_gff_tracks(config, sample_names):
     """Return configured GFF tracks after validating their structure."""
-    gff_tracks = config.get("gff_tracks", {})
+
+    annotation_path = config.get("inputs", {}).get("annotations")
+
+    if not annotation_path:
+        return {}
+
+    annotation_path = Path(annotation_path)
+
+    annotations_df = pl.read_csv(
+        annotation_path,
+        separator="\t",
+        null_values="",
+    )
+
+    validate(
+        annotations_df,
+        SCHEMA_DIR / "annotations.schema.yaml",
+        set_default=False,
+    )
+
+    check_annotations_table(
+        annotations_df,
+        genotype_names=set(sample_names),
+    )
+
+    gff_tracks = read_annotations(annotation_path, set(sample_names))
 
     if gff_tracks is None:
         return {}
@@ -285,17 +296,28 @@ def get_region_viewer_outputs():
     """Return all region viewer HTML outputs."""
     return [REGION_TRACK_HTML, *REGION_TRACK_SELECTED_HTMLS]
 
-
-SAMPLES_TSV = Path(config["samples"])
+SCHEMA_DIR = Path(workflow.current_basedir) / "../workflow/schemas"
+SAMPLES_TSV = Path(config["inputs"]["genotypes"])
+GENOTYPES_DF = pl.read_csv(
+    SAMPLES_TSV,
+    separator="\t",
+    null_values="",
+)
+validate(
+    GENOTYPES_DF,
+    SCHEMA_DIR / "genotypes.schema.yaml",
+    set_default=False,
+)
+check_genotypes_table(GENOTYPES_DF)
 SAMPLES = read_samples(SAMPLES_TSV)
 SAMPLE_NAMES = [record["sample"] for record in SAMPLES]
 FASTA_BY_SAMPLE = {record["sample"]: record["fasta"] for record in SAMPLES}
 
-OUTDIR = Path(config["outdir"])
+OUTDIR = Path(config["project"]["output_dir"])
 SCRIPTS_DIR = Path(workflow.current_basedir) / "../scripts"
-PROJECT_TITLE = config.get("visualization", {}).get("title", "Project")
-VISUALIZATION_CONFIG = config.get("visualization", {})
-SELECTED_MARKER_SETS = VISUALIZATION_CONFIG.get("selected_marker_sets", {})
+PROJECT_TITLE = config.get("project", {}).get("name", "Project")
+VISUALIZATION_CONFIG = config.get("viewer", {})
+SELECTED_MARKER_SETS = {}
 
 SELECTED_MARKER_SETS_BY_SLUG = {
     slugify_marker_set_name(name): {
@@ -396,7 +418,7 @@ GFF_TRACK_FILES = get_gff_track_files(GFF_TRACKS)
 GFF_TRACKS_JSON = REGION_TRACK_DIR / "gff_tracks.json"
 
 NB_SAMPLES = len(SAMPLES)
-te_lib_value = config.get("repeat_masking", {}).get("te_lib", "")
+te_lib_value = config.get("snps", {}).get("repeat_masking", {}).get("library", "")
 TE_LIB = Path(te_lib_value) if te_lib_value else None
 USE_MASKING = TE_LIB is not None
 

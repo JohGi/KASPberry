@@ -1,0 +1,29 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+
+title: KASPberry annotation table
+description: Schema for rows of the optional KASPberry annotations.tsv input table.
+
+type: object
+additionalProperties: false
+
+required:
+  - genotype
+  - track
+  - gff
+
+properties:
+
+  genotype:
+    type: string
+    minLength: 1
+    description: Genotype to which the annotation track belongs.
+
+  track:
+    type: string
+    minLength: 1
+    description: Display name of the annotation track.
+
+  gff:
+    type: string
+    minLength: 1
+    description: Path to the GFF/GFF3 annotation file.

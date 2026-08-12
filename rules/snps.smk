@@ -42,7 +42,7 @@ rule align_block_chunk:
     params:
         fasta_dir=get_alignment_fasta_dir(),
         outdir=str(ALIGN_DIR),
-        extra_options=config["mafft"]["extra_options"]
+        extra_options=" ".join(config.get("advanced", {}).get("alignment", {}).get("mafft_options", []))
     shell:
         r"""
         mkdir -p "{ALIGN_DIR}" "$(dirname "{log.stdout}")"
@@ -69,7 +69,7 @@ rule detect_snps:
         stdout=LOG_DIR / "detect_snps" / "detect_snps.stdout",
         stderr=LOG_DIR / "detect_snps" / "detect_snps.stderr"
     params:
-        min_flank=config["snp_detection"]["min_flank"]
+        min_flank=config.get("snps", {}).get("min_snp_flank", 0)
     shell:
         r"""
         mkdir -p "{SNP_DIR}" "$(dirname "{log.stdout}")"

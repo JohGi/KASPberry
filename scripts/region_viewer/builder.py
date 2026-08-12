@@ -35,12 +35,11 @@ from .models import BlockFeature
 from .payload import build_region_payload, build_sample_data
 
 
-def read_analysis_settings(config_yaml_path: Path | None) -> dict[str, object]:
-    """Extract display-relevant analysis settings from the pipeline config YAML.
+import csv
 
-    Returns an empty dict if the path is None, missing, or unreadable.
-    Missing individual keys are represented as None or empty lists.
-    """
+
+def read_analysis_settings(config_yaml_path: Path | None) -> dict[str, object]:
+    """Extract display-relevant analysis settings from the pipeline config."""
     if config_yaml_path is None:
         return {}
 
@@ -50,22 +49,30 @@ def read_analysis_settings(config_yaml_path: Path | None) -> dict[str, object]:
         LOGGER.warning("Could not read config YAML: %s", config_yaml_path)
         return {}
 
-    block_filtering = raw.get("block_filtering") or {}
-    snp_detection = raw.get("snp_detection") or {}
-    snp_group_filtering = raw.get("snp_group_filtering") or {}
+    snps = raw.get("snps") or {}
 
-    min_len = block_filtering.get("min_len")
-    min_flank = snp_detection.get("min_flank")
-    group_a = list(snp_group_filtering.get("group_a") or [])
-    group_b = list(snp_group_filtering.get("group_b") or [])
+    min_len = snps.get("min_block_length")
+    min_flank = snps.get("min_snp_flank")
+
+    genotype_path = Path(raw["inputs"]["genotypes"])
+
+    groups: dict[str, list[str]] = {}
+
+    with genotype_path.open(newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+
+        for row in reader:
+            genotype = row["genotype"].strip()
+            group = row["group"].strip()
+
+            if group:
+                groups.setdefault(group, []).append(genotype)
 
     return {
         "minimum_block_length_bp": int(min_len) if min_len is not None else None,
         "minimum_snp_flank_bp": int(min_flank) if min_flank is not None else None,
-        "snp_group_a": group_a,
-        "snp_group_b": group_b,
+        "snp_groups": groups,
     }
-
 
 @define
 class RegionOverviewBuilder:

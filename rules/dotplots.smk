@@ -112,7 +112,9 @@ rule build_dotplot_gallery_html:
         stdout=LOG_DIR / "build_dotplot_gallery_html" / "dotplots_gallery.stdout",
         stderr=LOG_DIR / "build_dotplot_gallery_html" / "dotplots_gallery.stderr"
     params:
-        pivot=lambda wildcards: str(config.get("visualization", {}).get("dotplot_pivot", "")).strip()
+        pivot=lambda wildcards: str(
+            config.get("viewer", {}).get("dotplot_reference") or ""
+        ).strip()
     shell:
         r"""
         mkdir -p "{DOTPLOT_COMBINED_DIR}" "$(dirname "{log.stdout}")"
