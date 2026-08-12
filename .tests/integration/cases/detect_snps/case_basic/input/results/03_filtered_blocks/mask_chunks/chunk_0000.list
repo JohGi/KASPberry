@@ -1,0 +1,13 @@
+01_valid
+02_near_snp_too_close
+03_near_snp_exact_threshold
+04_near_gap
+05_near_N
+06_near_triallelic
+07_triallelic_site
+08_missing_N_at_snp
+09_gap_at_snp
+10_near_start
+11_at_start_threshold
+12_near_end
+13_at_end_threshold

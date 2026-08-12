@@ -1,0 +1,4 @@
+genotype	group	region_fasta	genome_fasta	source_seq	region_start
+SampleA		SampleA.fasta			
+SampleB		SampleB.fasta			
+SampleC		SampleC.fasta			

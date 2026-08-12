@@ -1,0 +1,5 @@
+block_id	sample	block_start_in_zone	block_end_in_zone	block_start_in_source_seq	block_end_in_source_seq
+2	SampleA	10	15	1009	1014
+2	SampleB	40	45	40	45
+10	SampleA	30	35	1029	1034
+10	SampleB	20	30	20	30

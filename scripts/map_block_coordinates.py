@@ -21,7 +21,7 @@ class SampleOffset:
     """Store the source-sequence start offset for one sample."""
 
     sample: str
-    zone_start_in_source_seq: int | None = None
+    zone_start_in_source_seq: int = 1
 
 
 @define(frozen=True)
@@ -129,23 +129,32 @@ def read_sample_offsets(samples_tsv_path: Path) -> dict[str, SampleOffset]:
     sample_offsets: dict[str, SampleOffset] = {}
 
     with samples_tsv_path.open("r", encoding="utf-8", newline="") as handle:
-        for line_number, row in enumerate(csv.DictReader(handle, delimiter="\t"), start=2):
+        for line_number, row in enumerate(
+            csv.DictReader(handle, delimiter="\t"),
+            start=2,
+        ):
             sample = (row.get("genotype") or "").strip()
+
             if not sample:
                 raise ValueError(
-                    f"Empty sample name in {samples_tsv_path} at line {line_number}: "
-                    f"{line.rstrip()}"
+                    f"Empty sample name in {samples_tsv_path} "
+                    f"at line {line_number}"
                 )
 
             value = (row.get("region_start") or "").strip()
-            zone_start_in_source_seq = int(value) if value else None
+            zone_start_in_source_seq = int(value) if value else 1
 
             sample_offsets[sample] = SampleOffset(
                 sample=sample,
                 zone_start_in_source_seq=zone_start_in_source_seq,
             )
 
-    LOGGER.info("Read %d sample offsets from %s", len(sample_offsets), samples_tsv_path)
+    LOGGER.info(
+        "Read %d sample offsets from %s",
+        len(sample_offsets),
+        samples_tsv_path,
+    )
+
     return sample_offsets
 
 
