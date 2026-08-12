@@ -22,7 +22,7 @@ rule compute_masked_block_n_stats:
 
 rule align_unmasked_block_chunk:
     input:
-        chunk_list=get_unmasked_chunk_list,
+        chunk_list=MASK_CHUNK_DIR / "{chunk_id}.list",
         split_block_dir=get_split_block_dir
     output:
         UNMASKED_ALIGN_DIR / "{chunk_id}.done"

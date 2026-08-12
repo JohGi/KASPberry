@@ -1,3 +1,76 @@
+import re
+from pathlib import Path
+import polars as pl
+from snakemake.utils import validate
+from genotypes import read_annotations
+from input_validation import check_annotations_table
+
+
+def get_gff_tracks(config, genotype_names):
+    """Return configured GFF tracks after validating their structure."""
+    annotation_path = config.get("inputs", {}).get("annotations")
+    if not annotation_path:
+        return {}
+
+    annotation_path = Path(annotation_path)
+    annotations_df = pl.read_csv(annotation_path, separator="\t", null_values="")
+    validate(
+        annotations_df,
+        SCHEMA_DIR / "annotations.schema.yaml",
+        set_default=False,
+    )
+    check_annotations_table(annotations_df, genotype_names=set(genotype_names))
+    return read_annotations(annotation_path)
+
+
+def get_gff_track_files(gff_tracks):
+    """Return all configured GFF track files."""
+    return [
+        gff_path
+        for sample_tracks in gff_tracks.values()
+        for gff_path in sample_tracks.values()
+    ]
+
+
+GFF_TRACKS = get_gff_tracks(config, GENOTYPE_NAMES)
+GFF_TRACK_FILES = get_gff_track_files(GFF_TRACKS)
+
+
+def slugify_marker_set_name(name: str) -> str:
+    """Convert a marker set name into a safe filename fragment."""
+    slug = re.sub(r"[^A-Za-z0-9._-]+", "_", name.strip())
+    slug = re.sub(r"_+", "_", slug)
+    return slug.strip("_")
+
+
+SELECTED_MARKER_SETS = {}
+SELECTED_MARKER_SETS_BY_SLUG = {
+    slugify_marker_set_name(name): {
+        "name": name,
+        "tsv": path,
+        "title": f"{PROJECT_TITLE} - {name}" if PROJECT_TITLE else name,
+    }
+    for name, path in SELECTED_MARKER_SETS.items()
+}
+
+if len(SELECTED_MARKER_SETS_BY_SLUG) != len(SELECTED_MARKER_SETS):
+    raise ValueError("Several selected marker set names produce the same filename slug.")
+
+SELECTED_SNP_LONGS = expand(
+    REGION_TRACK_DIR / "snp_positions_long.{marker_set}.tsv",
+    marker_set=SELECTED_MARKER_SETS_BY_SLUG.keys(),
+)
+REGION_TRACK_SELECTED_HTMLS = expand(
+    REGION_TRACK_DIR / "region_tracks.{marker_set}.html",
+    marker_set=SELECTED_MARKER_SETS_BY_SLUG.keys(),
+)
+
+
+def get_region_viewer_outputs():
+    """Return all region viewer HTML outputs."""
+    return [REGION_TRACK_HTML, *REGION_TRACK_SELECTED_HTMLS]
+
+
 rule write_gff_tracks_json:
     input:
         gff_files=GFF_TRACK_FILES

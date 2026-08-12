@@ -1,3 +1,22 @@
+def resolve_snp_filter_groups(
+    genotypes: list[dict[str, str]],
+) -> tuple[list[str], list[str], bool]:
+    """Resolve SNP filtering groups from the genotype table."""
+    groups = sorted({row["group"] for row in genotypes if row.get("group")})
+    if len(groups) != 2:
+        return [], [], False
+
+    group_a = [row["genotype"] for row in genotypes if row.get("group") == groups[0]]
+    group_b = [row["genotype"] for row in genotypes if row.get("group") == groups[1]]
+    return group_a, group_b, True
+
+
+SNP_FILTER_GROUP_A, SNP_FILTER_GROUP_B, USE_SNP_GROUP_FILTERING = resolve_snp_filter_groups(
+    genotypes=GENOTYPES,
+)
+FINAL_SNP_VCF = FILTERED_SNP_VCF if USE_SNP_GROUP_FILTERING else SNP_VCF
+
+
 rule mask_block_chunk:
     input:
         fasta_dir=get_split_block_dir,
@@ -40,7 +59,7 @@ rule align_block_chunk:
         stderr=LOG_DIR / "align_block_chunk" / "{chunk_id}.stderr"
     threads: 1
     params:
-        fasta_dir=get_alignment_fasta_dir(),
+        fasta_dir=str(ALIGNMENT_FASTA_DIR),
         outdir=str(ALIGN_DIR),
         extra_options=" ".join(config.get("advanced", {}).get("alignment", {}).get("mafft_options", []))
     shell:
@@ -89,8 +108,14 @@ rule write_snp_group_files:
         BENCHMARK_DIR / "write_snp_group_files.tsv"
     run:
         Path(output.group_a).parent.mkdir(parents=True, exist_ok=True)
-        write_lines(Path(output.group_a), SNP_FILTER_GROUP_A)
-        write_lines(Path(output.group_b), SNP_FILTER_GROUP_B)
+        Path(output.group_a).write_text(
+            "\n".join(SNP_FILTER_GROUP_A) + ("\n" if SNP_FILTER_GROUP_A else ""),
+            encoding="utf-8",
+        )
+        Path(output.group_b).write_text(
+            "\n".join(SNP_FILTER_GROUP_B) + ("\n" if SNP_FILTER_GROUP_B else ""),
+            encoding="utf-8",
+        )
 
 rule filter_snps_by_groups:
     input:

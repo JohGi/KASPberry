@@ -23,7 +23,7 @@ def read_genotypes(path: str | Path) -> list[dict[str, str]]:
             for row in reader
         ]
 
-def read_annotations(path: str | Path, genotype_names: set[str]) -> dict[str, dict[str, str]]:
+def read_annotations(path: str | Path) -> dict[str, dict[str, str]]:
     """Read annotations into the nested mapping consumed by the viewer."""
     with Path(path).open(newline="", encoding="utf-8") as handle:
         reader = csv.DictReader(handle, delimiter="\t")
