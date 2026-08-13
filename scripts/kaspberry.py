@@ -2,6 +2,7 @@
 """Command-line interface for KASPberry."""
 
 from __future__ import annotations
+from snakemake_interface_common.exceptions import WorkflowError
 
 import argparse
 import subprocess
@@ -97,7 +98,7 @@ def main() -> int:
             schema_dir=SCHEMA_DIR,
         )
 
-    except (ValueError, OSError) as error:
+    except (ValueError, OSError, WorkflowError) as error:
         print(f"KASPberry input error: {error}", file=sys.stderr)
         return 2
 

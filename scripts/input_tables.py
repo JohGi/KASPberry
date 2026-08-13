@@ -1,4 +1,4 @@
-"""Shared reader and validation for the public genotypes.tsv interface."""
+"""Readers for KASPberry public input tables."""
 from __future__ import annotations
 
 import csv

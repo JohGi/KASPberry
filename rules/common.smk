@@ -49,19 +49,6 @@ def get_distmat_chunk_sentinels(_wildcards=None) -> list[Path]:
     ]
 
 
-# SCHEMA_DIR = Path(workflow.current_basedir) / "../workflow/schemas"
-# GENOTYPES_TSV = Path(config["inputs"]["genotypes"])
-# GENOTYPES_DF = pl.read_csv(
-#     GENOTYPES_TSV,
-#     separator="\t",
-#     null_values="",
-# )
-# validate(
-#     GENOTYPES_DF,
-#     SCHEMA_DIR / "genotypes.schema.yaml",
-#     set_default=False,
-# )
-# check_genotypes_table(GENOTYPES_DF)
 GENOTYPES_TSV = Path(config["inputs"]["genotypes"])
 GENOTYPES = read_genotypes(GENOTYPES_TSV)
 GENOTYPE_NAMES = [record["genotype"] for record in GENOTYPES]

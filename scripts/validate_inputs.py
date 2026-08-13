@@ -19,6 +19,201 @@ ANNOTATION_COLUMNS = {
 }
 
 
+def _iter_fasta_records(path: Path):
+    """Yield ``(record_id, sequence)`` pairs from a FASTA file."""
+    try:
+        handle = path.open("r", encoding="utf-8")
+    except OSError as error:
+        raise ValueError(f"FASTA file is not readable: {path}: {error}") from error
+
+    current_id = None
+    sequence_parts = []
+    try:
+        for raw_line in handle:
+            line = raw_line.strip()
+            if not line:
+                continue
+            if line.startswith(">"):
+                if current_id is not None:
+                    yield current_id, "".join(sequence_parts)
+                header = line[1:].strip()
+                if not header:
+                    raise ValueError(f"FASTA record has an empty identifier: {path}")
+                current_id = header.split()[0]
+                sequence_parts = []
+            else:
+                if current_id is None:
+                    raise ValueError(f"Invalid FASTA file (sequence before header): {path}")
+                sequence_parts.append("".join(line.split()))
+        if current_id is not None:
+            yield current_id, "".join(sequence_parts)
+    finally:
+        handle.close()
+
+
+def _read_single_region_fasta(path: Path) -> str:
+    """Validate a regional FASTA and return its sequence."""
+    records = list(_iter_fasta_records(path))
+    if len(records) != 1 or not records[0][1]:
+        raise ValueError(
+            f"region_fasta must contain exactly one non-empty FASTA record: {path}"
+        )
+    return records[0][1]
+
+
+def _inspect_genome_fasta(
+    path: Path,
+    target_id: str | None = None,
+    segment_start: int | None = None,
+    segment_length: int = 0,
+) -> tuple[set[str], int | None, str]:
+    """Stream a genome FASTA, retaining only a requested target segment."""
+    ids: set[str] = set()
+    current_id = None
+    current_length = 0
+    target_length = None
+    segment_parts: list[str] = []
+    segment_end = (
+        segment_start + segment_length
+        if segment_start is not None
+        else None
+    )
+
+    try:
+        handle = path.open("r", encoding="utf-8")
+    except OSError as error:
+        raise ValueError(f"genome_fasta is not readable: {path}: {error}") from error
+
+    try:
+        for raw_line in handle:
+            line = raw_line.strip()
+            if not line:
+                continue
+            if line.startswith(">"):
+                if current_id is not None and current_id == target_id:
+                    target_length = current_length
+                header = line[1:].strip()
+                if not header:
+                    raise ValueError(f"FASTA record has an empty identifier: {path}")
+                current_id = header.split()[0]
+                if current_id in ids:
+                    raise ValueError(f"Duplicate FASTA record identifier '{current_id}' in {path}")
+                ids.add(current_id)
+                current_length = 0
+                continue
+
+            if current_id is None:
+                raise ValueError(f"Invalid FASTA file (sequence before header): {path}")
+            sequence = "".join(line.split())
+            if current_id == target_id and segment_start is not None:
+                overlap_start = max(segment_start, current_length)
+                overlap_end = min(segment_end, current_length + len(sequence))
+                if overlap_start < overlap_end:
+                    start = overlap_start - current_length
+                    end = overlap_end - current_length
+                    segment_parts.append(sequence[start:end])
+            current_length += len(sequence)
+
+        if current_id is not None and current_id == target_id:
+            target_length = current_length
+    finally:
+        handle.close()
+
+    return ids, target_length, "".join(segment_parts)
+
+
+def _validate_shared_files(
+    genotypes: pl.DataFrame,
+    annotations: pl.DataFrame | None,
+    config: dict,
+    genotype_names: set[str],
+) -> dict[str, str]:
+    """Validate files and references shared by SNP and KASP workflows."""
+
+    region_sequences: dict[str, str] = {}
+
+    for row in genotypes.iter_rows(named=True):
+        path = Path(row["region_fasta"])
+
+        if not path.is_file():
+            raise ValueError(f"region_fasta not found: {path}")
+
+        region_sequences[row["genotype"]] = _read_single_region_fasta(path)
+
+    if annotations is not None:
+        for gff in annotations.get_column("gff").unique().to_list():
+            if not Path(gff).is_file():
+                raise ValueError(f"GFF file not found: {gff}")
+
+    library = (
+        config
+        .get("snps", {})
+        .get("repeat_masking", {})
+        .get("library")
+    )
+
+    if library and not Path(library).is_file():
+        raise ValueError(
+            f"Repeat-masking library not found: {library}"
+        )
+
+    dotplot_reference = (
+        config
+        .get("viewer", {})
+        .get("dotplot_reference")
+    )
+
+    if dotplot_reference and dotplot_reference not in genotype_names:
+        raise ValueError(
+            "Unknown viewer.dotplot_reference: "
+            f"{dotplot_reference!r}. "
+            "Expected a genotype from genotypes.tsv."
+        )
+
+    return region_sequences
+
+
+def _validate_kasp_genomes(
+    genotypes: pl.DataFrame,
+    region_sequences: dict[str, str],
+) -> dict[str, set[str]]:
+    """Validate KASP genome coordinates and return FASTA IDs by genotype."""
+    genome_ids: dict[str, set[str]] = {}
+    for row in genotypes.iter_rows(named=True):
+        genome_path = row["genome_fasta"]
+        if genome_path is None:
+            continue
+        genotype = row["genotype"]
+        start = int(row["region_start"])
+        region = region_sequences[genotype]
+        ids, source_length, prefix = _inspect_genome_fasta(
+            Path(genome_path),
+            target_id=row["source_seq"],
+            segment_start=start - 1,
+            segment_length=min(500, len(region)),
+        )
+        genome_ids[genotype] = ids
+        if source_length is None:
+            raise ValueError(
+                f"source_seq '{row['source_seq']}' for genotype '{genotype}' "
+                f"was not found in genome_fasta: {genome_path}"
+            )
+        region_end = start + len(region) - 1
+        if region_end > source_length:
+            raise ValueError(
+                f"Region for genotype '{genotype}' extends to {region_end}, "
+                f"beyond source_seq '{row['source_seq']}' length {source_length}."
+            )
+        expected = region[: min(500, len(region))].upper()
+        if prefix.upper() != expected:
+            raise ValueError(
+                f"The first {len(expected)} bases of region_fasta for genotype "
+                f"'{genotype}' do not match source_seq '{row['source_seq']}' "
+                f"at 1-based region_start {start}."
+            )
+    return genome_ids
+
+
 def check_genotypes_table(df: pl.DataFrame) -> None:
     """Validate constraints involving the genotype table as a whole."""
 
@@ -62,9 +257,12 @@ def check_genotypes_table(df: pl.DataFrame) -> None:
     has_genome = pl.col("genome_fasta").is_not_null()
     has_source = pl.col("source_seq").is_not_null()
     has_start = pl.col("region_start").is_not_null()
+
+    has_any = has_genome | has_source | has_start
+    has_all = has_genome & has_source & has_start
+
     incomplete_metadata = df.filter(
-        (has_genome & ~(has_source & has_start))
-        | (has_source ^ has_start)
+        has_any & ~has_all
     )
     if incomplete_metadata.height:
         names = incomplete_metadata.get_column("genotype").to_list()
@@ -101,11 +299,28 @@ def check_annotations_table(
             + ", ".join(sorted(unknown))
         )
 
+    duplicates = (
+        df.group_by(["genotype", "track"])
+        .len()
+        .filter(pl.col("len") > 1)
+    )
+
+    if duplicates.height:
+        pairs = [
+            f"{row['genotype']} / {row['track']}"
+            for row in duplicates.iter_rows(named=True)
+        ]
+        raise ValueError(
+            "Duplicate (genotype, track) entries in annotations.tsv: "
+            + ", ".join(sorted(pairs))
+        )
+
 
 def check_chromosomes_table(
     chromosomes: pl.DataFrame,
     genotypes: pl.DataFrame,
     polymarker_genomes: int,
+    genome_ids_by_genotype: dict[str, set[str]] | None = None,
 ) -> None:
     """Check semantic consistency of chromosomes.tsv."""
 
@@ -138,6 +353,27 @@ def check_chromosomes_table(
             "Unknown genotypes in chromosomes.tsv: "
             + ", ".join(sorted(unknown_genotypes))
         )
+
+    if genome_ids_by_genotype is not None:
+        no_genome = set(chromosomes.get_column("genotype").to_list()) - set(
+            genome_ids_by_genotype
+        )
+        if no_genome:
+            raise ValueError(
+                "Chromosome rows require a genome_fasta for genotype(s): "
+                + ", ".join(sorted(no_genome))
+            )
+        missing_seq_ids = []
+        for row in chromosomes.iter_rows(named=True):
+            if row["seq_id"] not in genome_ids_by_genotype[row["genotype"]]:
+                missing_seq_ids.append(
+                    f"{row['genotype']} / {row['seq_id']}"
+                )
+        if missing_seq_ids:
+            raise ValueError(
+                "Unknown seq_id in chromosomes.tsv for genome_fasta: "
+                + ", ".join(sorted(missing_seq_ids))
+            )
 
     # Only genotypes with complete whole-genome metadata are KASP QC genomes.
     qc_genotypes = genotypes.filter(
@@ -247,6 +483,7 @@ def validate_inputs(
 
     annotations_path = config.get("inputs", {}).get("annotations")
 
+    annotations_df = None
     if annotations_path:
         annotations_path = Path(annotations_path)
 
@@ -271,6 +508,13 @@ def validate_inputs(
             annotations_df,
             genotype_names=genotype_names,
         )
+
+    region_sequences = _validate_shared_files(
+        genotypes_df,
+        annotations_df,
+        config,
+        genotype_names,
+    )
 
     # Nothing below is required for SNP discovery alone.
     if mode == "snps":
@@ -305,6 +549,11 @@ def validate_inputs(
             "The KASP workflow requires at least one genotype with "
             "genome_fasta, source_seq, and region_start."
         )
+
+    genome_ids_by_genotype = _validate_kasp_genomes(
+        genotypes_df,
+        region_sequences,
+    )
 
     # ------------------------------------------------------------------
     # chromosomes.tsv
@@ -346,4 +595,5 @@ def validate_inputs(
             chromosomes_df,
             genotypes=genotypes_df,
             polymarker_genomes=polymarker_genomes,
+            genome_ids_by_genotype=genome_ids_by_genotype,
         )
