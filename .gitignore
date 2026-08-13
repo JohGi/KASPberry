@@ -1,6 +1,9 @@
 # pixi environments
 .pixi/*
 
+# containers
+containers/
+
 # Snakemake
 .snakemake/
 

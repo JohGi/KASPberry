@@ -1,12 +1,7 @@
-from snakemake.utils import validate
 from pathlib import Path
-import polars as pl
 import sys
 sys.path.insert(0, str(Path(workflow.current_basedir) / "../scripts"))
-from genotypes import read_genotypes
-from input_validation import (
-    check_genotypes_table,
-)
+from input_tables import read_genotypes
 
 wildcard_constraints:
     sample="[^/]+",
@@ -54,19 +49,20 @@ def get_distmat_chunk_sentinels(_wildcards=None) -> list[Path]:
     ]
 
 
-SCHEMA_DIR = Path(workflow.current_basedir) / "../workflow/schemas"
+# SCHEMA_DIR = Path(workflow.current_basedir) / "../workflow/schemas"
+# GENOTYPES_TSV = Path(config["inputs"]["genotypes"])
+# GENOTYPES_DF = pl.read_csv(
+#     GENOTYPES_TSV,
+#     separator="\t",
+#     null_values="",
+# )
+# validate(
+#     GENOTYPES_DF,
+#     SCHEMA_DIR / "genotypes.schema.yaml",
+#     set_default=False,
+# )
+# check_genotypes_table(GENOTYPES_DF)
 GENOTYPES_TSV = Path(config["inputs"]["genotypes"])
-GENOTYPES_DF = pl.read_csv(
-    GENOTYPES_TSV,
-    separator="\t",
-    null_values="",
-)
-validate(
-    GENOTYPES_DF,
-    SCHEMA_DIR / "genotypes.schema.yaml",
-    set_default=False,
-)
-check_genotypes_table(GENOTYPES_DF)
 GENOTYPES = read_genotypes(GENOTYPES_TSV)
 GENOTYPE_NAMES = [record["genotype"] for record in GENOTYPES]
 REGION_FASTA_BY_GENOTYPE = {

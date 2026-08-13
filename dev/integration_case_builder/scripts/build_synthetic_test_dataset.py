@@ -19,6 +19,19 @@ FASTA_HEADER_ALIASES = {
     "Dic2": "Dic2_mlk",
 }
 
+# Synthetic chromosome metadata used by chromosomes.tsv.
+#
+# Each generated "whole-genome" FASTA contains the QTL-bearing pseudochromosome
+# (subgenome A) plus one synthetic homoeologue (subgenome B). The B sequence is
+# derived from A by deterministic substitutions only, so both records have the
+# same length and coordinate system while remaining highly similar.
+SYNTHETIC_HOMOEOLOGOUS_GROUP = "7"
+SYNTHETIC_TARGET_SUBGENOME = "A"
+SYNTHETIC_HOMOEOLOGUE_SUBGENOME = "B"
+SYNTHETIC_HOMOEOLOGUE_SUFFIX = "_B"
+SYNTHETIC_HOMOEOLOGUE_MUTATION_INTERVAL = 50
+SYNTHETIC_HOMOEOLOGUE_MUTATION_OFFSET = 25
+
 BLOCK_ORDER = [
     "conserved_4_not_5",
     "too_short",
@@ -38,7 +51,8 @@ def parse_args() -> argparse.Namespace:
         description=(
             "Build a synthetic QTL dataset from block FASTA files. "
             "The script writes one QTL FASTA per genotype, one pseudo-chromosome "
-            "FASTA per genotype, a samples.tsv file, and a summary.tsv file."
+            "FASTA per genotype, a genotypes.tsv file, a chromosomes.tsv file, "
+            "and summary TSV files."
         )
     )
     parser.add_argument(
@@ -123,6 +137,33 @@ def write_fasta_record(record_name: str, sequence: str, output_path: Path) -> No
     with output_path.open("w", encoding="utf-8") as handle:
         handle.write(f">{record_name}\n")
         handle.write(f"{wrap_sequence(sequence)}\n")
+
+
+def write_fasta_records(
+    records: list[tuple[str, str]],
+    output_path: Path,
+) -> None:
+    """Write multiple FASTA records to a file."""
+    with output_path.open("w", encoding="utf-8") as handle:
+        for record_name, sequence in records:
+            handle.write(f">{record_name}\n")
+            handle.write(f"{wrap_sequence(sequence)}\n")
+
+
+def make_synthetic_homoeologue(sequence: str) -> str:
+    """Create a highly similar same-length homoeologue by substitutions only."""
+    substitutions = {"A": "C", "C": "G", "G": "T", "T": "A"}
+    bases = list(sequence)
+
+    start_index = SYNTHETIC_HOMOEOLOGUE_MUTATION_OFFSET - 1
+    for index in range(
+        start_index,
+        len(bases),
+        SYNTHETIC_HOMOEOLOGUE_MUTATION_INTERVAL,
+    ):
+        bases[index] = substitutions[bases[index]]
+
+    return "".join(bases)
 
 
 @define(frozen=True)
@@ -461,8 +502,15 @@ class DatasetWriter:
     output_dir: Path = field(validator=instance_of(Path))
 
     def fasta_record_name(self, genotype_name: str) -> str:
-        """Return the FASTA record name for one genotype."""
+        """Return the target pseudochromosome FASTA record name."""
         return FASTA_HEADER_ALIASES.get(genotype_name, genotype_name)
+
+    def homoeologue_record_name(self, genotype_name: str) -> str:
+        """Return the synthetic homoeologue FASTA record name."""
+        return (
+            f"{self.fasta_record_name(genotype_name)}"
+            f"{SYNTHETIC_HOMOEOLOGUE_SUFFIX}"
+        )
 
     def qtl_dir(self) -> Path:
         """Return the QTL FASTA output directory."""
@@ -475,6 +523,10 @@ class DatasetWriter:
     def genotypes_tsv_path(self) -> Path:
         """Return the public genotypes.tsv path."""
         return self.output_dir / "genotypes.tsv"
+
+    def chromosomes_tsv_path(self) -> Path:
+        """Return the public chromosomes.tsv path."""
+        return self.output_dir / "chromosomes.tsv"
 
     def qtl_summary_tsv_path(self) -> Path:
         """Return the QTL summary TSV path."""
@@ -498,17 +550,26 @@ class DatasetWriter:
         return self.pseudochromosome_dir() / f"{genotype_name}.fasta"
 
     def write_fastas(self, records: dict[str, PseudoChromosomeRecord]) -> None:
-        """Write all FASTA outputs."""
+        """Write regional FASTAs and two-record synthetic genome FASTAs."""
         for genotype_name, record in records.items():
-            fasta_record_name = self.fasta_record_name(genotype_name)
+            target_record_name = self.fasta_record_name(genotype_name)
+            homoeologue_record_name = self.homoeologue_record_name(genotype_name)
+
             write_fasta_record(
-                record_name=fasta_record_name,
+                record_name=target_record_name,
                 sequence=record.qtl_assembly.sequence,
                 output_path=self.qtl_fasta_path(genotype_name),
             )
-            write_fasta_record(
-                record_name=fasta_record_name,
-                sequence=record.pseudochromosome_assembly.sequence,
+
+            target_genome_sequence = record.pseudochromosome_assembly.sequence
+            homoeologue_sequence = make_synthetic_homoeologue(
+                target_genome_sequence
+            )
+            write_fasta_records(
+                records=[
+                    (target_record_name, target_genome_sequence),
+                    (homoeologue_record_name, homoeologue_sequence),
+                ],
                 output_path=self.pseudochromosome_fasta_path(genotype_name),
             )
 
@@ -524,6 +585,30 @@ class DatasetWriter:
                 handle.write(
                     f"{genotype_name}\t{group}\t{qtl_fasta_path}\t{genome_fasta_path}\t"
                     f"{self.fasta_record_name(genotype_name)}\t{record.qtl_start_1based}\n"
+                )
+
+    def write_chromosomes_tsv(
+        self,
+        records: dict[str, PseudoChromosomeRecord],
+    ) -> None:
+        """Write chromosome/subgenome metadata for generated genome FASTAs."""
+        with self.chromosomes_tsv_path().open("w", encoding="utf-8") as handle:
+            handle.write(
+                "genotype\tseq_id\thomoeologous_group\tsubgenome\n"
+            )
+            for genotype_name in GENOTYPE_NAMES:
+                # Access the record so missing genotypes fail consistently.
+                records[genotype_name]
+
+                handle.write(
+                    f"{genotype_name}\t{self.fasta_record_name(genotype_name)}\t"
+                    f"{SYNTHETIC_HOMOEOLOGOUS_GROUP}\t"
+                    f"{SYNTHETIC_TARGET_SUBGENOME}\n"
+                )
+                handle.write(
+                    f"{genotype_name}\t{self.homoeologue_record_name(genotype_name)}\t"
+                    f"{SYNTHETIC_HOMOEOLOGOUS_GROUP}\t"
+                    f"{SYNTHETIC_HOMOEOLOGUE_SUBGENOME}\n"
                 )
 
     def write_summary_tsvs(self, records: dict[str, PseudoChromosomeRecord]) -> None:
@@ -603,6 +688,7 @@ def main() -> None:
     dataset_writer.create_directories()
     dataset_writer.write_fastas(records)
     dataset_writer.write_genotypes_tsv(records)
+    dataset_writer.write_chromosomes_tsv(records)
     dataset_writer.write_summary_tsvs(records)
 
 

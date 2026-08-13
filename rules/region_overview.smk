@@ -1,26 +1,16 @@
 import re
 from pathlib import Path
-import polars as pl
-from snakemake.utils import validate
-from genotypes import read_annotations
-from input_validation import check_annotations_table
+from input_tables import read_annotations
 
 
-def get_gff_tracks(config, genotype_names):
-    """Return configured GFF tracks after validating their structure."""
+def get_gff_tracks(config):
+    """Return configured GFF tracks."""
     annotation_path = config.get("inputs", {}).get("annotations")
+
     if not annotation_path:
         return {}
 
-    annotation_path = Path(annotation_path)
-    annotations_df = pl.read_csv(annotation_path, separator="\t", null_values="")
-    validate(
-        annotations_df,
-        SCHEMA_DIR / "annotations.schema.yaml",
-        set_default=False,
-    )
-    check_annotations_table(annotations_df, genotype_names=set(genotype_names))
-    return read_annotations(annotation_path)
+    return read_annotations(Path(annotation_path))
 
 
 def get_gff_track_files(gff_tracks):
@@ -32,7 +22,7 @@ def get_gff_track_files(gff_tracks):
     ]
 
 
-GFF_TRACKS = get_gff_tracks(config, GENOTYPE_NAMES)
+GFF_TRACKS = get_gff_tracks(config)
 GFF_TRACK_FILES = get_gff_track_files(GFF_TRACKS)
 
 

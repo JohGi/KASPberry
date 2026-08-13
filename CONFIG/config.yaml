@@ -5,6 +5,7 @@ project:
 inputs:
   genotypes: dev/integration_case_builder/dataset/generated/genotypes.tsv
   annotations: dev/integration_case_builder/dataset/annotations.tsv
+  chromosomes: dev/integration_case_builder/dataset/generated/chromosomes.tsv   # required for kasp if polymarker_genomes > 1
 
 snps:
   min_block_length: 450

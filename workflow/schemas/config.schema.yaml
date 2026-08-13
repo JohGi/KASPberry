@@ -48,6 +48,15 @@ properties:
         minLength: 1
         description: Optional path to the annotations TSV file.
 
+      chromosomes:
+        type:
+          - string
+          - "null"
+        minLength: 1
+        description: >
+          Optional path to the chromosomes TSV file describing
+          homoeologous groups and subgenomes for PolyMarker.
+
   snps:
     type: object
     additionalProperties: false

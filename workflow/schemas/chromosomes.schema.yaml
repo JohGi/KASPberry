@@ -1,0 +1,45 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+
+title: KASPberry chromosomes table
+description: >
+  Schema for one row of chromosomes.tsv. The table describes the chromosome
+  or pseudomolecule records used by PolyMarker for each genotype.
+
+type: object
+
+properties:
+  genotype:
+    type: string
+    minLength: 1
+    description: >
+      Genotype identifier. Must match a genotype declared in genotypes.tsv.
+
+  seq_id:
+    type: string
+    minLength: 1
+    description: >
+      Exact FASTA record identifier in the genome_fasta associated with this
+      genotype.
+
+  homoeologous_group:
+    type: string
+    minLength: 1
+    description: >
+      User-defined label identifying the homoeologous chromosome group.
+      Examples: "1", "7", "10", "A01".
+
+  subgenome:
+    type: string
+    minLength: 1
+    description: >
+      User-defined label identifying the subgenome. Examples: "A", "B", "C",
+      "D". KASPberry converts this label to an internal PolyMarker-compatible
+      alias when needed.
+
+required:
+  - genotype
+  - seq_id
+  - homoeologous_group
+  - subgenome
+
+additionalProperties: false

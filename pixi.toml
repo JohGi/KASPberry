@@ -27,6 +27,8 @@ emboss = ">=6.6.0,<7"
 pyyaml = ">=6.0.3,<7"
 ghostscript = ">=10.7.0,<11"
 pymupdf = ">=1.26,<2"
+samtools = "*"
+blast = "*"
 
 [feature.dotplot.dependencies]
 python = "3.9.*"
@@ -38,6 +40,9 @@ minimap2 = "*"
 
 [feature.mashtree.dependencies]
 mashtree = ">=1.4.6,<2"
+
+[feature.workflow.tasks]
+kaspberry = "python scripts/kaspberry.py"
 
 [environments]
 default = { features = ["workflow"], no-default-feature = true }
