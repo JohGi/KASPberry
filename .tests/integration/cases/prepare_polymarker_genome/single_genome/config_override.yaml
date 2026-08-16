@@ -1,0 +1,5 @@
+inputs:
+  chromosomes: null
+
+kasp:
+  polymarker_genomes: 1

@@ -1,0 +1,4 @@
+snp::1::100: complete in A/B/C; identical assay in all -> 1 unique assay.
+snp::1::200: complete in A/B/C; A/B identical, C different -> 2 unique assays.
+snp::1::300: complete in A/C, missing second allele-specific primer in B -> SNP fails PolyMarker-all-genomes filter.
+snp::1::400: complete in A/B/C; B marker list reverses [A/G] to [G/A] and PolyMarker primer labels follow that order -> accepted, 2 unique assays.

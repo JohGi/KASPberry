@@ -1,0 +1,5 @@
+inputs:
+  chromosomes: chromosomes.tsv
+
+kasp:
+  polymarker_genomes: 2

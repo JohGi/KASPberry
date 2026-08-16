@@ -1,0 +1,2 @@
+genotype	group	region_fasta	genome_fasta	source_seq	region_start
+Test		region.fasta	genome.fasta	target_seq	1

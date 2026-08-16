@@ -1,0 +1,4 @@
+genotype	group	region_fasta	genome_fasta	source_seq	region_start
+A	G1	dummy/A_region.fasta	dummy/A_genome.fasta	2A	1
+B	G2	dummy/B_region.fasta	dummy/B_genome.fasta	2A	1
+C	G1	dummy/C_region.fasta	dummy/C_genome.fasta	2A	1

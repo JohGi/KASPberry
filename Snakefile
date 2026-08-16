@@ -2,7 +2,7 @@ from snakemake.utils import validate
 
 # configfile: "config/config.yaml"
 
-validate(config, "workflow/schemas/config.schema.yaml")
+validate(config, "workflow/schemas/config.schema.yaml", set_default=False)
 
 include: "rules/common.smk"
 include: "rules/mash_dists.smk"
@@ -13,6 +13,7 @@ include: "rules/dotplots.smk"
 include: "rules/summary_stats.smk"
 include: "rules/block_stats.smk"
 include: "rules/region_overview.smk"
+include: "rules/kasp.smk"
 
 
 SNP_TARGET_OUTPUTS = [
@@ -25,7 +26,12 @@ SNP_TARGET_OUTPUTS = [
 
 KASP_TARGET_OUTPUTS = [
     *SNP_TARGET_OUTPUTS,
-    # KASP-specific outputs will be added here.
+    POLYMARKER_SUMMARY_DIR / "polymarker_snp_status.tsv",
+    POLYMARKER_SUMMARY_DIR / "polymarker_snp_status_long.tsv",
+    POLYMARKER_SUMMARY_DIR / "polymarker_assays.tsv",
+    POLYMARKER_SUMMARY_DIR / "primers.tsv",
+    POLYMARKER_SUMMARY_DIR / "primers_control_pairs.tsv",
+    POLYMARKER_SUMMARY_DIR / "primers_with_tails.fasta",
 ]
 
 

@@ -1,0 +1,5 @@
+marker_id	block_id	aln_pos	target_chromosome	n_genomes_ok	n_genomes_total	polymarker_pass	failed_genotypes	n_assays_proposed	n_unique_assays_to_test
+snp::1::100	1	100	2A	3	3	true		3	1
+snp::1::200	1	200	2A	3	3	true		3	2
+snp::1::300	1	300	2A	2	3	false	B	2	0
+snp::1::400	1	400	2A	3	3	true		3	2

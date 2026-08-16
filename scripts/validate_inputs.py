@@ -445,6 +445,11 @@ def validate_inputs(
         schema_dir / "config.schema.yaml",
         set_default=False,
     )
+    
+    if mode == "kasp" and config["snps"]["min_snp_flank"] < 50:
+        raise ValueError(
+            "snps.min_snp_flank must be at least 50 for the KASP workflow."
+        )
 
     # ------------------------------------------------------------------
     # genotypes.tsv

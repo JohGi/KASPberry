@@ -1,0 +1,5 @@
+block_id	aln_pos	sample	nt	pos_in_block	block_start_in_zone	pos_in_zone	zone_start_in_source_seq	pos_in_source_seq
+4	80	Test	A	80	1	80	1	80
+4	80	Other	G	80	1	80	1	80
+7	190	Test	C	190	1	190	1	190
+7	190	Other	T	190	1	190	1	190

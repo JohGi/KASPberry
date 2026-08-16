@@ -92,7 +92,7 @@ properties:
       polymarker_genomes:
         type: integer
         minimum: 1
-        description: Number of genomes passed to PolyMarker.
+        description: Number of subgenomes expected by PolyMarker for the target homoeologous group.
 
   viewer:
     type: object

@@ -1,0 +1,3 @@
+snp::2::10: complete in A, missing common primer in B -> fails.
+snp::2::20: missing first allele-specific primer in A, complete in B -> fails.
+Expected result: no SNP passes in all genotypes; assay and all MFEprimer files are empty (assay TSV keeps its header).

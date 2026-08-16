@@ -1,0 +1,17 @@
+Basic prepare_polymarker_markers integration case
+
+Inputs
+- One KASP QC genotype: Test.
+- One discovery-only genotype: Other.
+- Two biallelic SNPs at regional positions 80 and 190.
+- Test alleles: A and C.
+- Alternative alleles: G and T.
+- PolyMarker source alias: 7A__001.
+- snps.min_snp_flank: 50.
+
+Expected behaviour
+- Write exactly two rows to marker_list.csv.
+- Marker IDs are snp::4::80 and snp::7::190.
+- Target chromosome is 7A for both markers.
+- Each marker contains exactly 50 reference bases on each side of the SNP.
+- Output has no header and uses PolyMarker ID,Chromosome,SEQUENCE format.

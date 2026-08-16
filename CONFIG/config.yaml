@@ -9,7 +9,7 @@ inputs:
 
 snps:
   min_block_length: 450
-  min_snp_flank: 0
+  min_snp_flank: 50
   repeat_masking:
     library: ".tests/integration/resources/mini_TE_lib.fasta"
 

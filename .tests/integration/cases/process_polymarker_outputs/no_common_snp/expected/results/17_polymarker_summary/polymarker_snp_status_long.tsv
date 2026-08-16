@@ -1,0 +1,5 @@
+marker_id	block_id	aln_pos	target_chromosome	genotype	polymarker_pass	failure_reason	chromosome	SNP_type	primer_type	orientation	total_contigs	errors	repetitive	total_hits
+snp::2::10	2	10	2A	A	true		2A	non-homoeologous	KASP	forward	2		false	2
+snp::2::10	2	10	2A	B	false	missing:common	2A	non-homoeologous	KASP	forward	2	missing_common	false	2
+snp::2::20	2	20	2A	A	false	missing:first	2A	non-homoeologous	KASP	forward	2	missing_first	false	2
+snp::2::20	2	20	2A	B	true		2A	non-homoeologous	KASP	forward	2		false	2
