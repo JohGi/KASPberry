@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Author: Johanna Girodolle
 
-"""Map filtered SNP coordinates from alignment coordinates to block, zone, and source sequence coordinates."""
+"""Map SNP coordinates from alignment coordinates to block, zone, and source sequence coordinates."""
 
 from __future__ import annotations
 
@@ -14,6 +14,8 @@ import polars as pl
 from attrs import define, field
 from Bio import AlignIO
 from Bio.Align import MultipleSeqAlignment
+
+from ids import make_snp_id
 
 LOGGER = logging.getLogger(__name__)
 
@@ -47,6 +49,11 @@ class LongRow:
     pos_in_zone: int | None
     zone_start_in_source_seq: int | None
     pos_in_source_seq: int | None
+
+    @property
+    def snp_id(self) -> str:
+        """Return the canonical SNP identifier."""
+        return make_snp_id(self.block_id, self.aln_pos)
 
 
 @define(frozen=True)
@@ -252,7 +259,7 @@ def parse_args() -> argparse.Namespace:
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
         description=(
-            "Project filtered SNP positions from alignment coordinates to block, "
+            "Project SNP positions from alignment coordinates to block, "
             "zone, and source-sequence coordinates."
         )
     )
@@ -260,7 +267,7 @@ def parse_args() -> argparse.Namespace:
         "--vcf",
         required=True,
         type=Path,
-        help="Filtered or unfiltered SNP VCF generated from block alignments.",
+        help="SNP VCF generated from block alignments.",
     )
     parser.add_argument(
         "--block-coords",
@@ -415,6 +422,7 @@ def build_long_dataframe(long_rows: list[LongRow]) -> pl.DataFrame:
     """Build the long-format output dataframe."""
     rows = [
         {
+            "snp_id": row.snp_id,
             "block_id": row.block_id,
             "aln_pos": row.aln_pos,
             "sample": row.sample,
@@ -441,6 +449,7 @@ def build_wide_dataframe(long_rows: list[LongRow], sample_order: list[str]) -> p
 
         if key not in grouped_rows:
             grouped_rows[key] = {
+                "snp_id": row.snp_id,
                 "block_id": row.block_id,
                 "aln_pos": row.aln_pos,
             }
@@ -454,7 +463,7 @@ def build_wide_dataframe(long_rows: list[LongRow], sample_order: list[str]) -> p
     ]
     dataframe = pl.DataFrame(wide_rows)
 
-    ordered_columns = ["block_id", "aln_pos"]
+    ordered_columns = ["snp_id", "block_id", "aln_pos"]
     ordered_columns.extend(f"{sample}_nt" for sample in sample_order)
     ordered_columns.extend(f"{sample}_pos" for sample in sample_order)
 

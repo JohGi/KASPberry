@@ -189,12 +189,9 @@ rule run_mfeprimer_hairpin:
 
 rule summarize_in_silico_validation:
     input:
-        snp_status=POLYMARKER_SUMMARY_DIR / "polymarker_snp_status.tsv",
-        snp_status_by_genotype=(
-            POLYMARKER_SUMMARY_DIR
-            / "polymarker_snp_status_by_genotype.tsv"
-        ),
-        assays=POLYMARKER_SUMMARY_DIR / "polymarker_assays.tsv",
+        design_status=POLYMARKER_DESIGN_STATUS_TSV,
+        design_status_by_genotype=POLYMARKER_DESIGN_STATUS_BY_GENOTYPE_TSV,
+        assays=POLYMARKER_ASSAYS_TSV,
         snp_positions=SNP_POS_LONG_TSV,
         specificity=expand(
             str(
@@ -208,12 +205,9 @@ rule summarize_in_silico_validation:
         hairpins=IN_SILICO_DIR / "hairpins.tsv",
 
     output:
-        assay_status=VALIDATION_DIR / "assay_status.tsv",
-        assay_status_by_genotype=(
-            VALIDATION_DIR / "assay_status_by_genotype.tsv"
-        ),
-        snp_status=VALIDATION_DIR / "snp_status.tsv",
-        validated_assays=VALIDATION_DIR / "validated_assays.tsv",
+        assay_status=IN_SILICO_ASSAY_STATUS_TSV,
+        assay_status_by_genotype=IN_SILICO_ASSAY_STATUS_BY_GENOTYPE_TSV,
+        validation_status=IN_SILICO_VALIDATION_STATUS_TSV,
 
     log:
         stdout=LOG_DIR / "summarize_in_silico_validation.stdout",
@@ -227,10 +221,14 @@ rule summarize_in_silico_validation:
         mkdir -p "{VALIDATION_DIR}" "$(dirname "{log.stdout}")"
 
         python3 "{SCRIPTS_DIR}/summarize_in_silico_validation.py" \
-            --polymarker-summary "{POLYMARKER_SUMMARY_DIR}" \
+            --design-status "{input.design_status}" \
+            --design-status-by-genotype "{input.design_status_by_genotype}" \
+            --assays "{input.assays}" \
             --snp-positions "{input.snp_positions}" \
             --in-silico-dir "{IN_SILICO_DIR}" \
-            --output-dir "{VALIDATION_DIR}" \
+            --assay-status "{output.assay_status}" \
+            --assay-status-by-genotype "{output.assay_status_by_genotype}" \
+            --validation-status "{output.validation_status}" \
             1> "{log.stdout}" \
             2> "{log.stderr}"
         """

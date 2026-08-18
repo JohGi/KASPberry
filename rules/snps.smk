@@ -1,20 +1,21 @@
 def resolve_snp_filter_groups(
     genotypes: list[dict[str, str]],
-) -> tuple[list[str], list[str], bool]:
+) -> tuple[list[str], list[str]]:
     """Resolve SNP filtering groups from the genotype table."""
     groups = sorted({row["group"] for row in genotypes if row.get("group")})
-    if len(groups) != 2:
-        return [], [], False
+
+    if not groups:
+        return [], []
 
     group_a = [row["genotype"] for row in genotypes if row.get("group") == groups[0]]
     group_b = [row["genotype"] for row in genotypes if row.get("group") == groups[1]]
-    return group_a, group_b, True
+
+    return group_a, group_b
 
 
-SNP_FILTER_GROUP_A, SNP_FILTER_GROUP_B, USE_SNP_GROUP_FILTERING = resolve_snp_filter_groups(
+SNP_FILTER_GROUP_A, SNP_FILTER_GROUP_B = resolve_snp_filter_groups(
     genotypes=GENOTYPES,
 )
-FINAL_SNP_VCF = FILTERED_SNP_VCF if USE_SNP_GROUP_FILTERING else SNP_VCF
 
 
 rule mask_block_chunk:
@@ -123,7 +124,7 @@ rule filter_snps_by_groups:
         group_a=GROUP_A_LIST,
         group_b=GROUP_B_LIST
     output:
-        FILTERED_SNP_VCF
+        status=DIAGNOSTIC_STATUS_TSV
     benchmark:
         BENCHMARK_DIR / "filter_snps_by_groups.tsv"
     log:
@@ -134,7 +135,7 @@ rule filter_snps_by_groups:
         mkdir -p "{FILTERED_SNP_DIR}" "$(dirname "{log.stdout}")"
         python3 "{SCRIPTS_DIR}/filter_snps_by_groups.py" \
             --input "{input.snps}" \
-            --output "{output}" \
+            --output "{output.status}" \
             --group-a-file "{input.group_a}" \
             --group-b-file "{input.group_b}" \
             1> "{log.stdout}" \

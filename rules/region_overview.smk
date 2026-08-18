@@ -1,4 +1,3 @@
-import re
 from pathlib import Path
 from input_tables import read_annotations
 
@@ -26,39 +25,19 @@ GFF_TRACKS = get_gff_tracks(config)
 GFF_TRACK_FILES = get_gff_track_files(GFF_TRACKS)
 
 
-def slugify_marker_set_name(name: str) -> str:
-    """Convert a marker set name into a safe filename fragment."""
-    slug = re.sub(r"[^A-Za-z0-9._-]+", "_", name.strip())
-    slug = re.sub(r"_+", "_", slug)
-    return slug.strip("_")
+def get_region_viewer_outputs(mode):
+    """Return the region viewer HTML output for one workflow mode."""
+    return [
+        REGION_TRACK_DIR / f"region_tracks.{mode}.html"
+    ]
 
 
-SELECTED_MARKER_SETS = {}
-SELECTED_MARKER_SETS_BY_SLUG = {
-    slugify_marker_set_name(name): {
-        "name": name,
-        "tsv": path,
-        "title": f"{PROJECT_TITLE} - {name}" if PROJECT_TITLE else name,
-    }
-    for name, path in SELECTED_MARKER_SETS.items()
-}
-
-if len(SELECTED_MARKER_SETS_BY_SLUG) != len(SELECTED_MARKER_SETS):
-    raise ValueError("Several selected marker set names produce the same filename slug.")
-
-SELECTED_SNP_LONGS = expand(
-    REGION_TRACK_DIR / "snp_positions_long.{marker_set}.tsv",
-    marker_set=SELECTED_MARKER_SETS_BY_SLUG.keys(),
-)
-REGION_TRACK_SELECTED_HTMLS = expand(
-    REGION_TRACK_DIR / "region_tracks.{marker_set}.html",
-    marker_set=SELECTED_MARKER_SETS_BY_SLUG.keys(),
-)
-
-
-def get_region_viewer_outputs():
-    """Return all region viewer HTML outputs."""
-    return [REGION_TRACK_HTML, *REGION_TRACK_SELECTED_HTMLS]
+def get_viewer_snp_summary(wildcards):
+    """Return the aggregated SNP table for the requested viewer mode."""
+    return {
+        "snps": SNP_SUMMARY_TSV,
+        "kasp": KASP_SUMMARY_TSV,
+    }[wildcards.mode]
 
 
 rule write_gff_tracks_json:
@@ -104,10 +83,14 @@ rule build_dotplot_manifest:
         """
 
 rule generate_region_viewer:
+    wildcard_constraints:
+        mode="snps|kasp"
+
     input:
         samples_tsv=GENOTYPES_TSV,
         block_coords_tsv=BLOCK_COORDINATES_TSV,
         snp_long=SNP_POS_LONG_TSV,
+        snp_summary=get_viewer_snp_summary,
         fastas=CLEAN_FASTAS,
         stats_json=SUMMARY_STATS_JSON,
         mash_dists_tsv=MASHTREE_MATRIX,
@@ -116,16 +99,21 @@ rule generate_region_viewer:
         distmat_sentinels=get_distmat_chunk_sentinels,
         gff_tracks_json=GFF_TRACKS_JSON,
         dotplot_manifest=DOTPLOT_MANIFEST,
+
     output:
-        REGION_TRACK_HTML
+        html=REGION_TRACK_DIR / "region_tracks.{mode}.html"
+
     benchmark:
-        BENCHMARK_DIR / "generate_region_viewer.tsv"
+        BENCHMARK_DIR / "generate_region_viewer/{mode}.tsv"
+
     log:
-        stdout=LOG_DIR / "generate_region_viewer" / "generate_region_viewer.stdout",
-        stderr=LOG_DIR / "generate_region_viewer" / "generate_region_viewer.stderr"
+        stdout=LOG_DIR / "generate_region_viewer/{mode}.stdout",
+        stderr=LOG_DIR / "generate_region_viewer/{mode}.stderr"
+
     shell:
         r"""
         mkdir -p "{REGION_TRACK_DIR}" "$(dirname "{log.stdout}")"
+
         python3 "{SCRIPTS_DIR}/generate_region_viewer.py" \
             --samples-tsv "{input.samples_tsv}" \
             --block-coords-tsv "{input.block_coords_tsv}" \
@@ -140,68 +128,7 @@ rule generate_region_viewer:
             --dotplot-manifest-json {input.dotplot_manifest} \
             --config-yaml "{workflow.configfiles[0]}" \
             --title "{PROJECT_TITLE}" \
-            --output "{output}" \
-            1> "{log.stdout}" \
-            2> "{log.stderr}"
-        """
-
-rule filter_snp_long_by_selected_markers:
-    input:
-        snp_long=SNP_POS_LONG_TSV,
-        selected_markers=lambda wildcards: SELECTED_MARKER_SETS_BY_SLUG[wildcards.marker_set]["tsv"],
-    output:
-        REGION_TRACK_DIR / "snp_positions_long.{marker_set}.tsv"
-    log:
-        stdout=LOG_DIR / "filter_snp_long_by_selected_markers.{marker_set}.stdout",
-        stderr=LOG_DIR / "filter_snp_long_by_selected_markers.{marker_set}.stderr",
-    shell:
-        r"""
-        python3 "{SCRIPTS_DIR}/filter_snp_long_by_marker_subset.py" \
-            --snp-long "{input.snp_long}" \
-            --selected-markers "{input.selected_markers}" \
-            --output "{output}" \
-            1> "{log.stdout}" \
-            2> "{log.stderr}"
-        """
-
-rule generate_region_viewer_selected_snps:
-    input:
-        samples_tsv=GENOTYPES_TSV,
-        block_coords_tsv=BLOCK_COORDINATES_TSV,
-        snp_long=REGION_TRACK_DIR / "snp_positions_long.{marker_set}.tsv",
-        fastas=CLEAN_FASTAS,
-        stats_json=SUMMARY_STATS_JSON,
-        mash_dists_tsv=MASHTREE_MATRIX,
-        n_stats_tsv=MASKED_BLOCK_N_STATS_TSV,
-        align_sentinels=get_align_chunk_sentinels,
-        distmat_sentinels=get_distmat_chunk_sentinels,
-        gff_tracks_json=GFF_TRACKS_JSON,
-        dotplot_manifest=DOTPLOT_MANIFEST,
-    output:
-        REGION_TRACK_DIR / "region_tracks.{marker_set}.html"
-    params:
-        title=lambda wildcards: SELECTED_MARKER_SETS_BY_SLUG[wildcards.marker_set]["title"],
-    log:
-        stdout=LOG_DIR / "generate_region_viewer_selected_snps.{marker_set}.stdout",
-        stderr=LOG_DIR / "generate_region_viewer_selected_snps.{marker_set}.stderr",
-    shell:
-        r"""
-        mkdir -p "{REGION_TRACK_DIR}" "$(dirname "{log.stdout}")"
-        python3 "{SCRIPTS_DIR}/generate_region_viewer.py" \
-            --samples-tsv "{input.samples_tsv}" \
-            --block-coords-tsv "{input.block_coords_tsv}" \
-            --snp-long "{input.snp_long}" \
-            --fasta-dir "{CLEAN_FASTA_DIR}" \
-            --summary-stats-json "{input.stats_json}" \
-            --mash-matrix "{input.mash_dists_tsv}" \
-            --kimura2p-distmat-dir "{KIMURA2P_DISTMAT_MATRIX_DIR}" \
-            --masked-align-dir "{ALIGN_DIR}" \
-            --masked-block-n-stats "{input.n_stats_tsv}" \
-            --gff-tracks-json "{input.gff_tracks_json}" \
-            --dotplot-manifest-json {input.dotplot_manifest} \
-            --config-yaml "{workflow.configfiles[0]}" \
-            --title "{params.title}" \
-            --output "{output}" \
+            --output "{output.html}" \
             1> "{log.stdout}" \
             2> "{log.stderr}"
         """

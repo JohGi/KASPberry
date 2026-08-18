@@ -99,6 +99,7 @@ rule build_polymarker_blastdb:
 rule prepare_polymarker_markers:
     input:
         snps=SNP_POS_LONG_TSV,
+        snp_status=DIAGNOSTIC_STATUS_TSV,
         reference=CLEAN_FASTA_DIR / "{genotype}.fasta",
         aliases=OUTDIR / "15_polymarker_inputs/{genotype}/chromosome_aliases.tsv",
     output:
@@ -116,6 +117,7 @@ rule prepare_polymarker_markers:
 
         python3 "{SCRIPTS_DIR}/prepare_polymarker_markers.py" \
             --snps "{input.snps}" \
+            --snp-status "{input.snp_status}" \
             --reference "{input.reference}" \
             --aliases "{input.aliases}" \
             --flank {params.flank} \
@@ -172,9 +174,9 @@ rule process_polymarker_outputs:
             genotype=KASP_GENOTYPE_NAMES,
         ),
     output:
-        snp_status=POLYMARKER_SUMMARY_DIR / "polymarker_snp_status.tsv",
-        snp_status_by_genotype=POLYMARKER_SUMMARY_DIR / "polymarker_snp_status_by_genotype.tsv",
-        assays=POLYMARKER_SUMMARY_DIR / "polymarker_assays.tsv",
+        snp_status=POLYMARKER_DESIGN_STATUS_TSV,
+        snp_status_by_genotype=POLYMARKER_DESIGN_STATUS_BY_GENOTYPE_TSV,
+        assays=POLYMARKER_ASSAYS_TSV,
         mfe_canonical_pairs=POLYMARKER_SUMMARY_DIR / "primers_canonical_pairs.tsv",
         mfe_noncanonical_pairs=POLYMARKER_SUMMARY_DIR / "primers_noncanonical_pairs.tsv",
         mfe_with_tails=POLYMARKER_SUMMARY_DIR / "primers_with_tails.fasta",

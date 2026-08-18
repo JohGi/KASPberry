@@ -13,21 +13,31 @@ include: "rules/block_stats.smk"
 include: "rules/region_overview.smk"
 include: "rules/kasp.smk"
 include: "rules/in_silico_validation.smk"
+include: "rules/aggregation.smk"
 
 SNP_TARGET_OUTPUTS = [
     SNP_POS_LONG_TSV,
     SNP_POS_WIDE_TSV,
-    *get_region_viewer_outputs(),
+    SNP_SUMMARY_TSV,
+    DIAGNOSTIC_SNPS_VCF,
+    *get_region_viewer_outputs("snps"),
     DOTPLOT_GALLERY_HTML,
     SUMMARY_STATS_TXT,
 ]
 
 KASP_TARGET_OUTPUTS = [
-    VALIDATION_DIR / "assay_status.tsv",
-    VALIDATION_DIR / "assay_status_by_genotype.tsv",
-    VALIDATION_DIR / "snp_status.tsv",
-    VALIDATION_DIR / "validated_assays.tsv",
+    SNP_POS_LONG_TSV,
+    SNP_POS_WIDE_TSV,
+    KASP_SUMMARY_TSV,
+    VALIDATED_SNPS_VCF,
+    ASSAY_SUMMARY_TSV,
+    VALIDATED_ASSAYS_TSV,
+    PRIMERS_TO_ORDER_TSV,
+    *get_region_viewer_outputs("kasp"),
+    DOTPLOT_GALLERY_HTML,
+    SUMMARY_STATS_TXT,
 ]
+
 
 rule all:
     input:

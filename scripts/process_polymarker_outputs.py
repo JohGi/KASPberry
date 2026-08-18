@@ -15,11 +15,10 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TypedDict
-
+from ids import parse_snp_id
 
 TAIL_FIRST = "GAAGGTCGGAGTCAACGGATT"
 TAIL_SECOND = "GAAGGTGACCAAGTTCATGCT"
-SNP_ID_RE = re.compile(r"^snp::(?P<block>.+)::(?P<pos>\d+)$")
 SNP_ALLELES_RE = re.compile(r"\[(?P<first>[ACGT])/(?P<second>[ACGT])\]", re.I)
 ALLELE_PRIMER_RE = re.compile(
     r"^(?P<marker>.+)(?P<allele>[ACGT])_(?P<kind>1st|2nd)$",
@@ -29,7 +28,7 @@ ALLELE_PRIMER_RE = re.compile(
 
 @dataclass(frozen=True)
 class Candidate:
-    marker_id: str
+    snp_id: str
     block_id: str
     aln_pos: int
     target_chromosome: str
@@ -44,7 +43,7 @@ class GroupedAssay(TypedDict):
 
 class Assay(TypedDict):
     assay_id: str
-    marker_id: str
+    snp_id: str
     first_allele: str
     second_allele: str
     first_primer: str
@@ -88,26 +87,25 @@ def read_marker_list(path: Path) -> dict[str, Candidate]:
             if len(row) != 3:
                 raise ValueError(f"{path}:{line_no}: expected 3 columns")
 
-            marker_id, target_chr, sequence = (x.strip() for x in row)
+            snp_id, target_chr, sequence = (x.strip() for x in row)
 
-            id_match = SNP_ID_RE.match(marker_id)
+            block_id, aln_pos = parse_snp_id(snp_id)
             allele_match = SNP_ALLELES_RE.search(sequence)
 
-            if id_match is None:
-                raise ValueError(f"Unexpected marker ID: {marker_id}")
             if allele_match is None:
                 raise ValueError(
-                    f"{path}:{line_no}: no [A/G]-style SNP in {marker_id}"
-                )
-            if marker_id in candidates:
-                raise ValueError(
-                    f"Duplicate marker ID in {path}: {marker_id}"
+                    f"{path}:{line_no}: no [A/G]-style SNP in {snp_id}"
                 )
 
-            candidates[marker_id] = Candidate(
-                marker_id=marker_id,
-                block_id=id_match.group("block"),
-                aln_pos=int(id_match.group("pos")),
+            if snp_id in candidates:
+                raise ValueError(
+                    f"Duplicate marker ID in {path}: {snp_id}"
+                )
+
+            candidates[snp_id] = Candidate(
+                snp_id=snp_id,
+                block_id=block_id,
+                aln_pos=aln_pos,
                 target_chromosome=target_chr,
                 first_allele=allele_match.group("first").upper(),
                 second_allele=allele_match.group("second").upper(),
@@ -134,8 +132,8 @@ def read_primers_to_order(
     candidates: dict[str, Candidate],
 ) -> dict[str, dict[str, str]]:
     proposals = {
-        marker_id: empty_proposal()
-        for marker_id in candidates
+        snp_id: empty_proposal()
+        for snp_id in candidates
     }
 
     with path.open(encoding="utf-8") as handle:
@@ -155,7 +153,7 @@ def read_primers_to_order(
             sequence = fields[-1].upper()
 
             if primer_id.endswith("_common"):
-                marker_id = primer_id[:-7]
+                snp_id = primer_id[:-7]
                 role = "common"
                 allele = ""
             else:
@@ -165,7 +163,7 @@ def read_primers_to_order(
                         f"Unrecognized PolyMarker primer ID: {primer_id}"
                     )
 
-                marker_id = match.group("marker")
+                snp_id = match.group("marker")
                 allele = match.group("allele").upper()
                 role = (
                     "first"
@@ -173,16 +171,16 @@ def read_primers_to_order(
                     else "second"
                 )
 
-            if marker_id not in candidates:
+            if snp_id not in candidates:
                 raise ValueError(
-                    f"Unknown marker in {path}: {marker_id}"
+                    f"Unknown marker in {path}: {snp_id}"
                 )
 
-            proposal = proposals[marker_id]
+            proposal = proposals[snp_id]
 
             if proposal[role] and proposal[role] != sequence:
                 raise ValueError(
-                    f"Conflicting {role} primers for {marker_id} in {path}"
+                    f"Conflicting {role} primers for {snp_id} in {path}"
                 )
 
             proposal[role] = sequence
@@ -192,11 +190,11 @@ def read_primers_to_order(
             elif role == "second":
                 proposal["second_allele"] = allele
 
-    for marker_id, proposal in proposals.items():
+    for snp_id, proposal in proposals.items():
         if not is_complete(proposal):
             continue
 
-        candidate = candidates[marker_id]
+        candidate = candidates[snp_id]
 
         if (
             proposal["first_allele"] != candidate.first_allele
@@ -204,7 +202,7 @@ def read_primers_to_order(
         ):
             raise ValueError(
                 "PolyMarker allele labels do not match marker list for "
-                f"{marker_id} in {path}"
+                f"{snp_id} in {path}"
             )
 
     return proposals
@@ -221,18 +219,18 @@ def is_complete(proposal: dict[str, str]) -> bool:
 def strip_tail(
     sequence: str,
     tail: str,
-    marker_id: str,
+    snp_id: str,
 ) -> str:
     if not sequence.startswith(tail):
         raise ValueError(
-            f"{marker_id}: allele-specific primer lacks expected KASP tail"
+            f"{snp_id}: allele-specific primer lacks expected KASP tail"
         )
 
     primer = sequence[len(tail):]
 
     if not primer:
         raise ValueError(
-            f"{marker_id}: empty primer after KASP tail removal"
+            f"{snp_id}: empty primer after KASP tail removal"
         )
 
     return primer
@@ -246,9 +244,9 @@ def build_unique_assays(
     assays: list[Assay] = []
     unique_counts: dict[str, int] = {}
 
-    for marker_id in candidates:
+    for snp_id in candidates:
         marker_proposals = [
-            (genotype, proposals[genotype][marker_id])
+            (genotype, proposals[genotype][snp_id])
             for genotype in genotypes
         ]
 
@@ -256,7 +254,7 @@ def build_unique_assays(
             is_complete(proposal)
             for _, proposal in marker_proposals
         ):
-            unique_counts[marker_id] = 0
+            unique_counts[snp_id] = 0
             continue
 
         grouped: dict[
@@ -279,26 +277,26 @@ def build_unique_assays(
 
             grouped[key]["sources"].append(genotype)
 
-        unique_counts[marker_id] = len(grouped)
+        unique_counts[snp_id] = len(grouped)
 
         for index, item in enumerate(grouped.values(), start=1):
             proposal = item["proposal"]
 
             assays.append(
                 {
-                    "assay_id": f"{marker_id}::assay::{index:02d}",
-                    "marker_id": marker_id,
+                    "assay_id": f"{snp_id}::assay::{index:02d}",
+                    "snp_id": snp_id,
                     "first_allele": proposal["first_allele"],
                     "second_allele": proposal["second_allele"],
                     "first_primer": strip_tail(
                         proposal["first"],
                         TAIL_FIRST,
-                        marker_id,
+                        snp_id,
                     ),
                     "second_primer": strip_tail(
                         proposal["second"],
                         TAIL_SECOND,
-                        marker_id,
+                        snp_id,
                     ),
                     "common_primer": proposal["common"],
                     "first_primer_with_tail": proposal["first"],
@@ -320,21 +318,17 @@ def write_status_outputs(
     unique_counts: dict[str, int],
 ) -> None:
     summary_fields = [
-        "marker_id",
-        "block_id",
-        "aln_pos",
-        "target_chromosome",
-        "polymarker_pass",
-        "n_genomes_ok",
-        "n_genomes_total",
-        "n_unique_assays_to_test",
+        "snp_id",
+        "status",
+        "failure_reason",
     ]
 
     by_genotype_fields = [
-        "marker_id",
+        "snp_id",
         "genotype",
+        "target_chromosome",
         "expected_allele",
-        "polymarker_pass",
+        "status",
     ]
 
     with (
@@ -365,41 +359,39 @@ def write_status_outputs(
         summary_writer.writeheader()
         by_genotype_writer.writeheader()
 
-        for marker_id, candidate in candidates.items():
+        for snp_id, candidate in candidates.items():
             n_genomes_ok = sum(
-                is_complete(proposals[genotype][marker_id])
+                is_complete(proposals[genotype][snp_id])
                 for genotype in genotypes
             )
 
-            polymarker_pass = n_genomes_ok == len(genotypes)
+            passed = n_genomes_ok == len(genotypes)
+            status = "PASS" if passed else "FAIL"
+            failure_reason = "" if passed else "no_polymarker_assay"
 
             summary_writer.writerow(
                 {
-                    "marker_id": marker_id,
-                    "block_id": candidate.block_id,
-                    "aln_pos": candidate.aln_pos,
-                    "target_chromosome": candidate.target_chromosome,
-                    "polymarker_pass": str(polymarker_pass).lower(),
-                    "n_genomes_ok": n_genomes_ok,
-                    "n_genomes_total": len(genotypes),
-                    "n_unique_assays_to_test": unique_counts[marker_id],
+                    "snp_id": snp_id,
+                    "status": status,
+                    "failure_reason": failure_reason,
                 }
             )
 
             for genotype in genotypes:
-                proposal = proposals[genotype][marker_id]
+                proposal = proposals[genotype][snp_id]
+                passed = is_complete(proposal)
 
                 by_genotype_writer.writerow(
                     {
-                        "marker_id": marker_id,
+                        "snp_id": snp_id,
                         "genotype": genotype,
-                        "expected_allele": (
-                            markers_by_genotype[genotype][marker_id]
-                            .first_allele
+                        "target_chromosome": (
+                            markers_by_genotype[genotype][snp_id].target_chromosome
                         ),
-                        "polymarker_pass": str(
-                            is_complete(proposal)
-                        ).lower(),
+                        "expected_allele": (
+                            markers_by_genotype[genotype][snp_id].first_allele
+                        ),
+                        "status": "PASS" if passed else "FAIL",
                     }
                 )
 
@@ -410,7 +402,7 @@ def write_assay_outputs(
 ) -> None:
     assay_fields = [
         "assay_id",
-        "marker_id",
+        "snp_id",
         "first_allele",
         "second_allele",
         "first_primer",

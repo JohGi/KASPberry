@@ -1,6 +1,6 @@
 rule map_snp_coordinates:
     input:
-        vcf=FINAL_SNP_VCF,
+        vcf=SNP_VCF,
         block_coords=BLOCK_COORDINATES_TSV,
         samples_tsv=GENOTYPES_TSV
     output:
