@@ -214,6 +214,22 @@ def _validate_kasp_genomes(
     return genome_ids
 
 
+def check_extra_options(
+    options: list[str],
+    forbidden: set[str],
+    config_key: str,
+) -> None:
+    """Reject command-line options managed directly by KASPberry."""
+    for option in options:
+        flag = option.split("=", 1)[0]
+
+        if flag in forbidden:
+            raise ValueError(
+                f"{config_key} must not redefine KASPberry-managed "
+                f"option '{flag}'."
+            )
+
+
 def check_genotypes_table(df: pl.DataFrame) -> None:
     """Validate constraints involving the genotype table as a whole."""
 
@@ -602,3 +618,55 @@ def validate_inputs(
             polymarker_genomes=polymarker_genomes,
             genome_ids_by_genotype=genome_ids_by_genotype,
         )
+
+    # ------------------------------------------------------------------
+    # MFE-primer advanced options
+    # ------------------------------------------------------------------
+
+    mfeprimer_extra = (
+        config.get("advanced", {})
+        .get("mfeprimer", {})
+    )
+
+    check_extra_options(
+        mfeprimer_extra.get("specificity_extra_options", []),
+        {
+            "-i", "--in",
+            "-o", "--out",
+            "-d", "--db",
+            "-c", "--cpu",
+            "-t", "--tm",
+            "-j", "--json",
+            "-g", "--gz",
+            "-f", "--fasta",
+            "--PE",
+            "--SE",
+            "--cutprimer",
+            "--virus",
+        },
+        "advanced.mfeprimer.specificity_extra_options",
+    )
+
+    check_extra_options(
+        mfeprimer_extra.get("dimer_extra_options", []),
+        {
+            "-i", "--in",
+            "-o", "--out",
+            "-c", "--cpu",
+            "-p", "--primer",
+            "-d", "--dg",
+            "-j", "--json",
+        },
+        "advanced.mfeprimer.dimer_extra_options",
+    )
+
+    check_extra_options(
+        mfeprimer_extra.get("hairpin_extra_options", []),
+        {
+            "-i", "--in",
+            "-o", "--out",
+            "-c", "--cpu",
+            "-j", "--json",
+        },
+        "advanced.mfeprimer.hairpin_extra_options",
+    )

@@ -1,39 +1,3 @@
-POLYMARKER_INPUT_DIR = OUTDIR / "15_polymarker_inputs"
-POLYMARKER_DIR = OUTDIR / "16_polymarker"
-POLYMARKER_SUMMARY_DIR = OUTDIR / "17_polymarker_summary"
-
-KASP_GENOTYPES = [
-    record
-    for record in GENOTYPES
-    if record["genome_fasta"]
-]
-
-KASP_GENOTYPE_NAMES = [
-    record["genotype"]
-    for record in KASP_GENOTYPES
-]
-
-KASP_GENOME_FASTA_BY_GENOTYPE = {
-    record["genotype"]: record["genome_fasta"]
-    for record in KASP_GENOTYPES
-}
-
-
-# POLYMARKER_MARKER_LIST = POLYMARKER_INPUT_DIR / "marker_list.csv"
-# POLYMARKER_BLASTDB_DONE = POLYMARKER_INPUT_DIR / "{genotype}" / "blastdb.done"
-
-# POLYMARKER_PRIMERS_CSV = POLYMARKER_DIR / "{genotype}" / "primers.csv"
-# POLYMARKER_PRIMERS_TO_ORDER = POLYMARKER_DIR / "{genotype}" / "primers_to_order.csv"
-# POLYMARKER_STATUS_TXT = POLYMARKER_DIR / "{genotype}" / "status.txt"
-
-# POLYMARKER_SNP_STATUS_TSV = POLYMARKER_SUMMARY_DIR / "polymarker_snp_status.tsv"
-# POLYMARKER_SNP_STATUS_LONG_TSV = POLYMARKER_SUMMARY_DIR / "polymarker_snp_status_long.tsv"
-# POLYMARKER_ASSAYS_TSV = POLYMARKER_SUMMARY_DIR / "polymarker_assays.tsv"
-# MFE_PRIMER_PAIRS_TSV = POLYMARKER_SUMMARY_DIR / "primers.tsv"
-# MFE_CONTROL_PAIRS_TSV = POLYMARKER_SUMMARY_DIR / "primers_control_pairs.tsv"
-# MFE_PRIMERS_WITH_TAILS_FASTA = POLYMARKER_SUMMARY_DIR / "primers_with_tails.fasta"
-
-
 def get_kasp_genome_fasta(wildcards):
     """Return the whole-genome FASTA for one KASP QC genotype."""
     return KASP_GENOME_FASTA_BY_GENOTYPE[wildcards.genotype]
@@ -174,7 +138,7 @@ rule run_polymarker:
         outdir=lambda wildcards: POLYMARKER_DIR / wildcards.genotype,
         genomes=config["kasp"]["polymarker_genomes"],
     container:
-        "containers/bio-polyploid-tools.sif"
+        "dependencies/containers/bio-polyploid-tools.sif"
     threads: 1
     log:
         stdout=LOG_DIR / "run_polymarker/{genotype}.stdout",
@@ -207,16 +171,12 @@ rule process_polymarker_outputs:
             POLYMARKER_DIR / "{genotype}/primers_to_order.csv",
             genotype=KASP_GENOTYPE_NAMES,
         ),
-        primers_csv=expand(
-            POLYMARKER_DIR / "{genotype}/primers.csv",
-            genotype=KASP_GENOTYPE_NAMES,
-        ),
     output:
         snp_status=POLYMARKER_SUMMARY_DIR / "polymarker_snp_status.tsv",
-        snp_status_long=POLYMARKER_SUMMARY_DIR / "polymarker_snp_status_long.tsv",
+        snp_status_by_genotype=POLYMARKER_SUMMARY_DIR / "polymarker_snp_status_by_genotype.tsv",
         assays=POLYMARKER_SUMMARY_DIR / "polymarker_assays.tsv",
-        mfe_pairs=POLYMARKER_SUMMARY_DIR / "primers.tsv",
-        mfe_control_pairs=POLYMARKER_SUMMARY_DIR / "primers_control_pairs.tsv",
+        mfe_canonical_pairs=POLYMARKER_SUMMARY_DIR / "primers_canonical_pairs.tsv",
+        mfe_noncanonical_pairs=POLYMARKER_SUMMARY_DIR / "primers_noncanonical_pairs.tsv",
         mfe_with_tails=POLYMARKER_SUMMARY_DIR / "primers_with_tails.fasta",
     log:
         stdout=LOG_DIR / "process_polymarker_outputs.stdout",
@@ -230,12 +190,11 @@ rule process_polymarker_outputs:
         python3 "{SCRIPTS_DIR}/process_polymarker_outputs.py" \
             --marker-lists {input.marker_lists:q} \
             --primers-to-order {input.primers_to_order:q} \
-            --primers-csv {input.primers_csv:q} \
             --snp-status "{output.snp_status}" \
-            --snp-status-long "{output.snp_status_long}" \
+            --snp-status-by-genotype "{output.snp_status_by_genotype}" \
             --assays "{output.assays}" \
-            --mfe-pairs "{output.mfe_pairs}" \
-            --mfe-control-pairs "{output.mfe_control_pairs}" \
+            --mfe-canonical-pairs "{output.mfe_canonical_pairs}" \
+            --mfe-noncanonical-pairs "{output.mfe_noncanonical_pairs}" \
             --mfe-with-tails "{output.mfe_with_tails}" \
             1> "{log.stdout}" \
             2> "{log.stderr}"

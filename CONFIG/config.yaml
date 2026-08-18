@@ -15,6 +15,11 @@ snps:
 
 kasp:
   polymarker_genomes: 2
+  mfeprimer:
+    specificity:
+      min_tm: 50
+    dimer:
+      max_dg: -3.5
 
 viewer:
   dotplot_reference: null
@@ -26,3 +31,7 @@ advanced:
     blocks_per_chunk: 2
   alignment:
     mafft_options: []
+  mfeprimer:
+    specificity_extra_options: []
+    dimer_extra_options: []
+    hairpin_extra_options: []

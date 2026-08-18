@@ -1,8 +1,8 @@
 # pixi environments
 .pixi/*
 
-# containers
-containers/
+# dependencies
+dependencies/
 
 # Snakemake
 .snakemake/

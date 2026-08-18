@@ -88,6 +88,24 @@ UNMASKED_ALIGN_DIR = BLOCK_STATS_DIR / "unmasked_alignments"
 KIMURA2P_DISTMAT_DIR = BLOCK_STATS_DIR / "kimura2p_distances"
 KIMURA2P_DISTMAT_MATRIX_DIR = KIMURA2P_DISTMAT_DIR / "matrices"
 KIMURA2P_DISTMAT_CHUNK_DIR = KIMURA2P_DISTMAT_DIR / "chunks"
+POLYMARKER_INPUT_DIR = OUTDIR / "15_polymarker_inputs"
+POLYMARKER_DIR = OUTDIR / "16_polymarker"
+POLYMARKER_SUMMARY_DIR = OUTDIR / "17_polymarker_summary"
+KASP_GENOTYPES = [
+    record
+    for record in GENOTYPES
+    if record["genome_fasta"]
+]
+KASP_GENOTYPE_NAMES = [
+    record["genotype"]
+    for record in KASP_GENOTYPES
+]
+KASP_GENOME_FASTA_BY_GENOTYPE = {
+    record["genotype"]: record["genome_fasta"]
+    for record in KASP_GENOTYPES
+}
+IN_SILICO_DIR = OUTDIR / "18_in_silico_validation"
+VALIDATION_DIR = OUTDIR / "19_validated_assays"
 LOG_DIR = OUTDIR / "logs"
 BENCHMARK_DIR = OUTDIR / "benchmarks"
 

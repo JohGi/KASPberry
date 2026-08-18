@@ -1,0 +1,5 @@
+marker_id	genotype	expected_allele	polymarker_pass
+snp::2::10	A	A	true
+snp::2::10	B	A	false
+snp::2::20	A	G	false
+snp::2::20	B	G	true

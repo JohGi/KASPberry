@@ -89,10 +89,37 @@ properties:
     type: object
     additionalProperties: false
     properties:
+    
       polymarker_genomes:
         type: integer
         minimum: 1
         description: Number of subgenomes expected by PolyMarker for the target homoeologous group.
+
+      mfeprimer:
+        type: object
+        additionalProperties: false
+        properties:
+
+          specificity:
+            type: object
+            additionalProperties: false
+            properties:
+              min_tm:
+                type: number
+                minimum: 0
+                maximum: 100
+                default: 50
+                description: Minimum primer binding Tm used by MFEprimer specificity analysis.
+
+          dimer:
+            type: object
+            additionalProperties: false
+            properties:
+              max_dg:
+                type: number
+                maximum: 0
+                default: -3.5
+                description: Delta G cutoff used by MFEprimer to report potentially problematic primer dimers.
 
   viewer:
     type: object
@@ -138,3 +165,31 @@ properties:
             items:
               type: string
             description: Additional command-line options passed to MAFFT.
+
+      mfeprimer:
+        type: object
+        additionalProperties: false
+        properties:
+          specificity_extra_options:
+            type: array
+            items:
+              type: string
+            default: []
+            description: >
+              Additional command-line options passed to MFEprimer spec.
+
+          dimer_extra_options:
+            type: array
+            items:
+              type: string
+            default: []
+            description: >
+              Additional command-line options passed to MFEprimer dimer.
+
+          hairpin_extra_options:
+            type: array
+            items:
+              type: string
+            default: []
+            description: >
+              Additional command-line options passed to MFEprimer hairpin.

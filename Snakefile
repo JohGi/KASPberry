@@ -1,7 +1,5 @@
 from snakemake.utils import validate
 
-# configfile: "config/config.yaml"
-
 validate(config, "workflow/schemas/config.schema.yaml", set_default=False)
 
 include: "rules/common.smk"
@@ -14,7 +12,7 @@ include: "rules/summary_stats.smk"
 include: "rules/block_stats.smk"
 include: "rules/region_overview.smk"
 include: "rules/kasp.smk"
-
+include: "rules/in_silico_validation.smk"
 
 SNP_TARGET_OUTPUTS = [
     SNP_POS_LONG_TSV,
@@ -25,15 +23,11 @@ SNP_TARGET_OUTPUTS = [
 ]
 
 KASP_TARGET_OUTPUTS = [
-    *SNP_TARGET_OUTPUTS,
-    POLYMARKER_SUMMARY_DIR / "polymarker_snp_status.tsv",
-    POLYMARKER_SUMMARY_DIR / "polymarker_snp_status_long.tsv",
-    POLYMARKER_SUMMARY_DIR / "polymarker_assays.tsv",
-    POLYMARKER_SUMMARY_DIR / "primers.tsv",
-    POLYMARKER_SUMMARY_DIR / "primers_control_pairs.tsv",
-    POLYMARKER_SUMMARY_DIR / "primers_with_tails.fasta",
+    VALIDATION_DIR / "assay_status.tsv",
+    VALIDATION_DIR / "assay_status_by_genotype.tsv",
+    VALIDATION_DIR / "snp_status.tsv",
+    VALIDATION_DIR / "validated_assays.tsv",
 ]
-
 
 rule all:
     input:

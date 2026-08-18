@@ -1,1 +1,1 @@
-assay_id	marker_id	block_id	aln_pos	first_allele	second_allele	first_primer	second_primer	common_primer	first_primer_with_tail	second_primer_with_tail	source_genotypes
+assay_id	marker_id	first_allele	second_allele	first_primer	second_primer	common_primer	first_primer_with_tail	second_primer_with_tail	source_genotypes
