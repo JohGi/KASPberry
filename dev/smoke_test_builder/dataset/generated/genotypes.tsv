@@ -1,0 +1,6 @@
+genotype	group	region_fasta	genome_fasta	source_seq	region_start
+Karur	A	dev/smoke_test_builder/dataset/generated/qtl_fastas/Karur.fasta	dev/smoke_test_builder/dataset/generated/pseudochromosomes/Karur.fasta	Karur	839
+Soldur	B	dev/smoke_test_builder/dataset/generated/qtl_fastas/Soldur.fasta	dev/smoke_test_builder/dataset/generated/pseudochromosomes/Soldur.fasta	Soldur	868
+Belalur		dev/smoke_test_builder/dataset/generated/qtl_fastas/Belalur.fasta	dev/smoke_test_builder/dataset/generated/pseudochromosomes/Belalur.fasta	Belalur	819
+Lloyd		dev/smoke_test_builder/dataset/generated/qtl_fastas/Lloyd.fasta	dev/smoke_test_builder/dataset/generated/pseudochromosomes/Lloyd.fasta	Lloyd	852
+Dic2		dev/smoke_test_builder/dataset/generated/qtl_fastas/Dic2.fasta	dev/smoke_test_builder/dataset/generated/pseudochromosomes/Dic2.fasta	Dic2_mlk	854

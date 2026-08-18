@@ -1,0 +1,5 @@
+genotype	track	gff
+Belalur	LiftOn (Svevo2) genes	dev/smoke_test_builder/dataset/gffs/Belalur_all.gff
+Belalur	LRR genes	dev/smoke_test_builder/dataset/gffs/Belalur_LRR.gff
+Dic2	LiftOn (Svevo2) genes	dev/smoke_test_builder/dataset/gffs/Dic2_all.gff
+Soldur	WAK genes	dev/smoke_test_builder/dataset/gffs/Soldur_wak.gff

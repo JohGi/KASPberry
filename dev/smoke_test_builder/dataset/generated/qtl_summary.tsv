@@ -1,0 +1,16 @@
+genotype	segment	start_1based	end_1based	length
+Karur	01_snp_outcomes	1	900	900
+Karur	spacer_1	901	1150	250
+Karur	02_assay_outcomes	1151	2050	900
+Soldur	01_snp_outcomes	1	900	900
+Soldur	spacer_1	901	1150	250
+Soldur	02_assay_outcomes	1151	2050	900
+Belalur	01_snp_outcomes	1	900	900
+Belalur	spacer_1	901	1150	250
+Belalur	02_assay_outcomes	1151	2050	900
+Lloyd	01_snp_outcomes	1	900	900
+Lloyd	spacer_1	901	1150	250
+Lloyd	02_assay_outcomes	1151	2050	900
+Dic2	01_snp_outcomes	1	900	900
+Dic2	spacer_1	901	1150	250
+Dic2	02_assay_outcomes	1151	2050	900

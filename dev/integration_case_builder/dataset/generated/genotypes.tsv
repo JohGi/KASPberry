@@ -1,6 +1,0 @@
-genotype	group	region_fasta	genome_fasta	source_seq	region_start
-Karur	A	dev/integration_case_builder/dataset/generated/qtl_fastas/Karur.fasta	dev/integration_case_builder/dataset/generated/pseudochromosomes/Karur.fasta	Karur	1096
-Soldur	B	dev/integration_case_builder/dataset/generated/qtl_fastas/Soldur.fasta	dev/integration_case_builder/dataset/generated/pseudochromosomes/Soldur.fasta	Soldur	1263
-Belalur		dev/integration_case_builder/dataset/generated/qtl_fastas/Belalur.fasta	dev/integration_case_builder/dataset/generated/pseudochromosomes/Belalur.fasta	Belalur	1029
-Lloyd		dev/integration_case_builder/dataset/generated/qtl_fastas/Lloyd.fasta	dev/integration_case_builder/dataset/generated/pseudochromosomes/Lloyd.fasta	Lloyd	1045
-Dic2		dev/integration_case_builder/dataset/generated/qtl_fastas/Dic2.fasta	dev/integration_case_builder/dataset/generated/pseudochromosomes/Dic2.fasta	Dic2_mlk	1066
