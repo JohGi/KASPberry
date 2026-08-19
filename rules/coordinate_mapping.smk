@@ -2,7 +2,7 @@ rule map_snp_coordinates:
     input:
         vcf=SNP_VCF,
         block_coords=BLOCK_COORDINATES_TSV,
-        samples_tsv=GENOTYPES_TSV
+        genotypes_tsv=GENOTYPES_TSV
     output:
         long=SNP_POS_LONG_TSV,
         wide=SNP_POS_WIDE_TSV
@@ -17,7 +17,7 @@ rule map_snp_coordinates:
         python3 "{SCRIPTS_DIR}/map_snp_coordinates.py" \
             --vcf "{input.vcf}" \
             --block-coords "{input.block_coords}" \
-            --samples-tsv "{input.samples_tsv}" \
+            --genotypes-tsv "{input.genotypes_tsv}" \
             --align-dir "{ALIGN_DIR}" \
             --long-output "{output.long}" \
             --wide-output "{output.wide}" \

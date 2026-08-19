@@ -17,11 +17,11 @@ RULE_NAME = "mask_block_chunk"
 TEST_CASES = [
     {
         "case_name": "no_repeats",
-        "target": "results/05_masked_block_fastas/chunks/chunk_0000.done",
+        "target": "results/.work/masked_block_fastas/chunks/chunk_0000.done",
     },
     {
         "case_name": "with_repeats",
-        "target": "results/05_masked_block_fastas/chunks/chunk_0001.done",
+        "target": "results/.work/masked_block_fastas/chunks/chunk_0001.done",
     },
 ]
 
@@ -59,7 +59,7 @@ def test_mask_block_chunk_cases(
     )
 
     compare_directories(
-        expected_dir=case_dir / "expected" / "results" / "05_masked_block_fastas",
-        observed_dir=tmp_path / "results" / "05_masked_block_fastas",
+        expected_dir=case_dir / "expected" / "results" / ".work" / "masked_block_fastas",
+        observed_dir=tmp_path / "results" / ".work" / "masked_block_fastas",
         ignore_suffixes={".out", ".tbl", ".cat", ".all"}
     )

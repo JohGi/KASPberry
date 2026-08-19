@@ -173,7 +173,7 @@ rule build_dotplot_gallery_html:
         ).strip()
     shell:
         r"""
-        mkdir -p "{DOTPLOT_COMBINED_DIR}" "$(dirname "{log.stdout}")"
+        mkdir -p "$(dirname "{output.html}")" "$(dirname "{log.stdout}")"
         python3 "{SCRIPTS_DIR}/build_dotplot_gallery_html.py" \
             --samples "{GENOTYPES_TSV}" \
             --svg-dir "{DOTPLOT_SVG_DIR}" \

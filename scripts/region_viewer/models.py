@@ -13,17 +13,17 @@ class SampleRecord:
 
     fasta_path: Path
     sample: str
-    zone_start_in_source_seq: int = 1
+    region_start_in_source_seq: int = 1
 
 
 @define(frozen=True)
 class BlockFeature:
-    """Store one conserved block for one sample."""
+    """Store one collinear block for one sample."""
 
     sample: str
     block_id: str
-    block_start_in_zone: int
-    block_end_in_zone: int
+    block_start_in_region: int
+    block_end_in_region: int
     block_start_in_source_seq: int
     block_end_in_source_seq: int
 
@@ -42,7 +42,7 @@ class SnpFeature:
     aln_pos: int
     nt: str
     pos_in_block: int
-    pos_in_zone: int
+    pos_in_region: int
     pos_in_source_seq: int
 
     @property
@@ -56,8 +56,8 @@ class SampleData:
     """Store all display data for one sample."""
 
     sample: str
-    zone_length: int
-    zone_start_in_source_seq: int = 1
+    region_length: int
+    region_start_in_source_seq: int = 1
     blocks: list[BlockFeature] = field(factory=list)
     snps: list[SnpFeature] = field(factory=list)
 
@@ -115,7 +115,7 @@ class BlockAlignment:
 
 @define(frozen=True)
 class GffGeneFeature:
-    """Store one GFF gene feature projected into the displayed zone."""
+    """Store one GFF gene feature projected into the displayed region."""
 
     sample: str
     track_name: str
@@ -123,8 +123,8 @@ class GffGeneFeature:
     source_seq_id: str
     start_in_source_seq: int
     end_in_source_seq: int
-    start_in_zone: int
-    end_in_zone: int
+    start_in_region: int
+    end_in_region: int
     strand: str | None = None
 
 @define(frozen=True)

@@ -16,7 +16,7 @@ RULE_NAME = "detect_snps"
 TEST_CASES = [
     {
         "case_name": "case_basic",
-        "target": "results/07_snps/snps.vcf",
+        "target": "results/snps/detected_snps.vcf",
     },
 ]
 
@@ -52,6 +52,6 @@ def test_detect_snps_cases(
     )
 
     compare_directories(
-        expected_dir=case_dir / "expected" / "results" / "07_snps",
-        observed_dir=tmp_path / "results" / "07_snps",
+        expected_dir=case_dir / "expected" / "results" / "snps",
+        observed_dir=tmp_path / "results" / "snps",
     )

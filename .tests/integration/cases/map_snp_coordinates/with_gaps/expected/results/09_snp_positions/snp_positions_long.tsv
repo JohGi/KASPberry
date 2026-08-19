@@ -1,4 +1,0 @@
-snp_id	block_id	aln_pos	sample	nt	pos_in_block	block_start_in_zone	pos_in_zone	zone_start_in_source_seq	pos_in_source_seq
-snp::1::6	1	6	SampleA	T	4	10	13	100	112
-snp::1::6	1	6	SampleB	A	6	20	25	200	224
-snp::1::6	1	6	SampleC	A	5	30	34	300	333

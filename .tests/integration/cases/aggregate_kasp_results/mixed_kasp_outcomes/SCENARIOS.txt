@@ -8,4 +8,4 @@ Five detected SNPs cover the full status flow.
 - snp::5::400: all stages PASS -> final PASS; one validated assay.
 - snp::5::500: all stages PASS -> final PASS; three assays, of which 01 and 03 pass and 02 fails.
 
-The test verifies kasp_summary.tsv, validated_snps.vcf, assay_summary.tsv, validated_assays.tsv, and primers_to_order.tsv. The primer-order table must contain first/second tailed primers and the untailed common primer for validated assays only.
+The test verifies kasp_snp_summary.tsv, candidate_snps.vcf, assay_summary.tsv, candidate_assays.tsv, and primers_to_order.tsv. The primer-order table must contain first/second tailed primers and the untailed common primer for validated assays only.

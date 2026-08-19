@@ -73,7 +73,7 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         help=(
             "Output VCF containing retained SNPs: diagnostic SNPs in snps mode, "
-            "fully validated SNPs in kasp mode."
+            "candidate SNPs in kasp mode."
         ),
     )
     parser.add_argument(
@@ -82,9 +82,9 @@ def parse_args() -> argparse.Namespace:
         help="Output assay summary TSV. Required in kasp mode.",
     )
     parser.add_argument(
-        "--validated-assays",
+        "--candidate-assays",
         type=Path,
-        help="Output validated assay TSV. Required in kasp mode.",
+        help="Output final candidate assay TSV. Required in kasp mode.",
     )
     parser.add_argument(
         "--primers-to-order",
@@ -314,11 +314,11 @@ def aggregate_assays(
 
 
 def build_primers_to_order(
-    validated_assays: list[dict[str, str]],
+    candidate_assays: list[dict[str, str]],
 ) -> list[dict[str, str]]:
     rows: list[dict[str, str]] = []
 
-    for assay in validated_assays:
+    for assay in candidate_assays:
         assay_id = assay["assay_id"]
         snp_id = assay["snp_id"]
 
@@ -356,7 +356,7 @@ def require_kasp_args(args: argparse.Namespace) -> None:
         "--assays": args.assays,
         "--assay-status": args.assay_status,
         "--assay-summary": args.assay_summary,
-        "--validated-assays": args.validated_assays,
+        "--candidate-assays": args.candidate_assays,
         "--primers-to-order": args.primers_to_order,
     }
 
@@ -499,19 +499,19 @@ def main() -> None:
         assay_rows,
     )
 
-    validated_assays = [
+    candidate_assays = [
         row
         for row in assay_rows
         if row["validation_status"] == "PASS"
     ]
 
     write_tsv(
-        args.validated_assays,
+        args.candidate_assays,
         assay_fields,
-        validated_assays,
+        candidate_assays,
     )
 
-    primers_to_order = build_primers_to_order(validated_assays)
+    primers_to_order = build_primers_to_order(candidate_assays)
 
     write_tsv(
         args.primers_to_order,

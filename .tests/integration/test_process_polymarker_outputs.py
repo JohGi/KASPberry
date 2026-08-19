@@ -17,11 +17,11 @@ RULE_NAME = "process_polymarker_outputs"
 TEST_CASES = [
     {
         "case_name": "mixed_assays",
-        "target": "results/17_polymarker_summary/polymarker_assays.tsv",
+        "target": "results/.work/kasp/polymarker_summary/polymarker_assays.tsv",
     },
     {
         "case_name": "no_common_snp",
-        "target": "results/17_polymarker_summary/polymarker_assays.tsv",
+        "target": "results/.work/kasp/polymarker_summary/polymarker_assays.tsv",
     },
 ]
 
@@ -59,6 +59,6 @@ def test_process_polymarker_outputs_cases(
     )
 
     compare_directories(
-        expected_dir=case_dir / "expected" / "results" / "17_polymarker_summary",
-        observed_dir=tmp_path / "results" / "17_polymarker_summary"
+        expected_dir=case_dir / "expected" / "results" / ".work" / "kasp" / "polymarker_summary",
+        observed_dir=tmp_path / "results" / ".work" / "kasp" / "polymarker_summary"
     )

@@ -17,11 +17,11 @@ RULE_NAME = "prepare_polymarker_genome"
 TEST_CASES = [
     {
         "case_name": "polyploid",
-        "target": "results/15_polymarker_inputs/Test/genome.fasta",
+        "target": "results/.work/kasp/polymarker_inputs/Test/genome.fasta",
     },
     {
         "case_name": "single_genome",
-        "target": "results/15_polymarker_inputs/Test/genome.fasta",
+        "target": "results/.work/kasp/polymarker_inputs/Test/genome.fasta",
     },
 ]
 
@@ -59,6 +59,6 @@ def test_prepare_polymarker_genome_cases(
     )
 
     compare_directories(
-        expected_dir=case_dir / "expected" / "results" / "15_polymarker_inputs",
-        observed_dir=tmp_path / "results" / "15_polymarker_inputs"
+        expected_dir=case_dir / "expected" / "results" / ".work" / "kasp" / "polymarker_inputs",
+        observed_dir=tmp_path / "results" / ".work" / "kasp" / "polymarker_inputs"
     )

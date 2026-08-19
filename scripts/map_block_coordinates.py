@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Author: Johanna Girodolle
 
-"""Write block coordinates in zone and source-sequence coordinate systems."""
+"""Write block coordinates in region and source-sequence coordinate systems."""
 
 from __future__ import annotations
 
@@ -17,38 +17,38 @@ LOGGER = logging.getLogger(__name__)
 
 
 @define(frozen=True)
-class SampleOffset:
-    """Store the source-sequence start offset for one sample."""
+class GenotypeOffset:
+    """Store the source-sequence start offset for one genotype."""
 
-    sample: str
-    zone_start_in_source_seq: int = 1
+    genotype: str
+    region_start_in_source_seq: int = 1
 
 
 @define(frozen=True)
 class BlockRecord:
-    """Store one block coordinate record for one sample."""
+    """Store one block coordinate record for one genotype."""
 
     block_id: str
-    sample: str
-    block_start_in_zone: int
-    block_end_in_zone: int
+    genotype: str
+    block_start_in_region: int
+    block_end_in_region: int
     block_start_in_source_seq: int
     block_end_in_source_seq: int
 
 
 @define
 class BlockCoordinateWriter:
-    """Build block coordinate records from a GFF and a samples TSV."""
+    """Build block coordinate records from a GFF and a genotypes TSV."""
 
     gff_path: Path
-    samples_tsv_path: Path
+    genotypes_tsv_path: Path
     output_path: Path
-    sample_offsets: dict[str, SampleOffset] = field(factory=dict)
+    genotype_offsets: dict[str, GenotypeOffset] = field(factory=dict)
 
     def run(self) -> None:
         """Run the full block coordinate export workflow."""
-        self.sample_offsets = read_sample_offsets(self.samples_tsv_path)
-        block_records = read_block_records(self.gff_path, self.sample_offsets)
+        self.genotype_offsets = read_genotype_offsets(self.genotypes_tsv_path)
+        block_records = read_block_records(self.gff_path, self.genotype_offsets)
         dataframe = build_block_dataframe(block_records)
         write_dataframe(dataframe, self.output_path)
 
@@ -57,8 +57,8 @@ def parse_args() -> argparse.Namespace:
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
         description=(
-            "Write block coordinates from filtered block GFF coordinates in the zone "
-            "to both zone and source-sequence coordinate systems."
+            "Write block coordinates from filtered block GFF coordinates in the region "
+            "to both region and source-sequence coordinate systems."
         )
     )
     parser.add_argument(
@@ -68,13 +68,13 @@ def parse_args() -> argparse.Namespace:
         help="Filtered block GFF file.",
     )
     parser.add_argument(
-        "--samples-tsv",
+        "--genotypes-tsv",
         required=True,
         type=Path,
         help=(
-            "Samples TSV. Column 2 must contain sample names. "
+            "Genotypes TSV. Column 2 must contain genotype names. "
             "Column 3 is optional and, if present, is interpreted as "
-            "zone_start_in_source_seq. Missing or empty offsets default to 1."
+            "region_start_in_source_seq. Missing or empty offsets default to 1."
         ),
     )
     parser.add_argument(
@@ -124,43 +124,43 @@ def extract_block_id(attributes: str, gff_path: Path, line_number: int) -> str:
     )
 
 
-def read_sample_offsets(samples_tsv_path: Path) -> dict[str, SampleOffset]:
-    """Read per-sample source-sequence offsets from the samples TSV."""
-    sample_offsets: dict[str, SampleOffset] = {}
+def read_genotype_offsets(genotypes_tsv_path: Path) -> dict[str, GenotypeOffset]:
+    """Read per-genotype source-sequence offsets from the genotypes TSV."""
+    genotype_offsets: dict[str, GenotypeOffset] = {}
 
-    with samples_tsv_path.open("r", encoding="utf-8", newline="") as handle:
+    with genotypes_tsv_path.open("r", encoding="utf-8", newline="") as handle:
         for line_number, row in enumerate(
             csv.DictReader(handle, delimiter="\t"),
             start=2,
         ):
-            sample = (row.get("genotype") or "").strip()
+            genotype = (row.get("genotype") or "").strip()
 
-            if not sample:
+            if not genotype:
                 raise ValueError(
-                    f"Empty sample name in {samples_tsv_path} "
+                    f"Empty genotype name in {genotypes_tsv_path} "
                     f"at line {line_number}"
                 )
 
             value = (row.get("region_start") or "").strip()
-            zone_start_in_source_seq = int(value) if value else 1
+            region_start_in_source_seq = int(value) if value else 1
 
-            sample_offsets[sample] = SampleOffset(
-                sample=sample,
-                zone_start_in_source_seq=zone_start_in_source_seq,
+            genotype_offsets[genotype] = GenotypeOffset(
+                genotype=genotype,
+                region_start_in_source_seq=region_start_in_source_seq,
             )
 
     LOGGER.info(
-        "Read %d sample offsets from %s",
-        len(sample_offsets),
-        samples_tsv_path,
+        "Read %d genotype offsets from %s",
+        len(genotype_offsets),
+        genotypes_tsv_path,
     )
 
-    return sample_offsets
+    return genotype_offsets
 
 
 def read_block_records(
     gff_path: Path,
-    sample_offsets: dict[str, SampleOffset],
+    genotype_offsets: dict[str, GenotypeOffset],
 ) -> list[BlockRecord]:
     """Read block records from a GFF and project them to source coordinates."""
     block_records: list[BlockRecord] = []
@@ -177,28 +177,28 @@ def read_block_records(
                     f"got {len(fields)}: {line.rstrip()}"
                 )
 
-            sample = fields[0]
-            block_start_in_zone = int(fields[3])
-            block_end_in_zone = int(fields[4])
+            genotype = fields[0]
+            block_start_in_region = int(fields[3])
+            block_end_in_region = int(fields[4])
             block_id = extract_block_id(fields[8], gff_path, line_number)
 
-            zone_start_in_source_seq = sample_offsets.get(sample, SampleOffset(sample)).zone_start_in_source_seq
+            region_start_in_source_seq = genotype_offsets.get(genotype, GenotypeOffset(genotype)).region_start_in_source_seq
 
             block_start_in_source_seq = compute_projected_position(
-                zone_start_in_source_seq,
-                block_start_in_zone,
+                region_start_in_source_seq,
+                block_start_in_region,
             )
             block_end_in_source_seq = compute_projected_position(
-                zone_start_in_source_seq,
-                block_end_in_zone,
+                region_start_in_source_seq,
+                block_end_in_region,
             )
 
             block_records.append(
                 BlockRecord(
                     block_id=block_id,
-                    sample=sample,
-                    block_start_in_zone=block_start_in_zone,
-                    block_end_in_zone=block_end_in_zone,
+                    genotype=genotype,
+                    block_start_in_region=block_start_in_region,
+                    block_end_in_region=block_end_in_region,
                     block_start_in_source_seq=block_start_in_source_seq,
                     block_end_in_source_seq=block_end_in_source_seq,
                 )
@@ -213,9 +213,9 @@ def build_block_dataframe(block_records: list[BlockRecord]) -> pl.DataFrame:
     rows = [
         {
             "block_id": record.block_id,
-            "sample": record.sample,
-            "block_start_in_zone": record.block_start_in_zone,
-            "block_end_in_zone": record.block_end_in_zone,
+            "genotype": record.genotype,
+            "block_start_in_region": record.block_start_in_region,
+            "block_end_in_region": record.block_end_in_region,
             "block_start_in_source_seq": record.block_start_in_source_seq,
             "block_end_in_source_seq": record.block_end_in_source_seq,
         }
@@ -226,7 +226,7 @@ def build_block_dataframe(block_records: list[BlockRecord]) -> pl.DataFrame:
 
     sorted_rows = sorted(
         dataframe.iter_rows(named=True),
-        key=lambda row: (natural_sort_key(str(row["block_id"])), str(row["sample"])),
+        key=lambda row: (natural_sort_key(str(row["block_id"])), str(row["genotype"])),
     )
     return pl.DataFrame(sorted_rows)
 
@@ -245,7 +245,7 @@ def main() -> None:
 
     writer = BlockCoordinateWriter(
         gff_path=args.gff,
-        samples_tsv_path=args.samples_tsv,
+        genotypes_tsv_path=args.genotypes_tsv,
         output_path=args.output,
     )
     writer.run()

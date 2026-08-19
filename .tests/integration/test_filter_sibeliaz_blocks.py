@@ -16,15 +16,15 @@ RULE_NAME = "filter_sibeliaz_blocks"
 TEST_CASES = [
     {
         "case_name": "conserved_4_not_5",
-        "target": "results/03_filtered_blocks/filtered_blocks.gff",
+        "target": "results/.work/blocks/collinear_blocks.gff",
     },
     {
         "case_name": "mixed_strand",
-        "target": "results/03_filtered_blocks/filtered_blocks.gff",
+        "target": "results/.work/blocks/collinear_blocks.gff",
     },
     {
         "case_name": "too_short",
-        "target": "results/03_filtered_blocks/filtered_blocks.gff",
+        "target": "results/.work/blocks/collinear_blocks.gff",
     },
 ]
 
@@ -60,6 +60,6 @@ def test_filter_sibeliaz_blocks_cases(
     )
 
     compare_directories(
-        expected_dir=case_dir / "expected" / "results" / "03_filtered_blocks",
-        observed_dir=tmp_path / "results" / "03_filtered_blocks",
+        expected_dir=case_dir / "expected" / "results" / ".work" / "blocks",
+        observed_dir=tmp_path / "results" / ".work" / "blocks",
     )

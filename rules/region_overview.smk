@@ -28,7 +28,7 @@ GFF_TRACK_FILES = get_gff_track_files(GFF_TRACKS)
 def get_region_viewer_outputs(mode):
     """Return the region viewer HTML output for one workflow mode."""
     return [
-        REGION_TRACK_DIR / f"region_tracks.{mode}.html"
+        OUTDIR / f"reports/region_viewer_{mode}.html"
     ]
 
 
@@ -92,7 +92,7 @@ rule generate_region_viewer:
         snp_long=SNP_POS_LONG_TSV,
         snp_summary=get_viewer_snp_summary,
         fastas=CLEAN_FASTAS,
-        stats_json=SUMMARY_STATS_JSON,
+        stats_json=RUN_SUMMARY_JSON,
         mash_dists_tsv=MASHTREE_MATRIX,
         n_stats_tsv=MASKED_BLOCK_N_STATS_TSV,
         align_sentinels=get_align_chunk_sentinels,
@@ -101,7 +101,7 @@ rule generate_region_viewer:
         dotplot_manifest=DOTPLOT_MANIFEST,
 
     output:
-        html=REGION_TRACK_DIR / "region_tracks.{mode}.html"
+        html=OUTDIR / "reports/region_viewer_{mode}.html"
 
     benchmark:
         BENCHMARK_DIR / "generate_region_viewer/{mode}.tsv"
@@ -112,7 +112,7 @@ rule generate_region_viewer:
 
     shell:
         r"""
-        mkdir -p "{REGION_TRACK_DIR}" "$(dirname "{log.stdout}")"
+        mkdir -p "$(dirname "{output.html}")" "$(dirname "{log.stdout}")"
 
         python3 "{SCRIPTS_DIR}/generate_region_viewer.py" \
             --samples-tsv "{input.samples_tsv}" \

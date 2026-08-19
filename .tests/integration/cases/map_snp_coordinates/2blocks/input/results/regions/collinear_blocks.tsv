@@ -1,0 +1,7 @@
+block_id	genotype	block_start_in_region
+1	SampleA	10
+1	SampleB	20
+1	SampleC	30
+2	SampleA	1000
+2	SampleB	2000
+2	SampleC	3000

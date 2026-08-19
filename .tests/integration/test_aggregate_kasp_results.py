@@ -28,16 +28,16 @@ def test_aggregate_kasp_results_mixed_outcomes(
     run_snakemake(
         repo_root=repo_root,
         workdir=tmp_path,
-        target="results/20_aggregation/kasp_summary.tsv",
+        target="results/kasp/kasp_snp_summary.tsv",
         configfile=configfile,
     )
 
     for relative_path in [
-        "results/20_aggregation/kasp_summary.tsv",
-        "results/19_validated_assays/validated_snps.vcf",
-        "results/assay_summary.tsv",
-        "results/validated_assays.tsv",
-        "results/primers_to_order.tsv",
+        "results/kasp/kasp_snp_summary.tsv",
+        "results/kasp/candidate_snps.vcf",
+        "results/kasp/assay_summary.tsv",
+        "results/kasp/candidate_assays.tsv",
+        "results/kasp/primers_to_order.tsv",
     ]:
         assert filecmp.cmp(
             case_dir / "expected" / relative_path,

@@ -27,13 +27,13 @@ def test_aggregate_snp_results_mixed_status(
     run_snakemake(
         repo_root=repo_root,
         workdir=tmp_path,
-        target="results/20_aggregation/snp_summary.tsv",
+        target="results/snps/snp_summary.tsv",
         configfile=configfile,
     )
 
     for relative_path in [
-        "results/20_aggregation/snp_summary.tsv",
-        "results/08_filtered_snps/diagnostic_snps.vcf",
+        "results/snps/snp_summary.tsv",
+        "results/snps/diagnostic_snps.vcf",
     ]:
         assert filecmp.cmp(
             case_dir / "expected" / relative_path,

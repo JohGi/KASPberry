@@ -16,7 +16,7 @@ RULE_NAME = "rename_fasta_header"
 TEST_CASES = [
     {
         "case_name": "case_basic",
-        "target": "results/01_clean_fasta/Dic2.fasta",
+        "target": "results/.work/clean_fasta/Dic2.fasta",
     },
 ]
 
@@ -51,6 +51,6 @@ def test_rename_fasta_header_cases(
     )
 
     compare_directories(
-        expected_dir=case_dir / "expected" / "results" / "01_clean_fasta",
-        observed_dir=tmp_path / "results" / "01_clean_fasta",
+        expected_dir=case_dir / "expected" / "results" / ".work" / "clean_fasta",
+        observed_dir=tmp_path / "results" / ".work" / "clean_fasta",
     )

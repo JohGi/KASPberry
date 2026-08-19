@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Author: Johanna Girodolle
 
-"""Map SNP coordinates from alignment coordinates to block, zone, and source sequence coordinates."""
+"""Map SNP coordinates from alignment coordinates to block, region, and source sequence coordinates."""
 
 from __future__ import annotations
 
@@ -21,11 +21,11 @@ LOGGER = logging.getLogger(__name__)
 
 
 @define(frozen=True)
-class SampleOffset:
-    """Store the source-sequence start offset for one sample."""
+class GenotypeOffset:
+    """Store the source-sequence start offset for one genotype."""
 
-    sample: str
-    zone_start_in_source_seq: int = 1
+    genotype: str
+    region_start_in_source_seq: int = 1
 
 
 @define(frozen=True)
@@ -42,12 +42,12 @@ class LongRow:
 
     block_id: str
     aln_pos: int
-    sample: str
+    genotype: str
     nt: str
     pos_in_block: int | None
-    block_start_in_zone: int | None
-    pos_in_zone: int | None
-    zone_start_in_source_seq: int | None
+    block_start_in_region: int | None
+    pos_in_region: int | None
+    region_start_in_source_seq: int | None
     pos_in_source_seq: int | None
 
     @property
@@ -58,7 +58,7 @@ class LongRow:
 
 @define(frozen=True)
 class SnpProjection:
-    """Store projected values for one sample at one SNP position."""
+    """Store projected values for one genotype at one SNP position."""
 
     nt: str
     pos_in_block: int | None
@@ -66,11 +66,11 @@ class SnpProjection:
 
 @define
 class AlignmentProjector:
-    """Project selected alignment columns to ungapped positions for each sample."""
+    """Project selected alignment columns to ungapped positions for each genotype."""
 
     block_id: str
     alignment_path: Path
-    sample_order: list[str]
+    genotype_order: list[str]
     projections_by_aln_pos: dict[int, dict[str, SnpProjection]] = field(factory=dict)
 
     def load(self, target_aln_positions: set[int]) -> None:
@@ -80,59 +80,59 @@ class AlignmentProjector:
             return
 
         alignment = AlignIO.read(str(self.alignment_path), "fasta")
-        normalized_names = self.get_normalized_sample_names(alignment)
-        self.validate_alignment_samples(normalized_names)
+        normalized_genotype_names = self.get_normalized_genotype_names(alignment)
+        self.validate_alignment_genotypes(normalized_genotype_names)
         self.projections_by_aln_pos = self.build_projection_cache(
             alignment=alignment,
-            normalized_names=normalized_names,
+            normalized_genotype_names=normalized_genotype_names,
             target_aln_positions=target_aln_positions,
         )
 
     @staticmethod
-    def normalize_alignment_sample_name(sequence_id: str) -> str:
-        """Extract the sample name from an alignment record identifier."""
+    def normalize_alignment_genotype_name(sequence_id: str) -> str:
+        """Extract the genotype name from an alignment record identifier."""
         return sequence_id.split(":", 1)[0]
 
-    def get_normalized_sample_names(self, alignment: MultipleSeqAlignment) -> list[str]:
-        """Return normalized sample names for all alignment records."""
-        return [self.normalize_alignment_sample_name(record.id) for record in alignment]
+    def get_normalized_genotype_names(self, alignment: MultipleSeqAlignment) -> list[str]:
+        """Return normalized genotype names for all alignment records."""
+        return [self.normalize_alignment_genotype_name(record.id) for record in alignment]
 
-    def validate_alignment_samples(self, normalized_names: list[str]) -> None:
-        """Validate alignment sample names against the expected VCF sample order."""
-        observed_samples = set(normalized_names)
-        expected_samples = set(self.sample_order)
+    def validate_alignment_genotypes(self, normalized_genotype_names: list[str]) -> None:
+        """Validate alignment genotype names against the expected VCF genotype order."""
+        observed_genotypes = set(normalized_genotype_names)
+        expected_genotypes = set(self.genotype_order)
 
-        if len(observed_samples) != len(normalized_names):
+        if len(observed_genotypes) != len(normalized_genotype_names):
             raise ValueError(
-                f"Duplicate normalized sample names found in alignment for block {self.block_id}: "
-                f"{normalized_names}"
+                f"Duplicate normalized genotype names found in alignment for block {self.block_id}: "
+                f"{normalized_genotype_names}"
             )
 
-        if observed_samples != expected_samples:
+        if observed_genotypes != expected_genotypes:
             raise ValueError(
-                f"Alignment samples do not match VCF samples for block {self.block_id}. "
-                f"Expected={sorted(expected_samples)} Observed={sorted(observed_samples)}"
+                f"Alignment genotypes do not match VCF genotypes for block {self.block_id}. "
+                f"Expected={sorted(expected_genotypes)} Observed={sorted(observed_genotypes)}"
             )
 
     def build_projection_cache(
         self,
         alignment: MultipleSeqAlignment,
-        normalized_names: list[str],
+        normalized_genotype_names: list[str],
         target_aln_positions: set[int],
     ) -> dict[int, dict[str, SnpProjection]]:
-        """Build per-sample projections only for requested alignment positions."""
+        """Build per-genotype projections only for requested alignment positions."""
         alignment_length = alignment.get_alignment_length()
         max_target = max(target_aln_positions)
-        ungapped_counters: dict[str, int] = {sample: 0 for sample in normalized_names}
+        ungapped_counters: dict[str, int] = {genotype: 0 for genotype in normalized_genotype_names}
         projections_by_aln_pos: dict[int, dict[str, SnpProjection]] = {}
 
         for aln_index in range(alignment_length):
             aln_pos = aln_index + 1
 
-            for record, sample in zip(alignment, normalized_names):
+            for record, genotype in zip(alignment, normalized_genotype_names):
                 nt = str(record.seq[aln_index]).upper()
                 if nt != "-":
-                    ungapped_counters[sample] += 1
+                    ungapped_counters[genotype] += 1
 
             if aln_pos not in target_aln_positions:
                 if aln_pos >= max_target:
@@ -141,10 +141,10 @@ class AlignmentProjector:
 
             projections_by_aln_pos[aln_pos] = {}
 
-            for record, sample in zip(alignment, normalized_names):
+            for record, genotype in zip(alignment, normalized_genotype_names):
                 nt = str(record.seq[aln_index]).upper()
-                pos_in_block = ungapped_counters[sample] if nt != "-" else None
-                projections_by_aln_pos[aln_pos][sample] = SnpProjection(
+                pos_in_block = ungapped_counters[genotype] if nt != "-" else None
+                projections_by_aln_pos[aln_pos][genotype] = SnpProjection(
                     nt=nt,
                     pos_in_block=pos_in_block,
                 )
@@ -161,34 +161,34 @@ class AlignmentProjector:
 
         return projections_by_aln_pos
 
-    def get_projection(self, aln_pos: int, sample: str) -> SnpProjection:
-        """Return the nucleotide and ungapped block position for one sample at one SNP column."""
-        return self.projections_by_aln_pos[aln_pos][sample]
+    def get_projection(self, aln_pos: int, genotype: str) -> SnpProjection:
+        """Return the nucleotide and ungapped block position for one genotype at one SNP column."""
+        return self.projections_by_aln_pos[aln_pos][genotype]
 
 
 @define
 class SnpPositionProjector:
-    """Project SNP coordinates from alignments to zone and source sequences."""
+    """Project SNP coordinates from alignments to region and source sequences."""
 
     vcf_path: Path
     block_coords_path: Path
-    samples_tsv_path: Path
+    genotypes_tsv_path: Path
     align_dir: Path
     long_output_path: Path
     wide_output_path: Path
-    sample_order: list[str] = field(factory=list)
+    genotype_order: list[str] = field(factory=list)
     variants_by_block: dict[str, list[VariantRecord]] = field(factory=dict)
-    block_starts_in_zone: dict[tuple[str, str], int] = field(factory=dict)
-    sample_offsets: dict[str, SampleOffset] = field(factory=dict)
+    block_starts_in_region: dict[tuple[str, str], int] = field(factory=dict)
+    genotype_offsets: dict[str, GenotypeOffset] = field(factory=dict)
 
     def run(self) -> None:
         """Run the full SNP projection workflow."""
-        self.sample_order, self.variants_by_block = read_vcf(self.vcf_path)
-        self.block_starts_in_zone = read_block_coords(self.block_coords_path)
-        self.sample_offsets = read_sample_offsets(self.samples_tsv_path)
+        self.genotype_order, self.variants_by_block = read_vcf(self.vcf_path)
+        self.block_starts_in_region = read_block_coords(self.block_coords_path)
+        self.genotype_offsets = read_genotype_offsets(self.genotypes_tsv_path)
         long_rows = self.project_variants()
         long_df = build_long_dataframe(long_rows)
-        wide_df = build_wide_dataframe(long_rows, self.sample_order)
+        wide_df = build_wide_dataframe(long_rows, self.genotype_order)
         write_dataframe(long_df, self.long_output_path)
         write_dataframe(wide_df, self.wide_output_path)
 
@@ -211,7 +211,7 @@ class SnpPositionProjector:
             projector = AlignmentProjector(
                 block_id=block_id,
                 alignment_path=alignment_path,
-                sample_order=self.sample_order,
+                genotype_order=self.genotype_order,
             )
             projector.load(target_aln_positions=target_aln_positions)
 
@@ -225,29 +225,29 @@ class SnpPositionProjector:
         variant: VariantRecord,
         projector: AlignmentProjector,
     ) -> list[LongRow]:
-        """Project one variant for all samples."""
+        """Project one variant for all genotypes."""
         rows: list[LongRow] = []
 
-        for sample in self.sample_order:
-            projection = projector.get_projection(variant.aln_pos, sample)
-            block_start_in_zone = self.block_starts_in_zone.get((variant.block_id, sample))
-            zone_start_in_source_seq = self.sample_offsets.get(sample, SampleOffset(sample)).zone_start_in_source_seq
-            pos_in_zone = compute_projected_position(block_start_in_zone, projection.pos_in_block)
+        for genotype in self.genotype_order:
+            projection = projector.get_projection(variant.aln_pos, genotype)
+            block_start_in_region = self.block_starts_in_region.get((variant.block_id, genotype))
+            region_start_in_source_seq = self.genotype_offsets.get(genotype, GenotypeOffset(genotype)).region_start_in_source_seq
+            pos_in_region = compute_projected_position(block_start_in_region, projection.pos_in_block)
             pos_in_source_seq = compute_projected_position(
-                zone_start_in_source_seq,
-                pos_in_zone,
+                region_start_in_source_seq,
+                pos_in_region,
             )
 
             rows.append(
                 LongRow(
                     block_id=variant.block_id,
                     aln_pos=variant.aln_pos,
-                    sample=sample,
+                    genotype=genotype,
                     nt=projection.nt,
                     pos_in_block=projection.pos_in_block,
-                    block_start_in_zone=block_start_in_zone,
-                    pos_in_zone=pos_in_zone,
-                    zone_start_in_source_seq=zone_start_in_source_seq,
+                    block_start_in_region=block_start_in_region,
+                    pos_in_region=pos_in_region,
+                    region_start_in_source_seq=region_start_in_source_seq,
                     pos_in_source_seq=pos_in_source_seq,
                 )
             )
@@ -260,7 +260,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
             "Project SNP positions from alignment coordinates to block, "
-            "zone, and source-sequence coordinates."
+            "region, and source-sequence coordinates."
         )
     )
     parser.add_argument(
@@ -273,16 +273,16 @@ def parse_args() -> argparse.Namespace:
         "--block-coords",
         required=True,
         type=Path,
-        help="TSV with columns including: block_id, sample, block_start_in_zone.",
+        help="TSV with columns including: block_id, genotype, block_start_in_region.",
     )
     parser.add_argument(
-        "--samples-tsv",
+        "--genotypes-tsv",
         required=True,
         type=Path,
         help=(
-            "Input samples TSV used by the workflow. "
-            "Column 2 must contain sample names. Column 3 is optional and, if present, "
-            "is interpreted as zone_start_in_source_seq. Missing or empty offsets default to 1."
+            "Input genotypes TSV used by the workflow. "
+            "Column 2 must contain genotype names. Column 3 is optional and, if present, "
+            "is interpreted as region_start_in_source_seq. Missing or empty offsets default to 1."
         ),
     )
     parser.add_argument(
@@ -326,8 +326,8 @@ def normalize_block_id(chrom_value: str) -> str:
 
 
 def read_vcf(vcf_path: Path) -> tuple[list[str], dict[str, list[VariantRecord]]]:
-    """Read the VCF sample order and group variants by block."""
-    sample_order: list[str] = []
+    """Read the VCF genotype order and group variants by block."""
+    genotype_order: list[str] = []
     variants_by_block: dict[str, list[VariantRecord]] = {}
 
     with vcf_path.open("r", encoding="utf-8") as handle:
@@ -337,7 +337,7 @@ def read_vcf(vcf_path: Path) -> tuple[list[str], dict[str, list[VariantRecord]]]
 
             if line.startswith("#CHROM"):
                 fields = line.rstrip("\n").split("\t")
-                sample_order = fields[9:]
+                genotype_order = fields[9:]
                 continue
 
             if line.startswith("#"):
@@ -350,22 +350,22 @@ def read_vcf(vcf_path: Path) -> tuple[list[str], dict[str, list[VariantRecord]]]
             variant = VariantRecord(block_id=block_id, aln_pos=aln_pos)
             variants_by_block.setdefault(block_id, []).append(variant)
 
-    if not sample_order:
-        raise ValueError(f"Could not find VCF header with sample names in {vcf_path}")
+    if not genotype_order:
+        raise ValueError(f"Could not find VCF header with genotype names in {vcf_path}")
 
     LOGGER.info(
-        "Read %d blocks and %d VCF samples from %s",
+        "Read %d blocks and %d VCF genotypes from %s",
         len(variants_by_block),
-        len(sample_order),
+        len(genotype_order),
         vcf_path,
     )
-    return sample_order, variants_by_block
+    return genotype_order, variants_by_block
 
 
 def read_block_coords(block_coords_path: Path) -> dict[tuple[str, str], int]:
-    """Read block start-in-zone positions keyed by (block_id, sample)."""
+    """Read block start-in-region positions keyed by (block_id, genotype)."""
     dataframe = pl.read_csv(block_coords_path, separator="\t")
-    required_columns = {"block_id", "sample", "block_start_in_zone"}
+    required_columns = {"block_id", "genotype", "block_start_in_region"}
 
     if not required_columns.issubset(set(dataframe.columns)):
         raise ValueError(
@@ -373,35 +373,35 @@ def read_block_coords(block_coords_path: Path) -> dict[tuple[str, str], int]:
             f"expected {sorted(required_columns)}, got {dataframe.columns}"
         )
 
-    block_starts_in_zone: dict[tuple[str, str], int] = {}
+    block_starts_in_region: dict[tuple[str, str], int] = {}
     for row in dataframe.iter_rows(named=True):
-        key = (str(row["block_id"]), str(row["sample"]))
-        block_starts_in_zone[key] = int(row["block_start_in_zone"])
+        key = (str(row["block_id"]), str(row["genotype"]))
+        block_starts_in_region[key] = int(row["block_start_in_region"])
 
     LOGGER.info(
         "Read %d block coordinate entries from %s",
-        len(block_starts_in_zone),
+        len(block_starts_in_region),
         block_coords_path,
     )
-    return block_starts_in_zone
+    return block_starts_in_region
 
 
-def read_sample_offsets(samples_tsv_path: Path) -> dict[str, SampleOffset]:
-    """Read per-sample source-sequence offsets from the workflow samples TSV."""
-    sample_offsets: dict[str, SampleOffset] = {}
+def read_genotype_offsets(genotypes_tsv_path: Path) -> dict[str, GenotypeOffset]:
+    """Read per-genotype source-sequence offsets from the workflow genotypes TSV."""
+    genotype_offsets: dict[str, GenotypeOffset] = {}
 
-    with samples_tsv_path.open("r", encoding="utf-8", newline="") as handle:
+    with genotypes_tsv_path.open("r", encoding="utf-8", newline="") as handle:
         for row in csv.DictReader(handle, delimiter="\t"):
-            sample = (row.get("genotype") or "").strip()
-            zone_start_in_source_seq = int(row["region_start"]) if (row.get("region_start") or "").strip() else 1
+            genotype = (row.get("genotype") or "").strip()
+            region_start_in_source_seq = int(row["region_start"]) if (row.get("region_start") or "").strip() else 1
 
-            sample_offsets[sample] = SampleOffset(
-                sample=sample,
-                zone_start_in_source_seq=zone_start_in_source_seq,
+            genotype_offsets[genotype] = GenotypeOffset(
+                genotype=genotype,
+                region_start_in_source_seq=region_start_in_source_seq,
             )
 
-    LOGGER.info("Read %d sample offsets from %s", len(sample_offsets), samples_tsv_path)
-    return sample_offsets
+    LOGGER.info("Read %d genotype offsets from %s", len(genotype_offsets), genotypes_tsv_path)
+    return genotype_offsets
 
 
 def compute_projected_position(start_position: int | None, relative_position: int | None) -> int | None:
@@ -425,22 +425,22 @@ def build_long_dataframe(long_rows: list[LongRow]) -> pl.DataFrame:
             "snp_id": row.snp_id,
             "block_id": row.block_id,
             "aln_pos": row.aln_pos,
-            "sample": row.sample,
+            "genotype": row.genotype,
             "nt": row.nt,
             "pos_in_block": row.pos_in_block,
-            "block_start_in_zone": row.block_start_in_zone,
-            "pos_in_zone": row.pos_in_zone,
-            "zone_start_in_source_seq": row.zone_start_in_source_seq,
+            "block_start_in_region": row.block_start_in_region,
+            "pos_in_region": row.pos_in_region,
+            "region_start_in_source_seq": row.region_start_in_source_seq,
             "pos_in_source_seq": row.pos_in_source_seq,
         }
         for row in long_rows
     ]
 
     dataframe = pl.DataFrame(rows)
-    return dataframe.sort(["block_id", "aln_pos", "sample"])
+    return dataframe.sort(["block_id", "aln_pos", "genotype"])
 
 
-def build_wide_dataframe(long_rows: list[LongRow], sample_order: list[str]) -> pl.DataFrame:
+def build_wide_dataframe(long_rows: list[LongRow], genotype_order: list[str]) -> pl.DataFrame:
     """Build the wide-format output dataframe."""
     grouped_rows: dict[tuple[str, int], dict[str, str | int | None]] = {}
 
@@ -454,8 +454,8 @@ def build_wide_dataframe(long_rows: list[LongRow], sample_order: list[str]) -> p
                 "aln_pos": row.aln_pos,
             }
 
-        grouped_rows[key][f"{row.sample}_nt"] = row.nt
-        grouped_rows[key][f"{row.sample}_pos"] = row.pos_in_source_seq
+        grouped_rows[key][f"{row.genotype}_nt"] = row.nt
+        grouped_rows[key][f"{row.genotype}_pos"] = row.pos_in_source_seq
 
     wide_rows = [
         grouped_rows[key]
@@ -464,8 +464,8 @@ def build_wide_dataframe(long_rows: list[LongRow], sample_order: list[str]) -> p
     dataframe = pl.DataFrame(wide_rows)
 
     ordered_columns = ["snp_id", "block_id", "aln_pos"]
-    ordered_columns.extend(f"{sample}_nt" for sample in sample_order)
-    ordered_columns.extend(f"{sample}_pos" for sample in sample_order)
+    ordered_columns.extend(f"{genotype}_nt" for genotype in genotype_order)
+    ordered_columns.extend(f"{genotype}_pos" for genotype in genotype_order)
 
     return dataframe.select(ordered_columns)
 
@@ -485,7 +485,7 @@ def main() -> None:
     projector = SnpPositionProjector(
         vcf_path=args.vcf,
         block_coords_path=args.block_coords,
-        samples_tsv_path=args.samples_tsv,
+        genotypes_tsv_path=args.genotypes_tsv,
         align_dir=args.align_dir,
         long_output_path=args.long_output,
         wide_output_path=args.wide_output,

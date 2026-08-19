@@ -75,7 +75,7 @@ def read_snps(
         genotype_row = next(
             row
             for row in rows
-            if row["sample"] == genotype
+            if row["genotype"] == genotype
         )
 
         allele = genotype_row["nt"].upper()
@@ -89,7 +89,7 @@ def read_snps(
         snps.append(
             (
                 snp_id,
-                int(genotype_row["pos_in_zone"]),
+                int(genotype_row["pos_in_region"]),
                 allele,
                 other_allele,
             )

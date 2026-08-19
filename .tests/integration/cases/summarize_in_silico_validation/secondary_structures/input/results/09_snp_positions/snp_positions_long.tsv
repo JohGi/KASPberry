@@ -1,7 +1,0 @@
-snp_id	block_id	aln_pos	sample	nt	pos_in_block	block_start_in_zone	pos_in_zone	zone_start_in_source_seq	pos_in_source_seq
-snp::2::600	2	600	A	A	600	1	600	1	600
-snp::2::600	2	600	B	G	600	1	600	1	600
-snp::2::700	2	700	A	A	700	1	700	1	700
-snp::2::700	2	700	B	G	700	1	700	1	700
-snp::2::800	2	800	A	A	800	1	800	1	800
-snp::2::800	2	800	B	G	800	1	800	1	800

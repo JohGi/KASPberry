@@ -230,7 +230,7 @@ def main() -> None:
     }
 
     positions_by_genotype = {
-        (row["snp_id"], row["sample"]): (
+        (row["snp_id"], row["genotype"]): (
             row["nt"],
             int(row["pos_in_source_seq"]),
         )

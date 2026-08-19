@@ -22,8 +22,8 @@ rule prepare_polymarker_genome:
         genome=get_kasp_genome_fasta,
         chromosomes=get_chromosomes_input,
     output:
-        genome=OUTDIR / "15_polymarker_inputs/{genotype}/genome.fasta",
-        aliases=OUTDIR / "15_polymarker_inputs/{genotype}/chromosome_aliases.tsv",
+        genome=POLYMARKER_INPUT_DIR / "{genotype}/genome.fasta",
+        aliases=POLYMARKER_INPUT_DIR / "{genotype}/chromosome_aliases.tsv",
     params:
         source_seq=lambda wildcards: next(
             record["source_seq"]
@@ -53,9 +53,9 @@ rule prepare_polymarker_genome:
 
 rule index_polymarker_genome:
     input:
-        genome=OUTDIR / "15_polymarker_inputs/{genotype}/genome.fasta",
+        genome=POLYMARKER_INPUT_DIR / "{genotype}/genome.fasta",
     output:
-        fai=OUTDIR / "15_polymarker_inputs/{genotype}/genome.fasta.fai",
+        fai=POLYMARKER_INPUT_DIR / "{genotype}/genome.fasta.fai",
     log:
         stdout=LOG_DIR / "index_polymarker_genome/{genotype}.stdout",
         stderr=LOG_DIR / "index_polymarker_genome/{genotype}.stderr",
@@ -73,9 +73,9 @@ rule index_polymarker_genome:
 
 rule build_polymarker_blastdb:
     input:
-        genome=OUTDIR / "15_polymarker_inputs/{genotype}/genome.fasta",
+        genome=POLYMARKER_INPUT_DIR / "{genotype}/genome.fasta",
     output:
-        done=OUTDIR / "15_polymarker_inputs/{genotype}/genome.fasta.blastdb.done",
+        done=POLYMARKER_INPUT_DIR / "{genotype}/genome.fasta.blastdb.done",
     log:
         stdout=LOG_DIR / "build_polymarker_blastdb/{genotype}.stdout",
         stderr=LOG_DIR / "build_polymarker_blastdb/{genotype}.stderr",
@@ -101,9 +101,9 @@ rule prepare_polymarker_markers:
         snps=SNP_POS_LONG_TSV,
         snp_status=DIAGNOSTIC_STATUS_TSV,
         reference=CLEAN_FASTA_DIR / "{genotype}.fasta",
-        aliases=OUTDIR / "15_polymarker_inputs/{genotype}/chromosome_aliases.tsv",
+        aliases=POLYMARKER_INPUT_DIR / "{genotype}/chromosome_aliases.tsv",
     output:
-        marker_list=OUTDIR / "15_polymarker_inputs/{genotype}/marker_list.csv",
+        marker_list=POLYMARKER_INPUT_DIR / "{genotype}/marker_list.csv",
     params:
         flank=config["snps"]["min_snp_flank"],
     log:

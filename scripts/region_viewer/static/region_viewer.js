@@ -91,7 +91,7 @@ const DOTPLOT_AXIS_BOUNDS = {
 // Set to true to draw calibration lines at axis boundaries on track canvases.
 const DOTPLOT_DEBUG_LAYOUT = false;
 
-// Track dimensions: +2 (1 px inset per side) so the inner zone rect matches
+// Track dimensions: +2 (1 px inset per side) so the inner region rect matches
 // CONFIG.trackHeight — the same visible height as browser-mode sample tracks.
 const DOTPLOT_TRACK = {
   yTrackWidth:    CONFIG.trackHeight + 2,
@@ -162,7 +162,7 @@ const searchIndexes = {
   blockIdToFeatureId: new Map(),
   snpKeyToFeatureId: new Map(),
   featureIdToFeatureType: new Map(),
-  featureIdToZoneRange: new Map(),
+  featureIdToRegionRange: new Map(),
   sampleByName: new Map()
 };
 
@@ -218,11 +218,11 @@ let _dotplotRedrawPending   = false;
 //   y-track blocks: [{ y0, y1, featureId }, …]  sorted by y0
 //   x-track snps:   [{ cx, featureId }, …]       sorted by cx
 //   y-track snps:   [{ cy, featureId }, …]       sorted by cy
-// Zone bounds (zoneX, zoneY, zoneW, zoneH) are also stored and used by
+// Region bounds (regionX, regionY, regionW, regionH) are also stored and used by
 // getDotplotHighlightGeometries to derive the cross-axis highlight geometry.
 const _dotplotHoverIndex = {
-  xTrack: { blocks: [], snps: [], zoneX: 0, zoneY: 0, zoneW: 0, zoneH: 0 },
-  yTrack: { blocks: [], snps: [], zoneX: 0, zoneY: 0, zoneW: 0, zoneH: 0 }
+  xTrack: { blocks: [], snps: [], regionX: 0, regionY: 0, regionW: 0, regionH: 0 },
+  yTrack: { blocks: [], snps: [], regionX: 0, regionY: 0, regionW: 0, regionH: 0 }
 };
 let _dotplotHoverIndexDirty = true;
 let _lastResolvedDotplotHoverKey = null;
@@ -265,11 +265,11 @@ function buildFeatureGroups(data) {
         info: {
           sample: sample.sample,
           block_id: block.block_id,
-          block_start_in_zone: block.block_start_in_zone,
-          block_end_in_zone: block.block_end_in_zone,
+          block_start_in_region: block.block_start_in_region,
+          block_end_in_region: block.block_end_in_region,
           block_start_in_source_seq: block.block_start_in_source_seq,
           block_end_in_source_seq: block.block_end_in_source_seq,
-          length: block.block_end_in_zone - block.block_start_in_zone + 1
+          length: block.block_end_in_region - block.block_start_in_region + 1
         }
       };
 
@@ -290,7 +290,7 @@ function buildFeatureGroups(data) {
           aln_pos: snp.aln_pos,
           nt: snp.nt,
           pos_in_block: snp.pos_in_block,
-          pos_in_zone: snp.pos_in_zone,
+          pos_in_region: snp.pos_in_region,
           pos_in_source_seq: snp.pos_in_source_seq
         }
       };
@@ -818,8 +818,8 @@ function renderSampleRegionStats() {
       html += `<p class="hint">No data.</p>`;
     } else {
       const entries = [
-        ["Zone length (bp)", stats.zone_length_bp],
-        ["Covered by blocks (%)", `${formatNumber(Number(stats.covered_pct_of_zone), 2)}%`]
+        ["Region length (bp)", stats.region_length_bp],
+        ["Covered by blocks (%)", `${formatNumber(Number(stats.covered_pct_of_region), 2)}%`]
       ];
 
       html += `<div class="kv">`;
@@ -843,7 +843,7 @@ function getMaskedNStats(blockId, sampleName) {
 function formatFeatureInfoEntries(featureType, info) {
   if (featureType === "block") {
     return [
-      ["Coords in zone", `${info.block_start_in_zone}-${info.block_end_in_zone}`],
+      ["Coords in region", `${info.block_start_in_region}-${info.block_end_in_region}`],
       [
         "Coords in source seq",
         `${info.block_start_in_source_seq}-${info.block_end_in_source_seq}`
@@ -854,7 +854,7 @@ function formatFeatureInfoEntries(featureType, info) {
 
   return [
     ["Allele", String(info.nt)],
-    ["Pos in zone", String(info.pos_in_zone)],
+    ["Pos in region", String(info.pos_in_region)],
     ["Pos in source seq", String(info.pos_in_source_seq)]
   ];
 }
@@ -869,12 +869,12 @@ function getBlockHighlightGeometries(featureId) {
       if (block.feature_id !== featureId) {
         continue;
       }
-      if (!intersectsRange(block.block_start_in_zone, block.block_end_in_zone, visibleStart, visibleEnd)) {
+      if (!intersectsRange(block.block_start_in_region, block.block_end_in_region, visibleStart, visibleEnd)) {
         continue;
       }
       const panelTop = computePanelTop(i);
-      const clippedStart = Math.max(block.block_start_in_zone, visibleStart);
-      const clippedEnd = Math.min(block.block_end_in_zone, visibleEnd);
+      const clippedStart = Math.max(block.block_start_in_region, visibleStart);
+      const clippedEnd = Math.min(block.block_end_in_region, visibleEnd);
       const x0 = worldXToScreenX(clippedStart);
       const x1 = worldXToScreenX(clippedEnd);
       results.push({
@@ -898,11 +898,11 @@ function getSnpHighlightGeometries(featureId) {
       if (snp.feature_id !== featureId) {
         continue;
       }
-      if (!isPositionVisible(snp.pos_in_zone, visibleStart, visibleEnd)) {
+      if (!isPositionVisible(snp.pos_in_region, visibleStart, visibleEnd)) {
         continue;
       }
       const panelTop = computePanelTop(i);
-      const x = worldXToScreenX(snp.pos_in_zone);
+      const x = worldXToScreenX(snp.pos_in_region);
       const y0 = getSnpY(panelTop);
       results.push({ x, y0, y1: y0 + CONFIG.snpHeight - 2 });
     }
@@ -1282,17 +1282,17 @@ function rebuildHoverSpatialIndex() {
 
     const snps = [];
     for (const snp of sample.snps) {
-      if (isPositionVisible(snp.pos_in_zone, visibleStart, visibleEnd)) {
-        snps.push({ screenX: worldXToScreenX(snp.pos_in_zone), featureId: snp.feature_id });
+      if (isPositionVisible(snp.pos_in_region, visibleStart, visibleEnd)) {
+        snps.push({ screenX: worldXToScreenX(snp.pos_in_region), featureId: snp.feature_id });
       }
     }
     snps.sort((a, b) => a.screenX - b.screenX);
 
     const blocks = [];
     for (const block of sample.blocks) {
-      if (intersectsRange(block.block_start_in_zone, block.block_end_in_zone, visibleStart, visibleEnd)) {
-        const x0 = worldXToScreenX(Math.max(block.block_start_in_zone, visibleStart));
-        const x1 = worldXToScreenX(Math.min(block.block_end_in_zone, visibleEnd));
+      if (intersectsRange(block.block_start_in_region, block.block_end_in_region, visibleStart, visibleEnd)) {
+        const x0 = worldXToScreenX(Math.max(block.block_start_in_region, visibleStart));
+        const x1 = worldXToScreenX(Math.min(block.block_end_in_region, visibleEnd));
         const x1eff = Math.max(x0 + CONFIG.blockMinWidthPx, x1);
         blocks.push({ x0, x1eff, featureId: block.feature_id });
       }
@@ -1436,7 +1436,7 @@ function getInitialZoomX() {
 }
 
 function getMaxZoomX() {
-  const theoretical = REGION_DATA.max_zone_length / CONFIG.targetVisibleBp;
+  const theoretical = REGION_DATA.max_region_length / CONFIG.targetVisibleBp;
   return Math.min(CONFIG.maxZoomCap, Math.max(getInitialZoomX(), theoretical));
 }
 
@@ -1446,11 +1446,11 @@ function getZoomFactor() {
 }
 
 function getVisibleBpSpan() {
-  return REGION_DATA.max_zone_length / state.zoomX;
+  return REGION_DATA.max_region_length / state.zoomX;
 }
 
 function getMaxVisibleStartBp() {
-  return Math.max(1, REGION_DATA.max_zone_length - getVisibleBpSpan() + 1);
+  return Math.max(1, REGION_DATA.max_region_length - getVisibleBpSpan() + 1);
 }
 
 function getVisibleStartBp() {
@@ -1466,7 +1466,7 @@ function getVisibleStartBp() {
 
 function getVisibleEndBp() {
   return Math.min(
-    REGION_DATA.max_zone_length,
+    REGION_DATA.max_region_length,
     getVisibleStartBp() + getVisibleBpSpan() - 1
   );
 }
@@ -1678,12 +1678,12 @@ function drawSampleOutline(layer, sample, panelTop) {
   const visibleStart = getVisibleStartBp();
   const visibleEnd = getVisibleEndBp();
 
-  if (!intersectsRange(1, sample.zone_length, visibleStart, visibleEnd)) {
+  if (!intersectsRange(1, sample.region_length, visibleStart, visibleEnd)) {
     return;
   }
 
   const clippedStart = Math.max(1, visibleStart);
-  const clippedEnd = Math.min(sample.zone_length, visibleEnd);
+  const clippedEnd = Math.min(sample.region_length, visibleEnd);
 
   if (clippedEnd < clippedStart) {
     return;
@@ -1693,7 +1693,7 @@ function drawSampleOutline(layer, sample, panelTop) {
   const x1 = worldXToScreenX(clippedEnd);
   const yTop = panelTop + CONFIG.trackY;
   const yBottom = yTop + CONFIG.trackHeight;
-  const isFullyVisible = clippedStart === 1 && clippedEnd === sample.zone_length;
+  const isFullyVisible = clippedStart === 1 && clippedEnd === sample.region_length;
 
   if (isFullyVisible) {
     layer.add(new Konva.Rect({
@@ -1733,7 +1733,7 @@ function drawSampleOutline(layer, sample, panelTop) {
     }));
   }
 
-  if (clippedEnd === sample.zone_length) {
+  if (clippedEnd === sample.region_length) {
     layer.add(new Konva.Line({
       points: [x1, yTop, x1, yBottom],
       stroke: "black",
@@ -1747,12 +1747,12 @@ function drawSampleTrackBackground(layer, sample, panelTop) {
   const visibleStart = getVisibleStartBp();
   const visibleEnd = getVisibleEndBp();
 
-  if (!intersectsRange(1, sample.zone_length, visibleStart, visibleEnd)) {
+  if (!intersectsRange(1, sample.region_length, visibleStart, visibleEnd)) {
     return;
   }
 
   const clippedStart = Math.max(1, visibleStart);
-  const clippedEnd = Math.min(sample.zone_length, visibleEnd);
+  const clippedEnd = Math.min(sample.region_length, visibleEnd);
 
   if (clippedEnd < clippedStart) {
     return;
@@ -1785,8 +1785,8 @@ function getBlockGeometry(feature, panelTop, minWidthPx) {
   const visibleStart = getVisibleStartBp();
   const visibleEnd = getVisibleEndBp();
 
-  const clippedStart = Math.max(feature.block_start_in_zone, visibleStart);
-  const clippedEnd = Math.min(feature.block_end_in_zone, visibleEnd);
+  const clippedStart = Math.max(feature.block_start_in_region, visibleStart);
+  const clippedEnd = Math.min(feature.block_end_in_region, visibleEnd);
 
   const x0 = worldXToScreenX(clippedStart);
   const x1 = worldXToScreenX(clippedEnd);
@@ -1812,12 +1812,12 @@ function drawGffTrackBaseline(layer, sample, panelTop, trackIndex) {
   const visibleStart = getVisibleStartBp();
   const visibleEnd = getVisibleEndBp();
 
-  if (!intersectsRange(1, sample.zone_length, visibleStart, visibleEnd)) {
+  if (!intersectsRange(1, sample.region_length, visibleStart, visibleEnd)) {
     return;
   }
 
   const clippedStart = Math.max(1, visibleStart);
-  const clippedEnd = Math.min(sample.zone_length, visibleEnd);
+  const clippedEnd = Math.min(sample.region_length, visibleEnd);
 
   if (clippedEnd < clippedStart) {
     return;
@@ -1839,12 +1839,12 @@ function drawGffGeneFeature(gene, panelTop, trackIndex, color, gffRectQueues) {
   const visibleStart = getVisibleStartBp();
   const visibleEnd = getVisibleEndBp();
 
-  if (!intersectsRange(gene.start_in_zone, gene.end_in_zone, visibleStart, visibleEnd)) {
+  if (!intersectsRange(gene.start_in_region, gene.end_in_region, visibleStart, visibleEnd)) {
     return;
   }
 
-  const clippedStart = Math.max(gene.start_in_zone, visibleStart);
-  const clippedEnd = Math.min(gene.end_in_zone, visibleEnd);
+  const clippedStart = Math.max(gene.start_in_region, visibleStart);
+  const clippedEnd = Math.min(gene.end_in_region, visibleEnd);
 
   if (clippedEnd < clippedStart) {
     return;
@@ -1917,8 +1917,8 @@ function drawSample(
 
   for (const block of sample.blocks) {
     if (!intersectsRange(
-      block.block_start_in_zone,
-      block.block_end_in_zone,
+      block.block_start_in_region,
+      block.block_end_in_region,
       visibleStart,
       visibleEnd
     )) {
@@ -1929,11 +1929,11 @@ function drawSample(
   }
 
   for (const snp of sample.snps) {
-    if (!isPositionVisible(snp.pos_in_zone, visibleStart, visibleEnd)) {
+    if (!isPositionVisible(snp.pos_in_region, visibleStart, visibleEnd)) {
       continue;
     }
 
-    const x = worldXToScreenX(snp.pos_in_zone);
+    const x = worldXToScreenX(snp.pos_in_region);
     const y0 = getSnpY(panelTop);
     snpLineQueue.push({ x, y0, y1: y0 + CONFIG.snpHeight - 2 });
   }
@@ -3543,7 +3543,7 @@ function buildSearchIndexes() {
     blockIdToFeatureId,
     snpKeyToFeatureId,
     featureIdToFeatureType,
-    featureIdToZoneRange,
+    featureIdToRegionRange,
     sampleByName
   } = searchIndexes;
 
@@ -3560,10 +3560,10 @@ function buildSearchIndexes() {
 
       featureIdToFeatureType.set(featureId, "block");
 
-      if (!featureIdToZoneRange.has(featureId)) {
-        featureIdToZoneRange.set(featureId, {
-          start: block.block_start_in_zone,
-          end: block.block_end_in_zone
+      if (!featureIdToRegionRange.has(featureId)) {
+        featureIdToRegionRange.set(featureId, {
+          start: block.block_start_in_region,
+          end: block.block_end_in_region
         });
       }
     }
@@ -3578,10 +3578,10 @@ function buildSearchIndexes() {
 
       featureIdToFeatureType.set(featureId, "snp");
 
-      if (!featureIdToZoneRange.has(featureId)) {
-        featureIdToZoneRange.set(featureId, {
-          start: snp.pos_in_zone,
-          end: snp.pos_in_zone
+      if (!featureIdToRegionRange.has(featureId)) {
+        featureIdToRegionRange.set(featureId, {
+          start: snp.pos_in_region,
+          end: snp.pos_in_region
         });
       }
     }
@@ -3603,8 +3603,8 @@ function setSearchMode(mode) {
   if (inputEl) {
     if (mode === "id") {
       inputEl.placeholder = "Block or SNP ID";
-    } else if (mode === "zone") {
-      inputEl.placeholder = "Zone coordinate (bp)";
+    } else if (mode === "region") {
+      inputEl.placeholder = "Region coordinate (bp)";
     } else {
       inputEl.placeholder = "Source coordinate (bp)";
     }
@@ -3654,13 +3654,13 @@ function resolveIdSearch(query) {
   return { error: `Unrecognized ID: "${trimmed}".` };
 }
 
-function resolveZonePositionSearch(position) {
+function resolveRegionPositionSearch(position) {
   if (!Number.isFinite(position) || position <= 0) {
     return { error: "Please enter a valid position." };
   }
 
-  if (position > REGION_DATA.max_zone_length) {
-    return { error: `Position out of range (max: ${REGION_DATA.max_zone_length}).` };
+  if (position > REGION_DATA.max_region_length) {
+    return { error: `Position out of range (max: ${REGION_DATA.max_region_length}).` };
   }
 
   return { position };
@@ -3677,23 +3677,23 @@ function resolveSourcePositionSearch(sampleName, position) {
     return { error: `Sample "${sampleName}" not found.` };
   }
 
-  const posInZone = position - sample.zone_start_in_source_seq + 1;
+  const posInRegion = position - sample.region_start_in_source_seq + 1;
 
-  if (posInZone < 1 || posInZone > sample.zone_length) {
+  if (posInRegion < 1 || posInRegion > sample.region_length) {
     return {
-      error: `Position ${position} is outside the zone for "${sampleName}" ` +
-        `(zone: ${sample.zone_start_in_source_seq}–` +
-        `${sample.zone_start_in_source_seq + sample.zone_length - 1}).`
+      error: `Position ${position} is outside the region for "${sampleName}" ` +
+        `(region: ${sample.region_start_in_source_seq}–` +
+        `${sample.region_start_in_source_seq + sample.region_length - 1}).`
     };
   }
 
-  return { posInZone };
+  return { posInRegion };
 }
 
 function centerRegionOnRange(start, end) {
   const rangeLength = Math.max(1, end - start + 1);
   const targetVisibleBp = Math.max(CONFIG.targetVisibleBp, rangeLength * 3);
-  const desiredZoom = REGION_DATA.max_zone_length / targetVisibleBp;
+  const desiredZoom = REGION_DATA.max_region_length / targetVisibleBp;
   const newZoom = Math.min(
     getMaxZoomX(),
     Math.max(getInitialZoomX(), desiredZoom)
@@ -3712,7 +3712,7 @@ function centerRegionOnPosition(position) {
 }
 
 function centerRegionOnPositionWithZoom(position) {
-  const desiredZoom = REGION_DATA.max_zone_length / CONFIG.targetVisibleBp;
+  const desiredZoom = REGION_DATA.max_region_length / CONFIG.targetVisibleBp;
   state.zoomX = Math.min(getMaxZoomX(), Math.max(getInitialZoomX(), desiredZoom));
   const visibleSpan = getVisibleBpSpan();
   setVisibleStartBp(position - visibleSpan / 2);
@@ -3738,7 +3738,7 @@ function runFeatureSearch() {
       statusEl.textContent = result.error;
       return;
     }
-    const range = searchIndexes.featureIdToZoneRange.get(result.featureId);
+    const range = searchIndexes.featureIdToRegionRange.get(result.featureId);
     if (range) {
       centerRegionOnRange(range.start, range.end);
     }
@@ -3746,9 +3746,9 @@ function runFeatureSearch() {
     return;
   }
 
-  if (mode === "zone") {
+  if (mode === "region") {
     const position = Number(rawInput.trim());
-    const result = resolveZonePositionSearch(position);
+    const result = resolveRegionPositionSearch(position);
     if (result.error) {
       statusEl.textContent = result.error;
       return;
@@ -3769,7 +3769,7 @@ function runFeatureSearch() {
       statusEl.textContent = result.error;
       return;
     }
-    centerRegionOnPositionWithZoom(result.posInZone);
+    centerRegionOnPositionWithZoom(result.posInRegion);
   }
 }
 
@@ -3855,7 +3855,7 @@ function initDerivedData() {
   for (const sample of REGION_DATA.samples) {
     for (const block of sample.blocks) {
       if (!blockPositions.has(block.feature_id)) {
-        blockPositions.set(block.feature_id, Number(block.block_start_in_zone));
+        blockPositions.set(block.feature_id, Number(block.block_start_in_region));
       }
     }
   }
@@ -3867,7 +3867,7 @@ function initDerivedData() {
   for (const sample of REGION_DATA.samples) {
     for (const snp of sample.snps) {
       if (!snpPositions.has(snp.feature_id)) {
-        snpPositions.set(snp.feature_id, Number(snp.pos_in_zone));
+        snpPositions.set(snp.feature_id, Number(snp.pos_in_region));
       }
     }
   }
@@ -4017,8 +4017,8 @@ function getDotplotImageDisplaySize() {
   return { imageWidth: Math.max(1, w), imageHeight: Math.max(1, h) };
 }
 
-// Returns the total pixel width that Y-sample GFF tracks occupy to the left of the Y zone,
-// including the topGap used as a side-gap between GFF tracks and the Y zone border.
+// Returns the total pixel width that Y-sample GFF tracks occupy to the left of the Y region,
+// including the topGap used as a side-gap between GFF tracks and the Y region border.
 function getDotplotYGffTotalWidth(ySampleData) {
   // Returns the total width for Y-sample GFF tracks, not including the side gap.
   if (!ySampleData) { return 0; }
@@ -4027,7 +4027,7 @@ function getDotplotYGffTotalWidth(ySampleData) {
   return n * (GFF_TRACK.height + GFF_TRACK.gap);
 }
 
-// Returns the total pixel height that X-sample GFF tracks occupy below the X zone,
+// Returns the total pixel height that X-sample GFF tracks occupy below the X region,
 // including topGap and an optional legend row.
 function getDotplotXGffTotalHeight(xSampleData) {
   const trackCount = xSampleData ? getSampleGffTracks(xSampleData).length : 0;
@@ -4042,10 +4042,10 @@ function getDotplotXGffTotalHeight(xSampleData) {
 
 // Computes the full geometry for the dotplot Konva stage.
 // All coordinates are in stage space:
-//   y-track zone:  x = [TRACK_FEATURE_INSET, yTrackWidth-TRACK_FEATURE_INSET],
+//   y-track region:  x = [TRACK_FEATURE_INSET, yTrackWidth-TRACK_FEATURE_INSET],
 //                  y = [yMaxPixel, yZeroPixel].
 //   image occupies x = [yTrackWidth+DOTPLOT_TRACK_GAP, …],  y = [0, imageHeight].
-//   x-track zone:  x = [xZero, xMax],
+//   x-track region:  x = [xZero, xMax],
 //                  y = [imageHeight+DOTPLOT_TRACK_GAP+TRACK_FEATURE_INSET, …].
 // The axis-bounds ratios (DOTPLOT_AXIS_BOUNDS) are applied to imageWidth/Height so
 // coordinate mapping is always relative to the image, regardless of gap size.
@@ -4062,9 +4062,9 @@ function computeDotplotGeometry() {
 
   // Extra horizontal space on the left for Y-sample GFF tracks (not including side gap).
   const yGffWidth = getDotplotYGffTotalWidth(ySampleData);
-  // Side gap between Y zone and GFF tracks (same as GFF_TRACK.topGap for symmetry).
+  // Side gap between Y region and GFF tracks (same as GFF_TRACK.topGap for symmetry).
   const yGffSideGap = yGffWidth > 0 ? GFF_TRACK.topGap : 0;
-  // Extra vertical space below the X zone for X-sample GFF tracks + legend.
+  // Extra vertical space below the X region for X-sample GFF tracks + legend.
   const xGffHeight = getDotplotXGffTotalHeight(xSampleData);
 
   const xAxisGap = getDotplotXAxisGap();
@@ -4103,25 +4103,25 @@ function computeDotplotGeometry() {
   };
 }
 
-// Maps a genomic zone position to Konva stage x for the x-sample track.
-// position 1 → xZero; position zone_length → xMax.
+// Maps a genomic region position to Konva stage x for the x-sample track.
+// position 1 → xZero; position region_length → xMax.
 function mapXCoordinateToStagePx(position, sample, geometry) {
-  const zoneLength = sample.zone_length;
-  if (zoneLength <= 1) {
+  const regionLength = sample.region_length;
+  if (regionLength <= 1) {
     return geometry.xZero;
   }
-  const ratio = (position - 1) / (zoneLength - 1);
+  const ratio = (position - 1) / (regionLength - 1);
   return geometry.xZero + ratio * (geometry.xMax - geometry.xZero);
 }
 
-// Maps a genomic zone position to Konva stage y for the y-sample track.
-// position 1 → yZeroPixel (near image bottom); position zone_length → yMaxPixel (near image top).
+// Maps a genomic region position to Konva stage y for the y-sample track.
+// position 1 → yZeroPixel (near image bottom); position region_length → yMaxPixel (near image top).
 function mapYCoordinateToStagePx(position, sample, geometry) {
-  const zoneLength = sample.zone_length;
-  if (zoneLength <= 1) {
+  const regionLength = sample.region_length;
+  if (regionLength <= 1) {
     return geometry.yZeroPixel;
   }
-  const ratio = (position - 1) / (zoneLength - 1);
+  const ratio = (position - 1) / (regionLength - 1);
   return geometry.yZeroPixel - ratio * (geometry.yZeroPixel - geometry.yMaxPixel);
 }
 
@@ -4157,7 +4157,7 @@ function getDotplotAxisTickValues(sample, pixelSpan) {
   }
 
   const visibleStart = 1;
-  const visibleEnd = sample.zone_length;
+  const visibleEnd = sample.region_length;
   const visibleSpan = Math.max(1, visibleEnd - visibleStart + 1);
   const bpPerPixel = visibleSpan / Math.max(1, pixelSpan);
   const rawStep = bpPerPixel * DOTPLOT_AXIS.targetTickSpacingPx;
@@ -4178,7 +4178,7 @@ function estimateDotplotAxisLabelWidth(sample, pixelSpan) {
     return 0;
   }
 
-  const visibleSpan = Math.max(1, sample.zone_length);
+  const visibleSpan = Math.max(1, sample.region_length);
   const tickValues = getDotplotAxisTickValues(sample, pixelSpan);
 
   if (tickValues.length === 0) {
@@ -4224,7 +4224,7 @@ function drawDotplotXAxis(layer, geometry, sample) {
 
   const axisY = geometry.imageHeight + 1;
   const visibleStart = 1;
-  const visibleEnd = sample.zone_length;
+  const visibleEnd = sample.region_length;
   const visibleSpan = Math.max(1, visibleEnd - visibleStart + 1);
 
   const bpPerPixel = visibleSpan / Math.max(1, geometry.xMax - geometry.xZero);
@@ -4269,7 +4269,7 @@ function drawDotplotYAxis(layer, geometry, sample) {
 
   const axisX = geometry.imageX - 1;
   const visibleStart = 1;
-  const visibleEnd = sample.zone_length;
+  const visibleEnd = sample.region_length;
   const visibleSpan = Math.max(1, visibleEnd - visibleStart + 1);
 
   const axisHeight = Math.max(1, geometry.yZeroPixel - geometry.yMaxPixel);
@@ -4512,7 +4512,7 @@ function clearDotplotStage() {
 
 // Full batched redraw of the dotplot Konva stage.
 // Uses one Konva.Shape per feature group — no one-node-per-feature.
-// Visual style matches browser mode: white zone, gray blocks, red SNPs, black outline.
+// Visual style matches browser mode: white region, gray blocks, red SNPs, black outline.
 // Also rebuilds the hover spatial index so hit-testing is always in sync with the layout.
 // Computes along-axis geometry for all blocks and SNPs of one sample track,
 // in a "local horizontal" coordinate system where the primary axis runs along
@@ -4522,21 +4522,21 @@ function clearDotplotStage() {
 //   fillRects:    [{along0, len, featureId}]  — block fill segments along the primary axis
 //   snpPositions: [{along, featureId}]        — SNP pixel positions along the primary axis
 //
-// `mapper` maps a zone position (genomic coordinate) to a stage pixel along
+// `mapper` maps a region position (genomic coordinate) to a stage pixel along
 // the track's primary axis.  For the x-track, mapper = mapXCoordinateToStagePx.
 // For the y-track, mapper = mapYCoordinateToStagePx (y-axis is inverted).
 function buildTrackAlongAxisGeoms(blocks, snps, mapper) {
   const fillRects = [];
   for (const block of blocks) {
-    const px0    = mapper(block.block_start_in_zone);
-    const px1    = mapper(block.block_end_in_zone);
+    const px0    = mapper(block.block_start_in_region);
+    const px1    = mapper(block.block_end_in_region);
     const along0 = Math.min(px0, px1);
     const len    = Math.max(CONFIG.blockMinWidthPx, Math.abs(px1 - px0));
     fillRects.push({ along0, len, featureId: block.feature_id });
   }
   const snpPositions = [];
   for (const snp of snps) {
-    snpPositions.push({ along: mapper(snp.pos_in_zone), featureId: snp.feature_id });
+    snpPositions.push({ along: mapper(snp.pos_in_region), featureId: snp.feature_id });
   }
   return { fillRects, snpPositions };
 }
@@ -4576,20 +4576,20 @@ function redrawDotplotStage() {
 
   drawDotplotCoordinateAxes(dotplotTrackLayer, geometry, xSampleData, ySampleData);
 
-  // Zone bounds: the outer DOTPLOT_TRACK width/height = CONFIG.trackHeight + 2
-  // accommodates the 1 px zone border on each side (TRACK_FEATURE_INSET).
-  // The inner zone (xZoneH = CONFIG.trackHeight) matches the browser-mode white track rect.
-  // DOTPLOT_TRACK_GAP separates the SVG image from each track zone.
-  const xZoneX = geometry.xZero;
-  const xZoneY = geometry.imageHeight + geometry.xAxisGap + TRACK_FEATURE_INSET;
-  const xZoneW = Math.max(1, geometry.xMax - geometry.xZero);
-  const xZoneH = CONFIG.trackHeight;
+  // Region bounds: the outer DOTPLOT_TRACK width/height = CONFIG.trackHeight + 2
+  // accommodates the 1 px region border on each side (TRACK_FEATURE_INSET).
+  // The inner region (xRegionH = CONFIG.trackHeight) matches the browser-mode white track rect.
+  // DOTPLOT_TRACK_GAP separates the SVG image from each track region.
+  const xRegionX = geometry.xZero;
+  const xRegionY = geometry.imageHeight + geometry.xAxisGap + TRACK_FEATURE_INSET;
+  const xRegionW = Math.max(1, geometry.xMax - geometry.xZero);
+  const xRegionH = CONFIG.trackHeight;
 
-  // Y-track zone is offset right by the Y-GFF gutter + side gap so GFF tracks fit to its left.
-  const yZoneX = geometry.yGffWidth + geometry.yGffSideGap + TRACK_FEATURE_INSET;
-  const yZoneY = geometry.yMaxPixel;
-  const yZoneW = CONFIG.trackHeight;
-  const yZoneH = Math.max(1, geometry.yZeroPixel - geometry.yMaxPixel);
+  // Y-track region is offset right by the Y-GFF gutter + side gap so GFF tracks fit to its left.
+  const yRegionX = geometry.yGffWidth + geometry.yGffSideGap + TRACK_FEATURE_INSET;
+  const yRegionY = geometry.yMaxPixel;
+  const yRegionW = CONFIG.trackHeight;
+  const yRegionH = Math.max(1, geometry.yZeroPixel - geometry.yMaxPixel);
 
   // Build normalised along-axis geometry for each track using the shared helper.
   // fillRects: [{along0, len, featureId}]   — block fill positions along primary axis
@@ -4609,28 +4609,28 @@ function redrawDotplotStage() {
     : { fillRects: [], snpPositions: [] };
 
   // Stage-absolute fill/line geometry for rendering.
-  // TRACK_FEATURE_INSET mirrors getFeatureY / getSnpY (1 px inset from zone border).
+  // TRACK_FEATURE_INSET mirrors getFeatureY / getSnpY (1 px inset from region border).
   // X-track: horizontal — along = x, across = y.  Y-track: vertical — along = y, across = x.
-  const featureH = Math.max(1, xZoneH - 2 * TRACK_FEATURE_INSET); // = CONFIG.featureHeight
-  const featureW = Math.max(1, yZoneW - 2 * TRACK_FEATURE_INSET); // same for y-track
+  const featureH = Math.max(1, xRegionH - 2 * TRACK_FEATURE_INSET); // = CONFIG.featureHeight
+  const featureW = Math.max(1, yRegionW - 2 * TRACK_FEATURE_INSET); // same for y-track
 
   const xBlockRects = xGeoms.fillRects.map(r => ({
-    x: r.along0, y: xZoneY + TRACK_FEATURE_INSET, width: r.len, height: featureH, featureId: r.featureId
+    x: r.along0, y: xRegionY + TRACK_FEATURE_INSET, width: r.len, height: featureH, featureId: r.featureId
   }));
   const xSnpEntries = xGeoms.snpPositions.map(s => ({
-    cx: s.along, y0: xZoneY + TRACK_FEATURE_INSET, y1: xZoneY + xZoneH - TRACK_FEATURE_INSET, featureId: s.featureId
+    cx: s.along, y0: xRegionY + TRACK_FEATURE_INSET, y1: xRegionY + xRegionH - TRACK_FEATURE_INSET, featureId: s.featureId
   }));
 
   const yBlockRects = yGeoms.fillRects.map(r => ({
-    x: yZoneX + TRACK_FEATURE_INSET, y: r.along0, width: featureW, height: r.len, featureId: r.featureId
+    x: yRegionX + TRACK_FEATURE_INSET, y: r.along0, width: featureW, height: r.len, featureId: r.featureId
   }));
   const ySnpEntries = yGeoms.snpPositions.map(s => ({
-    cy: s.along, x0: yZoneX + TRACK_FEATURE_INSET, x1: yZoneX + yZoneW - TRACK_FEATURE_INSET, featureId: s.featureId
+    cy: s.along, x0: yRegionX + TRACK_FEATURE_INSET, x1: yRegionX + yRegionW - TRACK_FEATURE_INSET, featureId: s.featureId
   }));
 
   // ── Build hover spatial index ───────────────────────────────────────────────
   // Store only the along-axis positions needed by resolveDotplotHoveredFeature.
-  // getDotplotHighlightGeometries derives cross-axis highlight bounds from zone bounds
+  // getDotplotHighlightGeometries derives cross-axis highlight bounds from region bounds
   // + TRACK_FEATURE_INSET / TRACK_HIGHLIGHT_INSET, so they never drift from browser mode.
   const xBlocks = xBlockRects.map(r => ({ x0: r.x, x1: r.x + r.width, featureId: r.featureId }));
   xBlocks.sort((a, b) => a.x0 - b.x0);
@@ -4642,8 +4642,8 @@ function redrawDotplotStage() {
   const ySnps = ySnpEntries.map(s => ({ cy: s.cy, featureId: s.featureId }));
   ySnps.sort((a, b) => a.cy - b.cy);
 
-  _dotplotHoverIndex.xTrack = { blocks: xBlocks, snps: xSnps, zoneX: xZoneX, zoneY: xZoneY, zoneW: xZoneW, zoneH: xZoneH };
-  _dotplotHoverIndex.yTrack = { blocks: yBlocks, snps: ySnps, zoneX: yZoneX, zoneY: yZoneY, zoneW: yZoneW, zoneH: yZoneH };
+  _dotplotHoverIndex.xTrack = { blocks: xBlocks, snps: xSnps, regionX: xRegionX, regionY: xRegionY, regionW: xRegionW, regionH: xRegionH };
+  _dotplotHoverIndex.yTrack = { blocks: yBlocks, snps: ySnps, regionX: yRegionX, regionY: yRegionY, regionW: yRegionW, regionH: yRegionH };
   _dotplotHoverIndexDirty = false;
 
   // ── X-track rendering ──────────────────────────────────────────────────────
@@ -4652,7 +4652,7 @@ function redrawDotplotStage() {
     dotplotTrackLayer.add(new Konva.Shape({
       sceneFunc(ctx) {
         ctx.fillStyle = "#ffffff";
-        ctx.fillRect(xZoneX, xZoneY, xZoneW, xZoneH);
+        ctx.fillRect(xRegionX, xRegionY, xRegionW, xRegionH);
       },
       listening: false
     }));
@@ -4694,7 +4694,7 @@ function redrawDotplotStage() {
     dotplotTrackLayer.add(new Konva.Shape({
       sceneFunc(ctx, shape) {
         ctx.beginPath();
-        drawRoundedRect(ctx, xZoneX, xZoneY, xZoneW, xZoneH, 2);
+        drawRoundedRect(ctx, xRegionX, xRegionY, xRegionW, xRegionH, 2);
         ctx.fillStrokeShape(shape);
       },
       fillEnabled: false,
@@ -4710,7 +4710,7 @@ function redrawDotplotStage() {
     dotplotTrackLayer.add(new Konva.Shape({
       sceneFunc(ctx) {
         ctx.fillStyle = "#ffffff";
-        ctx.fillRect(yZoneX, yZoneY, yZoneW, yZoneH);
+        ctx.fillRect(yRegionX, yRegionY, yRegionW, yRegionH);
       },
       listening: false
     }));
@@ -4752,7 +4752,7 @@ function redrawDotplotStage() {
     dotplotTrackLayer.add(new Konva.Shape({
       sceneFunc(ctx, shape) {
         ctx.beginPath();
-        drawRoundedRect(ctx, yZoneX, yZoneY, yZoneW, yZoneH, 2);
+        drawRoundedRect(ctx, yRegionX, yRegionY, yRegionW, yRegionH, 2);
         ctx.fillStrokeShape(shape);
       },
       fillEnabled: false,
@@ -4762,13 +4762,13 @@ function redrawDotplotStage() {
     }));
   }
 
-  // ── X-sample GFF tracks (horizontal, below X zone) ────────────────────────
+  // ── X-sample GFF tracks (horizontal, below X region) ────────────────────────
   if (xSampleData && geometry.xGffHeight > 0) {
     const xGffTracks = getSampleGffTracks(xSampleData);
     // Baseline Y: centre of each track strip, same formula as browser getGffTrackY.
-    // Here panelTop equivalent = xZoneY (top of the x-track zone, zone height = xZoneH).
-    // We place GFF tracks starting after xZoneH + GFF_TRACK.topGap below xZoneY.
-    const xGffOriginY = xZoneY + xZoneH; // bottom of x-sample zone (TRACK_FEATURE_INSET already counted)
+    // Here panelTop equivalent = xRegionY (top of the x-track region, region height = xRegionH).
+    // We place GFF tracks starting after xRegionH + GFF_TRACK.topGap below xRegionY.
+    const xGffOriginY = xRegionY + xRegionH; // bottom of x-sample region (TRACK_FEATURE_INSET already counted)
     const gffRectQueuesX = new Map();
 
     xGffTracks.forEach((track, trackIndex) => {
@@ -4793,8 +4793,8 @@ function redrawDotplotStage() {
 
       // Gene feature rectangles, batched by colour.
       for (const gene of track.features || []) {
-        const px0 = mapXCoordinateToStagePx(gene.start_in_zone, xSampleData, geometry);
-        const px1 = mapXCoordinateToStagePx(gene.end_in_zone,   xSampleData, geometry);
+        const px0 = mapXCoordinateToStagePx(gene.start_in_region, xSampleData, geometry);
+        const px1 = mapXCoordinateToStagePx(gene.end_in_region,   xSampleData, geometry);
         const gx0 = Math.min(px0, px1);
         const gw  = Math.max(GFF_TRACK.minGeneWidthPx, Math.abs(px1 - px0));
         if (!gffRectQueuesX.has(color)) { gffRectQueuesX.set(color, []); }
@@ -4822,18 +4822,18 @@ function redrawDotplotStage() {
     }
   }
 
-  // ── Y-sample GFF tracks (vertical, left of Y zone) ────────────────────────
+  // ── Y-sample GFF tracks (vertical, left of Y region) ────────────────────────
   if (ySampleData && geometry.yGffWidth > 0) {
     const yGffTracks = getSampleGffTracks(ySampleData);
-    // X origin for track strips: they stack leftward from the y-zone left edge, with a side gap.
-    // yZoneX = geometry.yGffWidth + geometry.yGffSideGap + TRACK_FEATURE_INSET; strips sit to its left.
-    const yGffRightEdge = geometry.yGffWidth + geometry.yGffSideGap; // left edge of y-track zone (before inset)
+    // X origin for track strips: they stack leftward from the y-region left edge, with a side gap.
+    // yRegionX = geometry.yGffWidth + geometry.yGffSideGap + TRACK_FEATURE_INSET; strips sit to its left.
+    const yGffRightEdge = geometry.yGffWidth + geometry.yGffSideGap; // left edge of y-track region (before inset)
     const gffRectQueuesY = new Map();
 
     yGffTracks.forEach((track, trackIndex) => {
       const color = getGffTrackColor(track.track_name);
-      // Stack strips rightward from the far-left edge toward the y-zone, leaving a side gap.
-      // Strip 0 is nearest to the y-zone.
+      // Stack strips rightward from the far-left edge toward the y-region, leaving a side gap.
+      // Strip 0 is nearest to the y-region.
       const stripRightX = yGffRightEdge - geometry.yGffSideGap - trackIndex * (GFF_TRACK.height + GFF_TRACK.gap);
       const trackX  = stripRightX - GFF_TRACK.height; // left edge of this strip
       const baselineX = trackX + GFF_TRACK.height / 2;
@@ -4855,8 +4855,8 @@ function redrawDotplotStage() {
 
       // Gene feature rectangles — rotated 90°: height=trackWidth, width=gene length.
       for (const gene of track.features || []) {
-        const py0 = mapYCoordinateToStagePx(gene.start_in_zone, ySampleData, geometry);
-        const py1 = mapYCoordinateToStagePx(gene.end_in_zone,   ySampleData, geometry);
+        const py0 = mapYCoordinateToStagePx(gene.start_in_region, ySampleData, geometry);
+        const py1 = mapYCoordinateToStagePx(gene.end_in_region,   ySampleData, geometry);
         const gy0 = Math.min(py0, py1);
         const gh  = Math.max(GFF_TRACK.minGeneWidthPx, Math.abs(py1 - py0));
         if (!gffRectQueuesY.has(color)) { gffRectQueuesY.set(color, []); }
@@ -4945,14 +4945,14 @@ function redrawDotplotStage() {
 
       if (xSampleData) {
         for (const block of xSampleData.blocks) {
-          xBlockGuideXs.push(mapXCoordinateToStagePx(block.block_start_in_zone, xSampleData, geometry));
-          xBlockGuideXs.push(mapXCoordinateToStagePx(block.block_end_in_zone,   xSampleData, geometry));
+          xBlockGuideXs.push(mapXCoordinateToStagePx(block.block_start_in_region, xSampleData, geometry));
+          xBlockGuideXs.push(mapXCoordinateToStagePx(block.block_end_in_region,   xSampleData, geometry));
         }
       }
       if (ySampleData) {
         for (const block of ySampleData.blocks) {
-          yBlockGuideYs.push(mapYCoordinateToStagePx(block.block_start_in_zone, ySampleData, geometry));
-          yBlockGuideYs.push(mapYCoordinateToStagePx(block.block_end_in_zone,   ySampleData, geometry));
+          yBlockGuideYs.push(mapYCoordinateToStagePx(block.block_start_in_region, ySampleData, geometry));
+          yBlockGuideYs.push(mapYCoordinateToStagePx(block.block_end_in_region,   ySampleData, geometry));
         }
       }
 
@@ -5093,9 +5093,9 @@ function resolveDotplotHoveredFeature(pointerX, pointerY) {
 
   // ── X-track (horizontal strip) ─────────────────────────────────────────────
   if (
-    xTrack.zoneH > 0 &&
-    pointerX >= xTrack.zoneX && pointerX <= xTrack.zoneX + xTrack.zoneW &&
-    pointerY >= xTrack.zoneY && pointerY <= xTrack.zoneY + xTrack.zoneH
+    xTrack.regionH > 0 &&
+    pointerX >= xTrack.regionX && pointerX <= xTrack.regionX + xTrack.regionW &&
+    pointerY >= xTrack.regionY && pointerY <= xTrack.regionY + xTrack.regionH
   ) {
     // SNPs: tolerance scan around pointerX.
     const lo = lowerBoundDotplotCx(xTrack.snps, pointerX - SNP_POINTER_TOLERANCE_PX);
@@ -5120,9 +5120,9 @@ function resolveDotplotHoveredFeature(pointerX, pointerY) {
 
   // ── Y-track (vertical strip) ───────────────────────────────────────────────
   if (
-    yTrack.zoneH > 0 &&
-    pointerX >= yTrack.zoneX && pointerX <= yTrack.zoneX + yTrack.zoneW &&
-    pointerY >= yTrack.zoneY && pointerY <= yTrack.zoneY + yTrack.zoneH
+    yTrack.regionH > 0 &&
+    pointerX >= yTrack.regionX && pointerX <= yTrack.regionX + yTrack.regionW &&
+    pointerY >= yTrack.regionY && pointerY <= yTrack.regionY + yTrack.regionH
   ) {
     // SNPs: tolerance scan around pointerY.
     const lo = lowerBoundDotplotCy(yTrack.snps, pointerY - SNP_POINTER_TOLERANCE_PX);
@@ -5182,23 +5182,23 @@ function getDotplotHighlightGeometries(featureType, featureId) {
 
   if (featureType === "block") {
     // Block highlights span the full track cross-axis with TRACK_HIGHLIGHT_INSET,
-    // matching browser-mode getBlockHighlightGeometries (0.5 px inset from zone border).
+    // matching browser-mode getBlockHighlightGeometries (0.5 px inset from region border).
     for (const b of xTrack.blocks) {
       if (b.featureId === featureId) {
         blockGeoms.push({
           x:      b.x0,
-          y:      xTrack.zoneY + TRACK_HIGHLIGHT_INSET,
+          y:      xTrack.regionY + TRACK_HIGHLIGHT_INSET,
           width:  b.x1 - b.x0,
-          height: xTrack.zoneH - 2 * TRACK_HIGHLIGHT_INSET
+          height: xTrack.regionH - 2 * TRACK_HIGHLIGHT_INSET
         });
       }
     }
     for (const b of yTrack.blocks) {
       if (b.featureId === featureId) {
         blockGeoms.push({
-          x:      yTrack.zoneX + TRACK_HIGHLIGHT_INSET,
+          x:      yTrack.regionX + TRACK_HIGHLIGHT_INSET,
           y:      b.y0,
-          width:  yTrack.zoneW - 2 * TRACK_HIGHLIGHT_INSET,
+          width:  yTrack.regionW - 2 * TRACK_HIGHLIGHT_INSET,
           height: b.y1 - b.y0
         });
       }
@@ -5209,8 +5209,8 @@ function getDotplotHighlightGeometries(featureType, featureId) {
       if (s.featureId === featureId) {
         snpGeoms.push({
           cx: s.cx,
-          y0: xTrack.zoneY + TRACK_FEATURE_INSET,
-          y1: xTrack.zoneY + xTrack.zoneH - TRACK_FEATURE_INSET,
+          y0: xTrack.regionY + TRACK_FEATURE_INSET,
+          y1: xTrack.regionY + xTrack.regionH - TRACK_FEATURE_INSET,
           axis: "x"
         });
       }
@@ -5219,8 +5219,8 @@ function getDotplotHighlightGeometries(featureType, featureId) {
       if (s.featureId === featureId) {
         snpGeoms.push({
           cy: s.cy,
-          x0: yTrack.zoneX + TRACK_FEATURE_INSET,
-          x1: yTrack.zoneX + yTrack.zoneW - TRACK_FEATURE_INSET,
+          x0: yTrack.regionX + TRACK_FEATURE_INSET,
+          x1: yTrack.regionX + yTrack.regionW - TRACK_FEATURE_INSET,
           axis: "y"
         });
       }
@@ -5405,7 +5405,7 @@ function centerPinnedFeature() {
     return;
   }
 
-  const range = searchIndexes.featureIdToZoneRange.get(state.pinnedFeatureId);
+  const range = searchIndexes.featureIdToRegionRange.get(state.pinnedFeatureId);
   if (!range) {
     return;
   }
@@ -5425,11 +5425,11 @@ function _computeDotplotBlockIntersection(featureId) {
   const yBlock = ySampleData.blocks.find(b => b.feature_id === featureId);
   if (!xBlock || !yBlock) { return null; }
 
-  const xLeft = mapXCoordinateToStagePx(xBlock.block_start_in_zone, xSampleData, geometry);
-  const xRight = mapXCoordinateToStagePx(xBlock.block_end_in_zone, xSampleData, geometry);
+  const xLeft = mapXCoordinateToStagePx(xBlock.block_start_in_region, xSampleData, geometry);
+  const xRight = mapXCoordinateToStagePx(xBlock.block_end_in_region, xSampleData, geometry);
 
-  const yStart = mapYCoordinateToStagePx(yBlock.block_start_in_zone, ySampleData, geometry);
-  const yEnd = mapYCoordinateToStagePx(yBlock.block_end_in_zone, ySampleData, geometry);
+  const yStart = mapYCoordinateToStagePx(yBlock.block_start_in_region, ySampleData, geometry);
+  const yEnd = mapYCoordinateToStagePx(yBlock.block_end_in_region, ySampleData, geometry);
 
   const x0 = Math.min(xLeft, xRight);
   const x1 = Math.max(xLeft, xRight);
@@ -5460,11 +5460,11 @@ function _computeDotplotBlockProjection(featureId) {
   const yBlock = ySampleData.blocks.find(b => b.feature_id === featureId);
   if (!xBlock || !yBlock) { return null; }
 
-  const xLeft = mapXCoordinateToStagePx(xBlock.block_start_in_zone, xSampleData, geometry);
-  const xRight = mapXCoordinateToStagePx(xBlock.block_end_in_zone, xSampleData, geometry);
+  const xLeft = mapXCoordinateToStagePx(xBlock.block_start_in_region, xSampleData, geometry);
+  const xRight = mapXCoordinateToStagePx(xBlock.block_end_in_region, xSampleData, geometry);
 
-  const yStart = mapYCoordinateToStagePx(yBlock.block_start_in_zone, ySampleData, geometry);
-  const yEnd = mapYCoordinateToStagePx(yBlock.block_end_in_zone, ySampleData, geometry);
+  const yStart = mapYCoordinateToStagePx(yBlock.block_start_in_region, ySampleData, geometry);
+  const yEnd = mapYCoordinateToStagePx(yBlock.block_end_in_region, ySampleData, geometry);
 
   const x0 = Math.min(xLeft, xRight);
   const x1 = Math.max(xLeft, xRight);
@@ -5500,8 +5500,8 @@ function _computeDotplotSnpProjection(featureId) {
   const ySnp = ySampleData.snps.find(s => s.feature_id === featureId);
   if (!xSnp || !ySnp) { return null; }
 
-  const x = mapXCoordinateToStagePx(xSnp.pos_in_zone, xSampleData, geometry);
-  const y = mapYCoordinateToStagePx(ySnp.pos_in_zone, ySampleData, geometry);
+  const x = mapXCoordinateToStagePx(xSnp.pos_in_region, xSampleData, geometry);
+  const y = mapYCoordinateToStagePx(ySnp.pos_in_region, ySampleData, geometry);
 
   return {
     x,

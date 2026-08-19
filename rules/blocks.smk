@@ -77,7 +77,7 @@ rule filter_sibeliaz_blocks:
         min_len=config["snps"]["min_block_length"]
     shell:
         r"""
-        mkdir -p "{FILTERED_BLOCKS_DIR}" "$(dirname "{log.stdout}")"
+        mkdir -p "$(dirname "{output}")" "$(dirname "{log.stdout}")"
         bash "{SCRIPTS_DIR}/filter_sibeliaz_blocks.sh" \
             --gff "{input}" \
             --nb_samples {params.nb_samples} \
@@ -90,7 +90,7 @@ rule filter_sibeliaz_blocks:
 rule map_block_coordinates:
     input:
         gff=FILTERED_GFF,
-        samples_tsv=GENOTYPES_TSV
+        genotypes_tsv=GENOTYPES_TSV
     output:
         BLOCK_COORDINATES_TSV
     benchmark:
@@ -103,7 +103,7 @@ rule map_block_coordinates:
         mkdir -p "$(dirname "{output}")" "$(dirname "{log.stdout}")"
         python3 "{SCRIPTS_DIR}/map_block_coordinates.py" \
             --gff "{input.gff}" \
-            --samples-tsv "{input.samples_tsv}" \
+            --genotypes-tsv "{input.genotypes_tsv}" \
             --output "{output}" \
             > "{log.stdout}" \
             2> "{log.stderr}"

@@ -16,7 +16,7 @@ RULE_NAME = "collect_blocks"
 TEST_CASES = [
     {
         "case_name": "case_basic",
-        "target": "results/03_filtered_blocks/kept_blocks.list",
+        "target": "results/.work/blocks/kept_blocks.list",
     },
 ]
 
@@ -51,7 +51,7 @@ def test_collect_blocks_cases(
     )
 
     compare_directories(
-        expected_dir=case_dir / "expected" / "results" / "03_filtered_blocks",
-        observed_dir=tmp_path / "results" / "03_filtered_blocks",
+        expected_dir=case_dir / "expected" / "results" / ".work" / "blocks",
+        observed_dir=tmp_path / "results" / ".work" / "blocks",
         ignore_suffixes = {".gff"}
     )

@@ -1,0 +1,5 @@
+snp_id	block_id	aln_pos	genotype	nt	pos_in_block	block_start_in_region	pos_in_region	region_start_in_source_seq	pos_in_source_seq
+snp::4::80	4	80	Test	A	80	1	80	1	80
+snp::4::80	4	80	Other	G	80	1	80	1	80
+snp::7::190	7	190	Test	C	190	1	190	1	190
+snp::7::190	7	190	Other	T	190	1	190	1	190

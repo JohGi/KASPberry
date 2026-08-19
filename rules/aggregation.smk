@@ -8,6 +8,7 @@ rule aggregate_snp_results:
         retained_vcf=DIAGNOSTIC_SNPS_VCF,
     shell:
         """
+        mkdir -p "$(dirname \"{output.summary}\")" "$(dirname \"{output.retained_vcf}\")"
         python3 "{SCRIPTS_DIR}/aggregate_results.py" \
             --mode snps \
             --snps-vcf "{input.vcf}" \
@@ -29,12 +30,13 @@ rule aggregate_kasp_results:
         assay_status=IN_SILICO_ASSAY_STATUS_TSV,
     output:
         summary=KASP_SUMMARY_TSV,
-        retained_vcf=VALIDATED_SNPS_VCF,
+        retained_vcf=CANDIDATE_SNPS_VCF,
         assay_summary=ASSAY_SUMMARY_TSV,
-        validated_assays=VALIDATED_ASSAYS_TSV,
+        candidate_assays=CANDIDATE_ASSAYS_TSV,
         primers_to_order=PRIMERS_TO_ORDER_TSV,
     shell:
         """
+        mkdir -p "$(dirname \"{output.summary}\")" "$(dirname \"{output.retained_vcf}\")" "$(dirname \"{output.assay_summary}\")"
         python3 "{SCRIPTS_DIR}/aggregate_results.py" \
             --mode kasp \
             --snps-vcf "{input.vcf}" \
@@ -47,6 +49,6 @@ rule aggregate_kasp_results:
             --output "{output.summary}" \
             --retained-vcf "{output.retained_vcf}" \
             --assay-summary "{output.assay_summary}" \
-            --validated-assays "{output.validated_assays}" \
+            --candidate-assays "{output.candidate_assays}" \
             --primers-to-order "{output.primers_to_order}"
         """

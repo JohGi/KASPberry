@@ -17,7 +17,7 @@ RULE_NAME = "prepare_polymarker_markers"
 TEST_CASES = [
     {
         "case_name": "case_basic",
-        "target": "results/15_polymarker_inputs/Test/marker_list.csv",
+        "target": "results/.work/kasp/polymarker_inputs/Test/marker_list.csv",
     },
 ]
 
@@ -55,7 +55,7 @@ def test_prepare_polymarker_markers_cases(
     )
 
     compare_directories(
-        expected_dir=case_dir / "expected" / "results" / "15_polymarker_inputs",
-        observed_dir=tmp_path / "results" / "15_polymarker_inputs",
+        expected_dir=case_dir / "expected" / "results" / ".work" / "kasp" / "polymarker_inputs",
+        observed_dir=tmp_path / "results" / ".work" / "kasp" / "polymarker_inputs",
         ignore_suffixes={".tsv", ".fasta"}
     )

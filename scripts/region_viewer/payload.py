@@ -65,19 +65,19 @@ def build_sample_data(
         sample_data.append(
             SampleData(
                 sample=sample,
-                zone_length=fasta_lengths[sample],
-                zone_start_in_source_seq=sample_record.zone_start_in_source_seq,
+                region_length=fasta_lengths[sample],
+                region_start_in_source_seq=sample_record.region_start_in_source_seq,
                 blocks=sorted(
                     blocks_by_sample.get(sample, []),
                     key=lambda block: (
-                        block.block_start_in_zone,
-                        block.block_end_in_zone,
+                        block.block_start_in_region,
+                        block.block_end_in_region,
                         block.block_id,
                     ),
                 ),
                 snps=sorted(
                     snps_by_sample.get(sample, []),
-                    key=lambda snp: (snp.pos_in_zone, snp.block_id, snp.aln_pos),
+                    key=lambda snp: (snp.pos_in_region, snp.block_id, snp.aln_pos),
                 ),
             )
         )
@@ -97,23 +97,23 @@ def build_region_payload(
     dotplots: list[DotplotRecord] | None = None,
 ) -> dict[str, object]:
     """Build the JSON payload injected into the HTML."""
-    max_zone_length = max(sample.zone_length for sample in sample_data)
+    max_region_length = max(sample.region_length for sample in sample_data)
     gff_tracks_by_sample = gff_tracks_by_sample or {}
 
     payload: dict[str, object] = {
         "title": "Region overview",
-        "max_zone_length": max_zone_length,
+        "max_region_length": max_region_length,
         "samples": [
             {
                 "sample": sample.sample,
-                "zone_length": sample.zone_length,
-                "zone_start_in_source_seq": sample.zone_start_in_source_seq,
+                "region_length": sample.region_length,
+                "region_start_in_source_seq": sample.region_start_in_source_seq,
                 "blocks": [
                     {
                         "feature_id": block.feature_id,
                         "block_id": block.block_id,
-                        "block_start_in_zone": block.block_start_in_zone,
-                        "block_end_in_zone": block.block_end_in_zone,
+                        "block_start_in_region": block.block_start_in_region,
+                        "block_end_in_region": block.block_end_in_region,
                         "block_start_in_source_seq": block.block_start_in_source_seq,
                         "block_end_in_source_seq": block.block_end_in_source_seq,
                     }
@@ -126,7 +126,7 @@ def build_region_payload(
                         "aln_pos": snp.aln_pos,
                         "nt": snp.nt,
                         "pos_in_block": snp.pos_in_block,
-                        "pos_in_zone": snp.pos_in_zone,
+                        "pos_in_region": snp.pos_in_region,
                         "pos_in_source_seq": snp.pos_in_source_seq,
                     }
                     for snp in sample.snps
@@ -143,8 +143,8 @@ def build_region_payload(
                                 "source_seq_id": feature.source_seq_id,
                                 "start_in_source_seq": feature.start_in_source_seq,
                                 "end_in_source_seq": feature.end_in_source_seq,
-                                "start_in_zone": feature.start_in_zone,
-                                "end_in_zone": feature.end_in_zone,
+                                "start_in_region": feature.start_in_region,
+                                "end_in_region": feature.end_in_region,
                                 "strand": feature.strand,
                             }
                             for feature in track.features

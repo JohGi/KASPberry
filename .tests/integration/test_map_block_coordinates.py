@@ -16,7 +16,7 @@ RULE_NAME = "map_block_coordinates"
 TEST_CASES = [
     {
         "case_name": "case_basic",
-        "target": "results/03_filtered_blocks/block_coords.tsv",
+        "target": "results/regions/collinear_blocks.tsv",
     },
 ]
 
@@ -51,7 +51,7 @@ def test_map_block_coordinates_cases(
     )
 
     compare_directories(
-        expected_dir=case_dir / "expected" / "results" / "03_filtered_blocks",
-        observed_dir=tmp_path / "results" / "03_filtered_blocks",
+        expected_dir=case_dir / "expected" / "results" / "regions",
+        observed_dir=tmp_path / "results" / "regions",
         ignore_suffixes = {".gff"}
     )

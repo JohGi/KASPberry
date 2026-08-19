@@ -44,7 +44,7 @@ def read_samples(path: Path) -> list[SampleRecord]:
                 SampleRecord(
                     fasta_path=Path(row["region_fasta"]),
                     sample=row["genotype"],
-                    zone_start_in_source_seq=int(row["region_start"]),
+                    region_start_in_source_seq=int(row["region_start"]),
                 )
             )
 
@@ -98,14 +98,14 @@ def read_fasta_lengths(fasta_dir: Path) -> dict[str, int]:
 
 
 def read_blocks(path: Path) -> dict[str, list[BlockFeature]]:
-    """Read conserved blocks from the enriched block coordinates TSV."""
+    """Read collinear blocks from the enriched block coordinates TSV."""
     dataframe = pl.read_csv(path, separator="\t")
 
     required_columns = {
         "block_id",
-        "sample",
-        "block_start_in_zone",
-        "block_end_in_zone",
+        "genotype",
+        "block_start_in_region",
+        "block_end_in_region",
         "block_start_in_source_seq",
         "block_end_in_source_seq",
     }
@@ -118,10 +118,10 @@ def read_blocks(path: Path) -> dict[str, list[BlockFeature]]:
     blocks_by_sample: dict[str, list[BlockFeature]] = {}
     for row in dataframe.iter_rows(named=True):
         block = BlockFeature(
-            sample=str(row["sample"]),
+            sample=str(row["genotype"]),
             block_id=str(row["block_id"]),
-            block_start_in_zone=int(row["block_start_in_zone"]),
-            block_end_in_zone=int(row["block_end_in_zone"]),
+            block_start_in_region=int(row["block_start_in_region"]),
+            block_end_in_region=int(row["block_end_in_region"]),
             block_start_in_source_seq=int(row["block_start_in_source_seq"]),
             block_end_in_source_seq=int(row["block_end_in_source_seq"]),
         )
@@ -136,10 +136,10 @@ def read_snp_long(path: Path) -> pl.DataFrame:
     required_columns = {
         "block_id",
         "aln_pos",
-        "sample",
+        "genotype",
         "nt",
         "pos_in_block",
-        "pos_in_zone",
+        "pos_in_region",
         "pos_in_source_seq",
     }
     missing_columns = required_columns - set(dataframe.columns)
@@ -153,12 +153,12 @@ def parse_snps(snp_long: pl.DataFrame) -> dict[str, list[SnpFeature]]:
     snps_by_sample: dict[str, list[SnpFeature]] = {}
     for row in snp_long.iter_rows(named=True):
         snp = SnpFeature(
-            sample=str(row["sample"]),
+            sample=str(row["genotype"]),
             block_id=str(row["block_id"]),
             aln_pos=int(row["aln_pos"]),
             nt=str(row["nt"]),
             pos_in_block=int(row["pos_in_block"]),
-            pos_in_zone=int(row["pos_in_zone"]),
+            pos_in_region=int(row["pos_in_region"]),
             pos_in_source_seq=int(row["pos_in_source_seq"]),
         )
         snps_by_sample.setdefault(snp.sample, []).append(snp)
@@ -468,44 +468,44 @@ def get_gene_id(attributes: dict[str, str], fallback_id: str) -> str:
     return fallback_id
 
 
-def overlaps_zone(
+def overlaps_region(
     feature_start: int,
     feature_end: int,
-    zone_start: int,
-    zone_end: int,
+    region_start: int,
+    region_end: int,
 ) -> bool:
-    """Return whether a source-sequence feature overlaps a source-sequence zone."""
-    return feature_end >= zone_start and feature_start <= zone_end
+    """Return whether a source-sequence feature overlaps a source-sequence region."""
+    return feature_end >= region_start and feature_start <= region_end
 
 
-def project_source_interval_to_zone(
+def project_source_interval_to_region(
     source_start: int,
     source_end: int,
-    zone_start: int,
-    zone_length: int,
+    region_start: int,
+    region_length: int,
 ) -> tuple[int, int]:
-    """Project and clip a source-sequence interval into zone coordinates."""
-    raw_start_in_zone = source_start - zone_start + 1
-    raw_end_in_zone = source_end - zone_start + 1
+    """Project and clip a source-sequence interval into region coordinates."""
+    raw_start_in_region = source_start - region_start + 1
+    raw_end_in_region = source_end - region_start + 1
 
-    clipped_start_in_zone = max(1, raw_start_in_zone)
-    clipped_end_in_zone = min(zone_length, raw_end_in_zone)
+    clipped_start_in_region = max(1, raw_start_in_region)
+    clipped_end_in_region = min(region_length, raw_end_in_region)
 
-    return clipped_start_in_zone, clipped_end_in_zone
+    return clipped_start_in_region, clipped_end_in_region
 
 
 def read_projected_gff_gene_features(
     path: Path,
     sample: str,
     track_name: str,
-    zone_start_in_source_seq: int,
-    zone_length: int,
+    region_start_in_source_seq: int,
+    region_length: int,
 ) -> GffTrack:
-    """Read one GFF file and project gene features into zone coordinates."""
+    """Read one GFF file and project gene features into region coordinates."""
     if not path.is_file():
         raise FileNotFoundError(f"GFF file not found: {path}")
 
-    zone_end_in_source_seq = zone_start_in_source_seq + zone_length - 1
+    region_end_in_source_seq = region_start_in_source_seq + region_length - 1
     source_seq_ids: set[str] = set()
     features: list[GffGeneFeature] = []
 
@@ -549,19 +549,19 @@ def read_projected_gff_gene_features(
                     f"start {start_in_source_seq} is greater than end {end_in_source_seq}."
                 )
 
-            if not overlaps_zone(
+            if not overlaps_region(
                 feature_start=start_in_source_seq,
                 feature_end=end_in_source_seq,
-                zone_start=zone_start_in_source_seq,
-                zone_end=zone_end_in_source_seq,
+                region_start=region_start_in_source_seq,
+                region_end=region_end_in_source_seq,
             ):
                 continue
 
-            start_in_zone, end_in_zone = project_source_interval_to_zone(
+            start_in_region, end_in_region = project_source_interval_to_region(
                 source_start=start_in_source_seq,
                 source_end=end_in_source_seq,
-                zone_start=zone_start_in_source_seq,
-                zone_length=zone_length,
+                region_start=region_start_in_source_seq,
+                region_length=region_length,
             )
 
             parsed_attributes = parse_gff_attributes(attributes)
@@ -575,8 +575,8 @@ def read_projected_gff_gene_features(
                     source_seq_id=source_seq_id,
                     start_in_source_seq=start_in_source_seq,
                     end_in_source_seq=end_in_source_seq,
-                    start_in_zone=start_in_zone,
-                    end_in_zone=end_in_zone,
+                    start_in_region=start_in_region,
+                    end_in_region=end_in_region,
                     strand=None if strand == "." else strand,
                 )
             )
@@ -617,8 +617,8 @@ def read_gff_gene_tracks(
                     path=gff_path,
                     sample=sample_name,
                     track_name=track_name,
-                    zone_start_in_source_seq=sample.zone_start_in_source_seq,
-                    zone_length=sample.zone_length,
+                    region_start_in_source_seq=sample.region_start_in_source_seq,
+                    region_length=sample.region_length,
                 )
             )
 

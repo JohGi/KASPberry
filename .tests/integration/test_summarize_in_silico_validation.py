@@ -16,15 +16,15 @@ RULE_NAME = "summarize_in_silico_validation"
 TEST_CASES = [
     {
         "case_name": "specificity_outcomes",
-        "target": "results/19_validated_assays/in_silico_validation_status.tsv",
+        "target": "results/.work/kasp/validation/in_silico_validation_status.tsv",
     },
     {
         "case_name": "secondary_structures",
-        "target": "results/19_validated_assays/in_silico_validation_status.tsv",
+        "target": "results/.work/kasp/validation/in_silico_validation_status.tsv",
     },
     {
         "case_name": "snp_rollup",
-        "target": "results/19_validated_assays/in_silico_validation_status.tsv",
+        "target": "results/.work/kasp/validation/in_silico_validation_status.tsv",
     },
 ]
 
@@ -60,6 +60,6 @@ def test_summarize_in_silico_validation_cases(
     )
 
     compare_directories(
-        expected_dir=case_dir / "expected" / "results" / "19_validated_assays",
-        observed_dir=tmp_path / "results" / "19_validated_assays",
+        expected_dir=case_dir / "expected" / "results" / ".work" / "kasp" / "validation",
+        observed_dir=tmp_path / "results" / ".work" / "kasp" / "validation",
     )

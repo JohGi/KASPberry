@@ -16,7 +16,7 @@ RULE_NAME = "split_block_fastas"
 TEST_CASES = [
     {
         "case_name": "case_basic",
-        "target": "results/04_block_fastas/per_block",
+        "target": "results/.work/block_fastas/per_block",
     },
 ]
 
@@ -51,7 +51,7 @@ def test_split_block_fastas_cases(
     )
 
     compare_directories(
-        expected_dir=case_dir / "expected" / "results" / "04_block_fastas",
-        observed_dir=tmp_path / "results" / "04_block_fastas",
+        expected_dir=case_dir / "expected" / "results" / ".work" / "block_fastas",
+        observed_dir=tmp_path / "results" / ".work" / "block_fastas",
         ignore_names={"all_blocks.raw.fasta"}
     )
