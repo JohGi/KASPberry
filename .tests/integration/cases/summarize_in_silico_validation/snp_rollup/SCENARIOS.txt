@@ -1,0 +1,8 @@
+Assay-to-SNP roll-up and NOT_RUN semantics
+
+SNPs / expected behaviour
+- snp::3::10: PolyMarker design status is FAIL and no assay exists -> in-silico SNP status is NOT_RUN.
+- snp::3::20: PolyMarker design PASS; assay 01 fails specificity but assay 02 passes -> SNP PASS because at least one assay is valid.
+- snp::3::30: PolyMarker design PASS; both assays fail specificity -> SNP FAIL with no_assay_passed_in_silico_validation.
+
+No dimers or hairpins are present.

@@ -1,0 +1,7 @@
+snp_id	genotype	target_chromosome	expected_allele	status
+snp::2::600	A	2A	A	PASS
+snp::2::600	B	2A	G	PASS
+snp::2::700	A	2A	A	PASS
+snp::2::700	B	2A	G	PASS
+snp::2::800	A	2A	A	PASS
+snp::2::800	B	2A	G	PASS

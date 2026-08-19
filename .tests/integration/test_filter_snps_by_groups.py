@@ -16,17 +16,17 @@ RULE_NAME = "filter_snps_by_groups"
 TEST_CASES = [
     {
         "case_name": "1vs1",
-        "target": "results/08_filtered_snps/filtered_snps.vcf",
+        "target": "results/08_filtered_snps/diagnostic_status.tsv",
         "compare_dir": "08_filtered_snps",
     },
     {
         "case_name": "2vs2",
-        "target": "results/08_filtered_snps/filtered_snps.vcf",
+        "target": "results/08_filtered_snps/diagnostic_status.tsv",
         "compare_dir": "08_filtered_snps",
     },
     {
-        "case_name": "1vsAll_implicit",
-        "target": "results/08_filtered_snps/filtered_snps.vcf",
+        "case_name": "1vsAll",
+        "target": "results/08_filtered_snps/diagnostic_status.tsv",
         "compare_dir": "08_filtered_snps",
     },
 ]

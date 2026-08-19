@@ -2,7 +2,6 @@
 """Command-line interface for KASPberry."""
 
 from __future__ import annotations
-from snakemake_interface_common.exceptions import WorkflowError
 
 import argparse
 import subprocess
@@ -10,7 +9,13 @@ import sys
 from pathlib import Path
 
 import yaml
+from snakemake_interface_common.exceptions import WorkflowError
 
+from run_info import (
+    finish_run_record,
+    is_dry_run,
+    start_run_record,
+)
 from validate_inputs import validate_inputs
 
 
@@ -83,13 +88,68 @@ def run_snakemake(
     return subprocess.run(command).returncode
 
 
+def run_kaspberry(
+    *,
+    mode: str,
+    config: dict,
+    config_path: Path,
+    snakemake_args: list[str],
+) -> int:
+    """Run KASPberry and record provenance for non-dry runs."""
+    if is_dry_run(snakemake_args):
+        return run_snakemake(
+            mode=mode,
+            config_path=config_path,
+            extra_args=snakemake_args,
+        )
+
+    run_record = start_run_record(
+        config=config,
+        mode=mode,
+        config_path=config_path,
+        repo_root=REPO_ROOT,
+        argv=sys.argv[1:],
+        snakemake_args=snakemake_args,
+    )
+
+    try:
+        return_code = run_snakemake(
+            mode=mode,
+            config_path=config_path,
+            extra_args=snakemake_args,
+        )
+
+    except KeyboardInterrupt:
+        finish_run_record(
+            run_record,
+            return_code=130,
+            status="interrupted",
+        )
+        return 130
+
+    except OSError:
+        finish_run_record(
+            run_record,
+            return_code=1,
+            status="failed",
+        )
+        raise
+
+    finish_run_record(
+        run_record,
+        return_code=return_code,
+    )
+
+    return return_code
+
+
 def main() -> int:
     """Run the KASPberry CLI."""
     args, snakemake_args = parse_args()
 
-    config_path = args.config.resolve()
-
     try:
+        config_path = args.config.resolve()
+
         config = load_config(config_path)
 
         validate_inputs(
@@ -98,15 +158,16 @@ def main() -> int:
             schema_dir=SCHEMA_DIR,
         )
 
-    except (ValueError, OSError, WorkflowError) as error:
-        print(f"KASPberry input error: {error}", file=sys.stderr)
-        return 2
+        return run_kaspberry(
+            mode=args.mode,
+            config=config,
+            config_path=config_path,
+            snakemake_args=snakemake_args,
+        )
 
-    return run_snakemake(
-        mode=args.mode,
-        config_path=config_path,
-        extra_args=snakemake_args,
-    )
+    except (ValueError, OSError, WorkflowError) as error:
+        print(f"KASPberry error: {error}", file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":

@@ -1,0 +1,5 @@
+#1-based coordinate, should be idential to blat output if align primer sequences to genome
+#name	chrom	ampStart	ampEnd	ampGC	ampSize	fpName	fpStart	fpEnd	fpSeq	fpTm	fpGC	fpDg	rpName	rpEnd	rpStart	rpSeq	rpTm	rpGC	rpDg	note
+snp::2::600_B_expected	2A__001	580	640	50.0	61	snp::2::600::assay::01_G_common_fp	581	600	TTGGTTGGTTGGTTGGTTGG	60.0	50.0	-5.0	snp::2::600::assay::01_G_common_rp	640	621	CGTACGTACGTACGTACGTA	60.0	50.0	-5.0	.
+snp::2::700_B_expected	2A__001	680	740	50.0	61	snp::2::700::assay::01_G_common_fp	681	700	GTGTGTGTGTGTGTGTGTGG	60.0	50.0	-5.0	snp::2::700::assay::01_G_common_rp	740	721	TGCATGCATGCATGCATGCA	60.0	50.0	-5.0	.
+snp::2::800_B_expected	2A__001	780	840	50.0	61	snp::2::800::assay::01_G_common_fp	781	800	TCCTTCCTTCCTTCCTTCCT	60.0	50.0	-5.0	snp::2::800::assay::01_G_common_rp	840	821	GCGTGCGTGCGTGCGTGCGT	60.0	50.0	-5.0	.

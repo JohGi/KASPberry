@@ -1,2 +1,2 @@
-block_id	aln_pos	SampleA_nt	SampleB_nt	SampleC_nt	SampleA_pos	SampleB_pos	SampleC_pos
-1	6	T	A	A	112	224	333
+snp_id	block_id	aln_pos	SampleA_nt	SampleB_nt	SampleC_nt	SampleA_pos	SampleB_pos	SampleC_pos
+snp::1::6	1	6	T	A	A	112	224	333

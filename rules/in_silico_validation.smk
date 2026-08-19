@@ -51,15 +51,10 @@ rule run_mfeprimer_specificity:
             / wildcards.pair_set
         ),
         min_tm=lambda wildcards: (
-            config.get("kasp", {})
-            .get("mfeprimer", {})
-            .get("specificity", {})
-            .get("min_tm", 40)
+            config["kasp"]["mfeprimer"]["specificity"]["min_tm"]
         ),
         extra=lambda wildcards: (
-            config.get("advanced", {})
-            .get("mfeprimer", {})
-            .get("specificity_extra_options", [])
+            config["advanced"]["mfeprimer"]["specificity_extra_options"]
         ),
 
     threads: 1
@@ -106,15 +101,10 @@ rule run_mfeprimer_dimer:
 
     params:
         max_dg=lambda wildcards: (
-            config.get("kasp", {})
-            .get("mfeprimer", {})
-            .get("dimer", {})
-            .get("max_dg", -3.5)
+            config["kasp"]["mfeprimer"]["dimer"]["max_dg"]
         ),
         extra=lambda wildcards: (
-            config.get("advanced", {})
-            .get("mfeprimer", {})
-            .get("dimer_extra_options", [])
+            config["advanced"]["mfeprimer"]["dimer_extra_options"]
         ),
 
     threads: 1
@@ -155,9 +145,7 @@ rule run_mfeprimer_hairpin:
 
     params:
         extra=lambda wildcards: (
-            config.get("advanced", {})
-            .get("mfeprimer", {})
-            .get("hairpin_extra_options", [])
+            config["advanced"]["mfeprimer"]["hairpin_extra_options"]
         ),
 
     threads: 1

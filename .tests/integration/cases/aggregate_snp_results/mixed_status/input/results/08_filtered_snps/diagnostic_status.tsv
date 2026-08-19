@@ -1,0 +1,4 @@
+snp_id	block_id	aln_pos	status	failure_reason
+snp::1::100	1	100	PASS	
+snp::1::200	1	200	FAIL	not_diagnostic
+snp::2::50	2	50	PASS	

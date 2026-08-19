@@ -1,0 +1,5 @@
+assay_id	snp_id	status	failure_reason
+snp::3::20::assay::01	snp::3::20	FAIL	missing_target_amplicon
+snp::3::20::assay::02	snp::3::20	PASS	
+snp::3::30::assay::01	snp::3::30	FAIL	missing_target_amplicon
+snp::3::30::assay::02	snp::3::30	FAIL	missing_target_amplicon

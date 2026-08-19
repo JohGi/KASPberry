@@ -39,7 +39,7 @@ def test_process_polymarker_outputs_cases(
     integration_resources_dir: Path,
     case: dict[str, str],
 ) -> None:
-    """Run integration tests for the mask_block_chunk rule."""
+    """Run integration tests for the process_polymarker_outputs rule."""
     case_dir = integration_cases_dir / RULE_NAME / case["case_name"]
 
     copy_case_input(case_dir / "input", tmp_path)

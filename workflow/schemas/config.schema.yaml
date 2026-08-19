@@ -20,6 +20,7 @@ properties:
       - name
       - output_dir
     properties:
+
       name:
         type: string
         minLength: 1
@@ -30,12 +31,14 @@ properties:
         minLength: 1
         description: Directory where workflow results are written.
 
+
   inputs:
     type: object
     additionalProperties: false
     required:
       - genotypes
     properties:
+
       genotypes:
         type: string
         minLength: 1
@@ -46,6 +49,7 @@ properties:
           - string
           - "null"
         minLength: 1
+        default: null
         description: Optional path to the annotations TSV file.
 
       chromosomes:
@@ -53,9 +57,11 @@ properties:
           - string
           - "null"
         minLength: 1
+        default: null
         description: >
           Optional path to the chromosomes TSV file describing
           homoeologous groups and subgenomes for PolyMarker.
+
 
   snps:
     type: object
@@ -64,132 +70,171 @@ properties:
       - min_block_length
       - min_snp_flank
     properties:
+
       min_block_length:
         type: integer
         minimum: 1
-        description: Minimum length of conserved blocks retained for SNP discovery.
+        description: >
+          Minimum length of conserved blocks retained for SNP discovery.
 
       min_snp_flank:
         type: integer
         minimum: 0
-        description: Minimum polymorphism-free flank required around candidate SNPs.
+        description: >
+          Minimum polymorphism-free flank required around candidate SNPs.
 
       repeat_masking:
         type: object
+        default: {}
         additionalProperties: false
         properties:
+
           library:
             type:
               - string
               - "null"
             minLength: 1
+            default: null
             description: Optional repeat library used for repeat masking.
+
 
   kasp:
     type: object
     additionalProperties: false
     properties:
-    
+
       polymarker_genomes:
         type: integer
         minimum: 1
-        description: Number of subgenomes expected by PolyMarker for the target homoeologous group.
+        description: >
+          Number of subgenomes expected by PolyMarker for the target
+          homoeologous group. Required when running the KASP workflow.
 
       mfeprimer:
         type: object
+        default: {}
         additionalProperties: false
         properties:
 
           specificity:
             type: object
+            default: {}
             additionalProperties: false
             properties:
+
               min_tm:
                 type: number
                 minimum: 0
                 maximum: 100
                 default: 50
-                description: Minimum primer binding Tm used by MFEprimer specificity analysis.
+                description: >
+                  Minimum primer binding Tm used by MFEprimer
+                  specificity analysis.
 
           dimer:
             type: object
+            default: {}
             additionalProperties: false
             properties:
+
               max_dg:
                 type: number
                 maximum: 0
                 default: -3.5
-                description: Delta G cutoff used by MFEprimer to report potentially problematic primer dimers.
+                description: >
+                  Delta G cutoff used by MFEprimer to report
+                  potentially problematic primer dimers.
+
 
   viewer:
     type: object
+    default: {}
     additionalProperties: false
     properties:
+
       dotplot_reference:
         type:
           - string
           - "null"
         minLength: 1
-        description: Optional genotype used as the reference for pairwise dotplots.
+        default: null
+        description: >
+          Optional genotype used as the reference for pairwise dotplots.
+
 
   advanced:
     type: object
+    default: {}
     additionalProperties: false
     properties:
 
       sibeliaz:
         type: object
+        default: {}
         additionalProperties: false
         properties:
+
           extra_options:
             type: array
+            default: []
             items:
               type: string
-            description: Additional command-line options passed to SibeliaZ.
+            description: >
+              Additional command-line options passed to SibeliaZ.
 
       batching:
         type: object
+        default: {}
         additionalProperties: false
         properties:
+
           blocks_per_chunk:
             type: integer
             minimum: 1
-            description: Number of blocks processed per workflow chunk.
+            default: 2
+            description: >
+              Number of blocks processed per workflow chunk.
 
       alignment:
         type: object
+        default: {}
         additionalProperties: false
         properties:
+
           mafft_options:
             type: array
+            default: []
             items:
               type: string
-            description: Additional command-line options passed to MAFFT.
+            description: >
+              Additional command-line options passed to MAFFT.
 
       mfeprimer:
         type: object
+        default: {}
         additionalProperties: false
         properties:
+
           specificity_extra_options:
             type: array
+            default: []
             items:
               type: string
-            default: []
             description: >
               Additional command-line options passed to MFEprimer spec.
 
           dimer_extra_options:
             type: array
+            default: []
             items:
               type: string
-            default: []
             description: >
               Additional command-line options passed to MFEprimer dimer.
 
           hairpin_extra_options:
             type: array
+            default: []
             items:
               type: string
-            default: []
             description: >
               Additional command-line options passed to MFEprimer hairpin.

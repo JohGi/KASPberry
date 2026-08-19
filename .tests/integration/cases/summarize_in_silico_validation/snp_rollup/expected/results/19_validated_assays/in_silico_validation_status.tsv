@@ -1,0 +1,4 @@
+snp_id	status	failure_reason
+snp::3::10	NOT_RUN	
+snp::3::20	PASS	
+snp::3::30	FAIL	no_assay_passed_in_silico_validation

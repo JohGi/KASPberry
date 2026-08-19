@@ -1,0 +1,9 @@
+assay_id	genotype	expected_allele	status	failure_reason	expected_amplicons	target_amplicons	unexpected_amplicons	noncanonical_amplicons
+snp::3::20::assay::01	A	A	FAIL	missing_target_amplicon	1	0	0	0
+snp::3::20::assay::01	B	G	PASS		1	1	0	0
+snp::3::20::assay::02	A	A	PASS		1	1	0	0
+snp::3::20::assay::02	B	G	PASS		1	1	0	0
+snp::3::30::assay::01	A	A	FAIL	missing_target_amplicon	1	0	0	0
+snp::3::30::assay::01	B	G	PASS		1	1	0	0
+snp::3::30::assay::02	A	A	PASS		1	1	0	0
+snp::3::30::assay::02	B	G	FAIL	missing_target_amplicon	1	0	0	0

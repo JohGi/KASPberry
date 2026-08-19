@@ -1,0 +1,6 @@
+snp_id	status	failure_reason
+snp::1::100	PASS	
+snp::1::200	FAIL	no_assay_passed_in_silico_validation
+snp::1::300	FAIL	no_assay_passed_in_silico_validation
+snp::1::400	FAIL	no_assay_passed_in_silico_validation
+snp::1::500	FAIL	no_assay_passed_in_silico_validation

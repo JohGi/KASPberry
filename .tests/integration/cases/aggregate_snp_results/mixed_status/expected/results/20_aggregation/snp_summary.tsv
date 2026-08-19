@@ -1,0 +1,4 @@
+snp_id	block_id	aln_pos	A_nt	B_nt	A_pos	B_pos	diagnostic_status	diagnostic_failure_reason	final_status	final_failure_reason
+snp::1::100	1	100	A	G	1100	2100	PASS		PASS	
+snp::1::200	1	200	C	T	1200	2200	FAIL	not_diagnostic	FAIL	not_diagnostic
+snp::2::50	2	50	G	A	3050	4050	PASS		PASS	

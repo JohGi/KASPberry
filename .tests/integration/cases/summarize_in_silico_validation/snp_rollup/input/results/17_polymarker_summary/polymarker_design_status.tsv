@@ -1,0 +1,4 @@
+snp_id	status	failure_reason
+snp::3::10	FAIL	no_polymarker_assay
+snp::3::20	PASS	
+snp::3::30	PASS	

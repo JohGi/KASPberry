@@ -459,7 +459,6 @@ def validate_inputs(
     validate(
         config,
         schema_dir / "config.schema.yaml",
-        set_default=False,
     )
     
     if mode == "kasp" and config["snps"]["min_snp_flank"] < 50:

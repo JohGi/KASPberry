@@ -1,0 +1,9 @@
+#1-based coordinate, should be idential to blat output if align primer sequences to genome
+#name	chrom	ampStart	ampEnd	ampGC	ampSize	fpName	fpStart	fpEnd	fpSeq	fpTm	fpGC	fpDg	rpName	rpEnd	rpStart	rpSeq	rpTm	rpGC	rpDg	note
+snp::1::100_A_expected	2A__001	80	140	50.0	61	snp::1::100::assay::01_A_common_fp	81	100	ACGTACGTACGTACGTACGA	60.0	50.0	-5.0	snp::1::100::assay::01_A_common_rp	140	121	TTGCAATGCAATGCAATGCA	60.0	50.0	-5.0	.
+snp::1::200_A_expected	2A__001	181	241	50.0	61	snp::1::200::assay::01_A_common_fp	182	201	CCTACCTACCTACCTACCTA	60.0	50.0	-5.0	snp::1::200::assay::01_A_common_rp	241	222	AACCAACCAACCAACCAACC	60.0	50.0	-5.0	.
+snp::1::300_A_expected	2A__001	280	340	50.0	61	snp::1::300::assay::01_A_common_fp	281	300	GATCGATCGATCGATCGATA	60.0	50.0	-5.0	snp::1::300::assay::01_A_common_rp	340	321	TTAATTAATTAATTAATTAA	60.0	50.0	-5.0	.
+snp::1::300_A_offtarget	3A__001	380	440	50.0	61	snp::1::300::assay::01_A_common_fp	381	400	GATCGATCGATCGATCGATA	60.0	50.0	-5.0	snp::1::300::assay::01_A_common_rp	440	421	TTAATTAATTAATTAATTAA	60.0	50.0	-5.0	.
+snp::1::400_A_expected	2A__001	380	440	50.0	61	snp::1::400::assay::01_A_common_fp	381	400	AGAGAGAGAGAGAGAGAGAA	60.0	50.0	-5.0	snp::1::400::assay::01_A_common_rp	440	421	CGCGCGCGCGCGCGCGCGCG	60.0	50.0	-5.0	.
+snp::1::400_A_unexpected	2A__001	410	470	50.0	61	snp::1::400::assay::01_G_common_fp	411	430	TCTCTCTCTCTCTCTCTCTG	60.0	50.0	-5.0	snp::1::400::assay::01_G_common_rp	470	451	CGCGCGCGCGCGCGCGCGCG	60.0	50.0	-5.0	.
+snp::1::500_A_expected	2A__001	480	540	50.0	61	snp::1::500::assay::01_A_common_fp	481	500	ATGCATGCATGCATGCATGA	60.0	50.0	-5.0	snp::1::500::assay::01_A_common_rp	540	520	CATCATCATCATCATCATCAT	60.0	50.0	-5.0	.

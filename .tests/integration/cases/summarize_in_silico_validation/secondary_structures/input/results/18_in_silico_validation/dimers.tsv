@@ -1,0 +1,5 @@
+Dimer 1: snp::2::700::assay::01_A_fw x snp::2::700::assay::01_comm_rev
+Score: 8, Delta G = -4.5
+
+Dimer 2: snp::2::600::assay::01_A_fw x snp::2::800::assay::01_comm_rev
+Score: 7, Delta G = -4.0

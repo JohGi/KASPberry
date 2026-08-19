@@ -1,0 +1,2 @@
+#1-based coordinate, should be idential to blat output if align primer sequences to genome
+#name	chrom	ampStart	ampEnd	ampGC	ampSize	fpName	fpStart	fpEnd	fpSeq	fpTm	fpGC	fpDg	rpName	rpEnd	rpStart	rpSeq	rpTm	rpGC	rpDg	note

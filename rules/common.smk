@@ -58,7 +58,7 @@ REGION_FASTA_BY_GENOTYPE = {
 
 OUTDIR = Path(config["project"]["output_dir"])
 SCRIPTS_DIR = Path(workflow.current_basedir) / "../scripts"
-PROJECT_TITLE = config.get("project", {}).get("name", "Project")
+PROJECT_TITLE = config["project"]["name"]
 
 CLEAN_FASTA_DIR = OUTDIR / "01_clean_fasta"
 MULTIFASTA_DIR = CLEAN_FASTA_DIR / "multifasta"
@@ -135,7 +135,7 @@ DIAGNOSTIC_STATUS_TSV = FILTERED_SNP_DIR / "diagnostic_status.tsv"
 POLYMARKER_DESIGN_STATUS_TSV = POLYMARKER_SUMMARY_DIR / "polymarker_design_status.tsv"
 IN_SILICO_VALIDATION_STATUS_TSV = VALIDATION_DIR / "in_silico_validation_status.tsv"
 POLYMARKER_ASSAYS_TSV = POLYMARKER_SUMMARY_DIR / "polymarker_assays.tsv"
-POLYMARKER_DESIGN_STATUS_BY_GENOTYPE_TSV = POLYMARKER_SUMMARY_DIR / "polymarker_snp_status_by_genotype.tsv"
+POLYMARKER_DESIGN_STATUS_BY_GENOTYPE_TSV = POLYMARKER_SUMMARY_DIR / "polymarker_design_status_by_genotype.tsv"
 IN_SILICO_ASSAY_STATUS_TSV = VALIDATION_DIR / "in_silico_assay_status.tsv"
 IN_SILICO_ASSAY_STATUS_BY_GENOTYPE_TSV = VALIDATION_DIR / "in_silico_assay_status_by_genotype.tsv"
 SNP_SUMMARY_TSV = AGGREGATION_DIR / "snp_summary.tsv"
@@ -147,7 +147,7 @@ VALIDATED_ASSAYS_TSV = OUTDIR / "validated_assays.tsv"
 PRIMERS_TO_ORDER_TSV = OUTDIR / "primers_to_order.tsv"
 
 NB_GENOTYPES = len(GENOTYPES)
-te_lib_value = config.get("snps", {}).get("repeat_masking", {}).get("library", "")
+te_lib_value = config["snps"]["repeat_masking"]["library"]
 TE_LIB = Path(te_lib_value) if te_lib_value else None
 USE_MASKING = TE_LIB is not None
 

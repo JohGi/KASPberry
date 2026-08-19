@@ -1,0 +1,5 @@
+snp_id	genotype	target_chromosome	expected_allele	status
+snp::2::10	A	2A	A	PASS
+snp::2::10	B	2A	A	FAIL
+snp::2::20	A	2A	G	FAIL
+snp::2::20	B	2A	G	PASS

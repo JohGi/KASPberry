@@ -1,0 +1,4 @@
+snp_id	status	failure_reason
+snp::2::600	PASS	
+snp::2::700	PASS	
+snp::2::800	PASS	

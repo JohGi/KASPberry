@@ -1,0 +1,4 @@
+genotype	original_seq_id	alias	homoeologous_group	subgenome	is_source_seq
+Test	chr7A	7A__001	7	A	true
+Test	chr7A_part2	7A__002	7	A	false
+Test	chr7B	7B__001	7	B	false

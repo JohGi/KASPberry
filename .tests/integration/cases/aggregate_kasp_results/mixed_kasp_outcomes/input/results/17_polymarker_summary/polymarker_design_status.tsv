@@ -1,0 +1,5 @@
+snp_id	status	failure_reason
+snp::5::200	FAIL	no_polymarker_assay
+snp::5::300	PASS	
+snp::5::400	PASS	
+snp::5::500	PASS	

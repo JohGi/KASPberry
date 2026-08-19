@@ -5,7 +5,7 @@ def get_kasp_genome_fasta(wildcards):
 
 def get_chromosomes_input(_wildcards=None):
     """Return chromosomes.tsv when provided."""
-    chromosomes_path = config.get("inputs", {}).get("chromosomes")
+    chromosomes_path = config["inputs"]["chromosomes"]
 
     if chromosomes_path:
         return chromosomes_path
@@ -138,7 +138,7 @@ rule run_polymarker:
         primers_to_order=POLYMARKER_DIR / "{genotype}/primers_to_order.csv",
     params:
         outdir=lambda wildcards: POLYMARKER_DIR / wildcards.genotype,
-        genomes=config["kasp"]["polymarker_genomes"],
+        genomes=lambda wildcards: config["kasp"]["polymarker_genomes"],
     container:
         "dependencies/containers/bio-polyploid-tools.sif"
     threads: 1

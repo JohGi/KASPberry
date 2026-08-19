@@ -1,0 +1,11 @@
+Aggregate KASP-mode outputs
+
+Five detected SNPs cover the full status flow.
+
+- snp::5::100: diagnostic FAIL -> design NOT_RUN, validation NOT_RUN, final FAIL.
+- snp::5::200: diagnostic PASS, PolyMarker design FAIL -> validation NOT_RUN, final FAIL.
+- snp::5::300: diagnostic PASS, design PASS, in-silico validation FAIL -> final FAIL.
+- snp::5::400: all stages PASS -> final PASS; one validated assay.
+- snp::5::500: all stages PASS -> final PASS; three assays, of which 01 and 03 pass and 02 fails.
+
+The test verifies kasp_summary.tsv, validated_snps.vcf, assay_summary.tsv, validated_assays.tsv, and primers_to_order.tsv. The primer-order table must contain first/second tailed primers and the untailed common primer for validated assays only.

@@ -1,0 +1,11 @@
+snp_id	block_id	aln_pos	sample	nt	pos_in_block	block_start_in_zone	pos_in_zone	zone_start_in_source_seq	pos_in_source_seq
+snp::1::100	1	100	A	A	100	1	100	1	100
+snp::1::100	1	100	B	G	100	1	100	1	100
+snp::1::200	1	200	A	A	200	1	200	1	200
+snp::1::200	1	200	B	G	200	1	200	1	200
+snp::1::300	1	300	A	A	300	1	300	1	300
+snp::1::300	1	300	B	G	300	1	300	1	300
+snp::1::400	1	400	A	A	400	1	400	1	400
+snp::1::400	1	400	B	G	400	1	400	1	400
+snp::1::500	1	500	A	A	500	1	500	1	500
+snp::1::500	1	500	B	G	500	1	500	1	500

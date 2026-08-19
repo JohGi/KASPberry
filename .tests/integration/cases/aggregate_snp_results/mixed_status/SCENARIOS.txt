@@ -1,0 +1,9 @@
+Aggregate SNP-mode outputs
+
+Three detected SNPs are supplied.
+
+- snp::1::100: diagnostic PASS -> final PASS and retained in diagnostic_snps.vcf.
+- snp::1::200: diagnostic FAIL (not_diagnostic) -> final FAIL and removed from diagnostic_snps.vcf.
+- snp::2::50: diagnostic PASS -> final PASS and retained in diagnostic_snps.vcf.
+
+The input VCF uses block names ending in .aln so the test also verifies canonical SNP-ID reconstruction during VCF filtering. VCF headers must be preserved.

@@ -4,7 +4,7 @@ from input_tables import read_annotations
 
 def get_gff_tracks(config):
     """Return configured GFF tracks."""
-    annotation_path = config.get("inputs", {}).get("annotations")
+    annotation_path = config["inputs"]["annotations"]
 
     if not annotation_path:
         return {}

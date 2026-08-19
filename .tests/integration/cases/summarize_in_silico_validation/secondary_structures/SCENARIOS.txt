@@ -1,0 +1,10 @@
+Dimer and hairpin decisions
+
+All assays have perfect specificity in both genotypes.
+
+SNPs / expected behaviour
+- snp::2::600: no intra-assay dimer or hairpin -> PASS. A cross-assay dimer involving one of its primers must be ignored.
+- snp::2::700: an intra-assay dimer is reported -> FAIL with reason dimer.
+- snp::2::800: a hairpin is reported -> FAIL with reason hairpin.
+
+The dimer file also contains a dimer between primers belonging to assays 600 and 800. It must not invalidate either assay because cross-assay dimers are intentionally ignored.

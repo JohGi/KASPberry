@@ -1,0 +1,4 @@
+assay_id	snp_id	status	failure_reason
+snp::2::600::assay::01	snp::2::600	PASS	
+snp::2::700::assay::01	snp::2::700	FAIL	dimer
+snp::2::800::assay::01	snp::2::800	FAIL	hairpin

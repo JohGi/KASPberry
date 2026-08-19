@@ -48,7 +48,7 @@ rule run_sibeliaz:
     threads: 1
     params:
         outdir=str(SIBELIAZ_DIR),
-        extra_options=config.get("advanced", {}).get("sibeliaz", {}).get("extra_options", [])
+        extra_options=config["advanced"]["sibeliaz"]["extra_options"]
     shell:
         r"""
         mkdir -p "{params.outdir}" "$(dirname "{log.stdout}")"
@@ -74,7 +74,7 @@ rule filter_sibeliaz_blocks:
         stderr=LOG_DIR / "filter_sibeliaz_blocks" / "filter_sibeliaz_blocks.stderr"
     params:
         nb_samples=NB_GENOTYPES,
-        min_len=config.get("snps", {}).get("min_block_length", 450)
+        min_len=config["snps"]["min_block_length"]
     shell:
         r"""
         mkdir -p "{FILTERED_BLOCKS_DIR}" "$(dirname "{log.stdout}")"
@@ -185,7 +185,7 @@ checkpoint split_block_list_into_chunks:
         stdout=LOG_DIR / "split_block_list_into_chunks" / "split_block_list_into_chunks.stdout",
         stderr=LOG_DIR / "split_block_list_into_chunks" / "split_block_list_into_chunks.stderr"
     params:
-        chunk_size=config.get("advanced", {}).get("batching", {}).get("blocks_per_chunk", 2)
+        chunk_size=config["advanced"]["batching"]["blocks_per_chunk"]
     shell:
         r"""
         mkdir -p "{FILTERED_BLOCKS_DIR}" "$(dirname "{log.stdout}")"

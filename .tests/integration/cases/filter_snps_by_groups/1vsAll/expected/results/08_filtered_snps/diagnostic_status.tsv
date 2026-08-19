@@ -1,0 +1,4 @@
+snp_id	block_id	aln_pos	status	failure_reason
+snp::3::100	3	100	FAIL	non_diagnostic_allele_pattern
+snp::3::200	3	200	PASS	
+snp::3::300	3	300	FAIL	non_diagnostic_allele_pattern

@@ -6,7 +6,7 @@ def resolve_dotplot_pairs(
     config: dict,
 ) -> list[tuple[str, str]]:
     """Resolve pairwise dotplot comparisons from config."""
-    pivot = str(config.get("viewer", {}).get("dotplot_reference") or "").strip()
+    pivot = str(config["viewer"]["dotplot_reference"] or "").strip()
 
     if not pivot:
         return list(combinations(sample_names, 2))
@@ -169,7 +169,7 @@ rule build_dotplot_gallery_html:
         stderr=LOG_DIR / "build_dotplot_gallery_html" / "dotplots_gallery.stderr"
     params:
         pivot=lambda wildcards: str(
-            config.get("viewer", {}).get("dotplot_reference") or ""
+            config["viewer"]["dotplot_reference"] or ""
         ).strip()
     shell:
         r"""

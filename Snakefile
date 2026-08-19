@@ -1,6 +1,6 @@
 from snakemake.utils import validate
 
-validate(config, "workflow/schemas/config.schema.yaml", set_default=False)
+validate(config, "workflow/schemas/config.schema.yaml")
 
 include: "rules/common.smk"
 include: "rules/mash_dists.smk"

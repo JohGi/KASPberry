@@ -20,5 +20,4 @@ logs/
 .DS_Store
 
 # tests
-plop
-test/
+/test/

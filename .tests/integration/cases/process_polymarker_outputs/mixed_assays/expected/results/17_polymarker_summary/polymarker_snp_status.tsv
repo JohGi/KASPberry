@@ -1,5 +1,0 @@
-marker_id	block_id	aln_pos	target_chromosome	polymarker_pass	n_genomes_ok	n_genomes_total	n_unique_assays_to_test
-snp::1::100	1	100	2A	true	3	3	1
-snp::1::200	1	200	2A	true	3	3	2
-snp::1::300	1	300	2A	false	2	3	0
-snp::1::400	1	400	2A	true	3	3	2

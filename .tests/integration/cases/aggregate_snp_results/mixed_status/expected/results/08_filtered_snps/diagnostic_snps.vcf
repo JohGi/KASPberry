@@ -1,0 +1,5 @@
+##fileformat=VCFv4.2
+##source=KASPberry-integration-test
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	A	B
+1.aln	100	.	A	G	.	PASS	.	GT	0/0	1/1
+2.aln	50	.	G	A	.	PASS	.	GT	0/0	1/1

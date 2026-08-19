@@ -1,4 +1,0 @@
-##fileformat=VCFv4.2
-#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	Belalur	Dic2	Karur	Lloyd	Soldur
-3.aln	100	.	A	G	.	PASS	.	GT	0	1	0	0	1
-3.aln	400	.	A	G	.	PASS	.	GT	1	0	1	1	0

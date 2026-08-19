@@ -1,0 +1,6 @@
+snp_id	block_id	aln_pos	A_nt	B_nt	A_pos	B_pos
+snp::5::100	5	100	A	G	5100	6100
+snp::5::200	5	200	C	T	5200	6200
+snp::5::300	5	300	G	A	5300	6300
+snp::5::400	5	400	T	C	5400	6400
+snp::5::500	5	500	A	G	5500	6500
