@@ -38,9 +38,6 @@ numpy = "==1.24.4"
 perl = "*"
 minimap2 = "*"
 
-[feature.mashtree.dependencies]
-mashtree = ">=1.4.6,<2"
-
 [feature.mash.dependencies]
 mash = ">=2.3,<3"
 
@@ -50,5 +47,4 @@ kaspberry = "python scripts/kaspberry.py"
 [environments]
 default = { features = ["workflow"], no-default-feature = true }
 dotplot = { features = ["dotplot"], no-default-feature = true }
-mashtree = { features = ["mashtree"], no-default-feature = true }
 mash = { features = ["mash"], no-default-feature = true }

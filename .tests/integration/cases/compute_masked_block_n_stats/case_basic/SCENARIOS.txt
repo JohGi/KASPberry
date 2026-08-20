@@ -1,0 +1,14 @@
+Basic compute_masked_block_n_stats integration case
+
+Inputs
+- One block (block 1) with two genotypes: SampleA and SampleB.
+- Masked and unmasked alignments contain alignment gaps.
+- SampleA has no pre-existing N and gains 2 repeat-masked Ns.
+- SampleB has 2 pre-existing Ns and gains 2 additional repeat-masked Ns.
+- Each biological sequence is 10 bp long after removing alignment gaps.
+
+Expected behaviour
+- Alignment gaps are excluded from sequence lengths and percentage denominators.
+- Pre-existing Ns are not counted as repeat-masked bases.
+- SampleA: 0.00% pre-existing N, 20.00% masked N, 20.00% repeat-masked bases.
+- SampleB: 20.00% pre-existing N, 40.00% masked N, 20.00% repeat-masked bases.

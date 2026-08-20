@@ -77,6 +77,26 @@ def count_n(sequence: str) -> int:
     return sequence.count("N") + sequence.count("n")
 
 
+def remove_gaps(sequence: str) -> str:
+    """Return the biological sequence without alignment gaps."""
+    return sequence.replace("-", "")
+
+
+def count_repeat_masked_n(unmasked_seq: str, masked_seq: str) -> int:
+    """Count bases newly converted to N by repeat masking."""
+    if len(unmasked_seq) != len(masked_seq):
+        raise ValueError(
+            "Masked and unmasked sequences have different ungapped lengths: "
+            f"{len(masked_seq)} vs {len(unmasked_seq)}"
+        )
+
+    return sum(
+        1
+        for before, after in zip(unmasked_seq, masked_seq)
+        if before.upper() != "N" and after.upper() == "N"
+    )
+
+
 def compute_pct(count: int, length: int) -> float:
     """Compute a percentage; returns 0.0 if length is zero."""
     return 0.0 if length == 0 else (count / length) * 100
@@ -100,19 +120,40 @@ def build_rows(masked_path: Path, unmasked_path: Path) -> list[str]:
                 f"but missing from unmasked alignment: {unmasked_path}"
             )
 
-        masked_seq = masked_seqs[sample]
-        unmasked_seq = unmasked_seqs[sample]
+        masked_seq = remove_gaps(masked_seqs[sample])
+        unmasked_seq = remove_gaps(unmasked_seqs[sample])
 
-        unmasked_length_bp = len(unmasked_seq)
-        masked_length_bp = len(masked_seq)
+        if len(masked_seq) != len(unmasked_seq):
+            raise ValueError(
+                f"Block {block_id}, sample '{sample}': masked and unmasked "
+                f"sequences have different ungapped lengths "
+                f"({len(masked_seq)} vs {len(unmasked_seq)})"
+            )
+
+        sequence_length_bp = len(unmasked_seq)
 
         unmasked_n_count = count_n(unmasked_seq)
         masked_n_count = count_n(masked_seq)
-        repeat_masked_n_count = max(0, masked_n_count - unmasked_n_count)
+        repeat_masked_n_count = count_repeat_masked_n(
+            unmasked_seq,
+            masked_seq,
+        )
 
-        unmasked_n_pct = compute_pct(unmasked_n_count, unmasked_length_bp)
-        masked_n_pct = compute_pct(masked_n_count, masked_length_bp)
-        repeat_masked_n_pct = compute_pct(repeat_masked_n_count, masked_length_bp)
+        unmasked_n_pct = compute_pct(
+            unmasked_n_count,
+            sequence_length_bp,
+        )
+        masked_n_pct = compute_pct(
+            masked_n_count,
+            sequence_length_bp,
+        )
+        repeat_masked_n_pct = compute_pct(
+            repeat_masked_n_count,
+            sequence_length_bp,
+        )
+
+        unmasked_length_bp = sequence_length_bp
+        masked_length_bp = sequence_length_bp
 
         rows.append(
             f"{block_id}\t{sample}\t{masked_length_bp}\t{unmasked_length_bp}"

@@ -6,7 +6,11 @@ from __future__ import annotations
 import argparse
 import subprocess
 import sys
+import os
 from pathlib import Path
+
+
+
 
 import yaml
 from snakemake_interface_common.exceptions import WorkflowError
@@ -85,7 +89,10 @@ def run_snakemake(
         mode,
     ]
 
-    return subprocess.run(command).returncode
+    env = os.environ.copy()
+    env["KASPBERRY_MODE"] = mode
+
+    return subprocess.run(command, env=env).returncode
 
 
 def run_kaspberry(
