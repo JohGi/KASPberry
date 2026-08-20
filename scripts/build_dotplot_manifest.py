@@ -70,7 +70,7 @@ def build_dotplot_records(
     for row_index, row_sample in enumerate(sample_names[:-1]):
         for col_sample in sample_names[row_index + 1:]:
             pair_id = build_pair_id(row_sample, col_sample)
-            svg_path = svg_dir / f"{pair_id}.dotplot_only.svg"
+            svg_path = svg_dir / f"{pair_id}.svg"
 
             if not svg_path.exists():
                 continue

@@ -215,13 +215,17 @@ def normalize_distance(value: float) -> float:
 def parse_mash_matrix(path: Path, sample_order: list[str]) -> DistanceMatrix:
     """Parse a Mash square distance matrix."""
     rows = path.read_text(encoding="utf-8").splitlines()
-    header = rows[0].split("\t")[1:]
+
+    header = [
+        Path(label).stem
+        for label in rows[0].split("\t")[1:]
+    ]
 
     values_by_pair: dict[tuple[str, str], float] = {}
 
     for row in rows[1:]:
         fields = row.split("\t")
-        row_label = fields[0]
+        row_label = Path(fields[0]).stem
         distances = [float(value) for value in fields[1:]]
 
         for col_label, distance in zip(header, distances):

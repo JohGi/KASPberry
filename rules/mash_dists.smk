@@ -1,23 +1,33 @@
-rule compute_mashtree_distances:
+rule compute_mash_distances:
     input:
         CLEAN_FASTAS
     output:
-        matrix=MASHTREE_MATRIX,
-        tree=MASHTREE_TREE
+        matrix=MASH_MATRIX
     threads: 1
     log:
-        stdout=LOG_DIR / "compute_mashtree_distances" / "compute_mashtree_distances.stdout",
-        stderr=LOG_DIR / "compute_mashtree_distances" / "compute_mashtree_distances.stderr"
+        stdout=LOG_DIR / "compute_mash_distances" / "compute_mash_distances.stdout",
+        stderr=LOG_DIR / "compute_mash_distances" / "compute_mash_distances.stderr"
     benchmark:
-        BENCHMARK_DIR / "compute_mashtree_distances.tsv"
+        BENCHMARK_DIR / "compute_mash_distances.tsv"
     shell:
         r"""
         mkdir -p "{MASH_DISTANCES_DIR}" "$(dirname "{log.stdout}")"
-        pixi run -e mashtree mashtree \
-            --numcpus {threads} \
-            --outmatrix "{output.matrix}" \
-            --outtree "{output.tree}" \
+
+        tmpdir="$(mktemp -d "{MASH_DISTANCES_DIR}/mash.XXXXXX")"
+        trap 'rm -rf "$tmpdir"' EXIT
+
+        pixi run -e mash mash sketch \
+            -k 21 \
+            -s 1000 \
+            -o "$tmpdir/regions" \
             {input} \
-            > "{log.stdout}" \
+            1> "{log.stdout}" \
             2> "{log.stderr}"
+
+        pixi run -e mash mash dist \
+            -t \
+            "$tmpdir/regions.msh" \
+            "$tmpdir/regions.msh" \
+            > "{output.matrix}" \
+            2>> "{log.stderr}"
         """

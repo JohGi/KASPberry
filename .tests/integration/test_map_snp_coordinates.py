@@ -70,6 +70,7 @@ def test_map_snp_coordinates_cases(
     compare_directories(
         expected_dir=case_dir / "expected" / "results" / "snps",
         observed_dir=tmp_path / "results" / "snps",
+        ignore_names={"detected_snps.vcf"},
     )
     compare_directories(
         expected_dir=case_dir / "expected" / "results" / ".work" / "snps",

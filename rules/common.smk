@@ -1,30 +1,301 @@
 from pathlib import Path
 import sys
+
 sys.path.insert(0, str(Path(workflow.current_basedir) / "../scripts"))
+
 from input_tables import read_genotypes
+
 
 wildcard_constraints:
     sample="[^/]+",
     pair_id="[^/]+"
 
 
+# ---------------------------------------------------------------------------
+# Project and inputs
+# ---------------------------------------------------------------------------
+
+OUTDIR = Path(config["project"]["output_dir"])
+PROJECT_TITLE = config["project"]["name"]
+
+SCRIPTS_DIR = Path(workflow.current_basedir) / "../scripts"
+
+GENOTYPES_TSV = Path(config["inputs"]["genotypes"])
+GENOTYPES = read_genotypes(GENOTYPES_TSV)
+
+GENOTYPE_NAMES = [
+    record["genotype"]
+    for record in GENOTYPES
+]
+
+REGION_FASTA_BY_GENOTYPE = {
+    record["genotype"]: record["region_fasta"]
+    for record in GENOTYPES
+}
+
+NB_GENOTYPES = len(GENOTYPES)
+
+
+# ---------------------------------------------------------------------------
+# KASP genotypes
+# ---------------------------------------------------------------------------
+
+KASP_GENOTYPES = [
+    record
+    for record in GENOTYPES
+    if record["genome_fasta"]
+]
+
+KASP_GENOTYPE_NAMES = [
+    record["genotype"]
+    for record in KASP_GENOTYPES
+]
+
+KASP_GENOME_FASTA_BY_GENOTYPE = {
+    record["genotype"]: record["genome_fasta"]
+    for record in KASP_GENOTYPES
+}
+
+
+# ---------------------------------------------------------------------------
+# Main output directories
+# ---------------------------------------------------------------------------
+
+WORK_DIR = OUTDIR / ".work"
+
+REGIONS_DIR = OUTDIR / "regions"
+SNP_DIR = OUTDIR / "snps"
+KASP_DIR = OUTDIR / "kasp"
+REPORTS_DIR = OUTDIR / "reports"
+
+LOG_DIR = OUTDIR / "logs"
+BENCHMARK_DIR = OUTDIR / "benchmarks"
+
+
+# ---------------------------------------------------------------------------
+# Report assets
+# ---------------------------------------------------------------------------
+
+REPORT_ASSETS_DIR = REPORTS_DIR / "assets"
+DOTPLOT_ASSETS_DIR = REPORT_ASSETS_DIR / "dotplots"
+DOTPLOT_GALLERY_ASSETS_DIR = DOTPLOT_ASSETS_DIR / "gallery"
+DOTPLOT_VIEWER_ASSETS_DIR = DOTPLOT_ASSETS_DIR / "viewer"
+
+# ---------------------------------------------------------------------------
+# Working directories
+# ---------------------------------------------------------------------------
+
+CLEAN_FASTA_DIR = WORK_DIR / "clean_fasta"
+MULTIFASTA_DIR = CLEAN_FASTA_DIR / "multifasta"
+
+SIBELIAZ_DIR = WORK_DIR / "sibeliaz"
+
+BLOCKS_DIR = WORK_DIR / "blocks"
+MASK_CHUNK_DIR = BLOCKS_DIR / "mask_chunks"
+
+BLOCK_FASTA_DIR = WORK_DIR / "block_fastas"
+BLOCK_FASTA_SPLIT_DIR = BLOCK_FASTA_DIR / "per_block"
+
+MASKED_DIR = WORK_DIR / "masked_block_fastas"
+MASKED_CHUNK_DIR = MASKED_DIR / "chunks"
+
+ALIGN_DIR = WORK_DIR / "alignments"
+
+SNP_WORK_DIR = WORK_DIR / "snps"
+
+DOTPLOT_DIR = WORK_DIR / "dotplots"
+DOTPLOT_PAF_DIR = DOTPLOT_DIR / "paf"
+DOTPLOT_FORMATTED_DIR = DOTPLOT_DIR / "formatted"
+DOTPLOT_PDF_DIR = DOTPLOT_DIR / "pdfs"
+
+RUN_SUMMARY_DIR = WORK_DIR / "run_summary"
+
+VIEWER_DIR = WORK_DIR / "viewer"
+
+MASH_DISTANCES_DIR = WORK_DIR / "mash_distances"
+
+BLOCK_STATS_DIR = WORK_DIR / "block_stats"
+UNMASKED_ALIGN_DIR = BLOCK_STATS_DIR / "unmasked_alignments"
+
+KIMURA2P_DISTMAT_DIR = BLOCK_STATS_DIR / "kimura2p_distances"
+KIMURA2P_DISTMAT_MATRIX_DIR = KIMURA2P_DISTMAT_DIR / "matrices"
+KIMURA2P_DISTMAT_CHUNK_DIR = KIMURA2P_DISTMAT_DIR / "chunks"
+
+KASP_WORK_DIR = WORK_DIR / "kasp"
+
+POLYMARKER_INPUT_DIR = KASP_WORK_DIR / "polymarker_inputs"
+POLYMARKER_DIR = KASP_WORK_DIR / "polymarker"
+POLYMARKER_SUMMARY_DIR = KASP_WORK_DIR / "polymarker_summary"
+
+IN_SILICO_DIR = KASP_WORK_DIR / "in_silico_validation"
+VALIDATION_DIR = KASP_WORK_DIR / "validation"
+
+AGGREGATION_DIR = WORK_DIR / "aggregation"
+
+
+# ---------------------------------------------------------------------------
+# Core FASTA and block files
+# ---------------------------------------------------------------------------
+
+CLEAN_FASTAS = expand(
+    CLEAN_FASTA_DIR / "{sample}.fasta",
+    sample=GENOTYPE_NAMES,
+)
+
+ALL_GENOMES_FASTA = MULTIFASTA_DIR / "all_genomes.fasta"
+
+SIBELIAZ_GFF = SIBELIAZ_DIR / "blocks_coords.gff"
+
+FILTERED_GFF = BLOCKS_DIR / "collinear_blocks.gff"
+BLOCK_LIST = BLOCKS_DIR / "kept_blocks.list"
+
+ALL_BLOCKS_RAW_FASTA = BLOCK_FASTA_DIR / "all_blocks.raw.fasta"
+
+BLOCK_COORDINATES_TSV = REGIONS_DIR / "collinear_blocks.tsv"
+
+
+# ---------------------------------------------------------------------------
+# SNP files
+# ---------------------------------------------------------------------------
+
+SNP_VCF = SNP_DIR / "detected_snps.vcf"
+DIAGNOSTIC_SNPS_VCF = SNP_DIR / "diagnostic_snps.vcf"
+
+SNP_POS_LONG_TSV = SNP_DIR / "snp_coordinates.tsv"
+SNP_SUMMARY_TSV = SNP_DIR / "snp_summary.tsv"
+
+SNP_POS_WIDE_TSV = SNP_WORK_DIR / "snp_positions_wide.tsv"
+DIAGNOSTIC_STATUS_TSV = SNP_WORK_DIR / "diagnostic_status.tsv"
+
+GROUP_A_LIST = SNP_WORK_DIR / "group_a_genotypes.list"
+GROUP_B_LIST = SNP_WORK_DIR / "group_b_genotypes.list"
+
+
+# ---------------------------------------------------------------------------
+# Dotplots and viewer files
+# ---------------------------------------------------------------------------
+
+DOTPLOT_GALLERY_HTML = REPORTS_DIR / "dotplots.html"
+
+DOTPLOT_MANIFEST = VIEWER_DIR / "dotplots_manifest.json"
+GFF_TRACKS_JSON = VIEWER_DIR / "gff_tracks.json"
+
+
+# ---------------------------------------------------------------------------
+# Distance and block statistics
+# ---------------------------------------------------------------------------
+
+MASH_MATRIX = MASH_DISTANCES_DIR / "mash.matrix.tsv"
+
+MASKED_BLOCK_N_STATS_TSV = (
+    BLOCK_STATS_DIR / "masked_block_n_stats.tsv"
+)
+
+
+# ---------------------------------------------------------------------------
+# Run summary
+# ---------------------------------------------------------------------------
+
+RUN_SUMMARY_JSON = RUN_SUMMARY_DIR / "run_summary.json"
+RUN_SUMMARY_TXT = REPORTS_DIR / "run_summary.txt"
+
+
+# ---------------------------------------------------------------------------
+# PolyMarker intermediate files
+# ---------------------------------------------------------------------------
+
+POLYMARKER_DESIGN_STATUS_TSV = (
+    POLYMARKER_SUMMARY_DIR / "polymarker_design_status.tsv"
+)
+
+POLYMARKER_DESIGN_STATUS_BY_GENOTYPE_TSV = (
+    POLYMARKER_SUMMARY_DIR
+    / "polymarker_design_status_by_genotype.tsv"
+)
+
+POLYMARKER_ASSAYS_TSV = (
+    POLYMARKER_SUMMARY_DIR / "polymarker_assays.tsv"
+)
+
+
+# ---------------------------------------------------------------------------
+# In silico validation intermediate files
+# ---------------------------------------------------------------------------
+
+IN_SILICO_VALIDATION_STATUS_TSV = (
+    VALIDATION_DIR / "in_silico_validation_status.tsv"
+)
+
+IN_SILICO_ASSAY_STATUS_TSV = (
+    VALIDATION_DIR / "in_silico_assay_status.tsv"
+)
+
+IN_SILICO_ASSAY_STATUS_BY_GENOTYPE_TSV = (
+    VALIDATION_DIR / "in_silico_assay_status_by_genotype.tsv"
+)
+
+
+# ---------------------------------------------------------------------------
+# Public KASP outputs
+# ---------------------------------------------------------------------------
+
+CANDIDATE_SNPS_VCF = KASP_DIR / "candidate_snps.vcf"
+
+KASP_SUMMARY_TSV = KASP_DIR / "kasp_snp_summary.tsv"
+ASSAY_SUMMARY_TSV = KASP_DIR / "assay_summary.tsv"
+CANDIDATE_ASSAYS_TSV = KASP_DIR / "candidate_assays.tsv"
+PRIMERS_TO_ORDER_TSV = KASP_DIR / "primers_to_order.tsv"
+
+
+# ---------------------------------------------------------------------------
+# Repeat masking configuration
+# ---------------------------------------------------------------------------
+
+te_lib_value = config["snps"]["repeat_masking"]["library"]
+
+TE_LIB = Path(te_lib_value) if te_lib_value else None
+USE_MASKING = TE_LIB is not None
+
+ALIGNMENT_FASTA_DIR = (
+    MASKED_DIR
+    if USE_MASKING
+    else BLOCK_FASTA_SPLIT_DIR
+)
+
+
+# ---------------------------------------------------------------------------
+# Dynamic checkpoint helpers
+# ---------------------------------------------------------------------------
+
 def get_split_block_dir(_wildcards=None) -> Path:
     """Return the checkpoint output directory containing per-block FASTA files."""
-    return Path(checkpoints.split_block_fastas.get().output[0])
+    return Path(
+        checkpoints.split_block_fastas.get().output[0]
+    )
 
 
 def get_chunk_ids(_wildcards=None) -> list[str]:
     """Return all chunk IDs after checkpoint completion."""
-    chunk_dir = Path(checkpoints.split_block_list_into_chunks.get().output.chunk_dir)
-    return sorted(path.stem for path in chunk_dir.glob("*.list"))
+    chunk_dir = Path(
+        checkpoints.split_block_list_into_chunks.get().output.chunk_dir
+    )
+
+    return sorted(
+        path.stem
+        for path in chunk_dir.glob("*.list")
+    )
 
 
 def get_alignment_inputs(wildcards) -> list[Path]:
     """Return prerequisite inputs for one alignment chunk."""
-    inputs = [MASK_CHUNK_DIR / f"{wildcards.chunk_id}.list"]
+    inputs = [
+        MASK_CHUNK_DIR / f"{wildcards.chunk_id}.list"
+    ]
 
     if USE_MASKING:
-        inputs.append(MASKED_CHUNK_DIR / f"{wildcards.chunk_id}.done")
+        inputs.append(
+            MASKED_CHUNK_DIR / f"{wildcards.chunk_id}.done"
+        )
     else:
         inputs.append(get_split_block_dir())
 
@@ -32,123 +303,28 @@ def get_alignment_inputs(wildcards) -> list[Path]:
 
 
 def get_align_chunk_sentinels(_wildcards=None) -> list[Path]:
-    """Return all alignment chunk completion markers after checkpoint completion."""
-    return [ALIGN_DIR / f"{chunk_id}.done" for chunk_id in get_chunk_ids()]
-
-
-def get_unmasked_align_chunk_sentinels(_wildcards=None) -> list[Path]:
-    """Return all unmasked alignment chunk completion markers after checkpoint completion."""
-    return [UNMASKED_ALIGN_DIR / f"{chunk_id}.done" for chunk_id in get_chunk_ids()]
-
-
-def get_distmat_chunk_sentinels(_wildcards=None) -> list[Path]:
-    """Return all distmat chunk completion markers after checkpoint completion."""
+    """Return all alignment chunk completion markers."""
     return [
-        KIMURA2P_DISTMAT_CHUNK_DIR / f"{chunk_id}.done"
+        ALIGN_DIR / f"{chunk_id}.done"
         for chunk_id in get_chunk_ids()
     ]
 
 
-GENOTYPES_TSV = Path(config["inputs"]["genotypes"])
-GENOTYPES = read_genotypes(GENOTYPES_TSV)
-GENOTYPE_NAMES = [record["genotype"] for record in GENOTYPES]
-REGION_FASTA_BY_GENOTYPE = {
-    record["genotype"]: record["region_fasta"] for record in GENOTYPES
-}
+def get_unmasked_align_chunk_sentinels(
+    _wildcards=None,
+) -> list[Path]:
+    """Return all unmasked alignment chunk completion markers."""
+    return [
+        UNMASKED_ALIGN_DIR / f"{chunk_id}.done"
+        for chunk_id in get_chunk_ids()
+    ]
 
-OUTDIR = Path(config["project"]["output_dir"])
-SCRIPTS_DIR = Path(workflow.current_basedir) / "../scripts"
-PROJECT_TITLE = config["project"]["name"]
 
-CLEAN_FASTA_DIR = OUTDIR / ".work/clean_fasta"
-MULTIFASTA_DIR = CLEAN_FASTA_DIR / "multifasta"
-SIBELIAZ_DIR = OUTDIR / ".work/sibeliaz"
-FILTERED_BLOCKS_DIR = OUTDIR / ".work/blocks"
-MASK_CHUNK_DIR = FILTERED_BLOCKS_DIR / "mask_chunks"
-BLOCK_FASTA_DIR = OUTDIR / ".work/block_fastas"
-BLOCK_FASTA_SPLIT_DIR = BLOCK_FASTA_DIR / "per_block"
-MASKED_DIR = OUTDIR / ".work/masked_block_fastas"
-MASKED_CHUNK_DIR = MASKED_DIR / "chunks"
-ALIGN_DIR = OUTDIR / ".work/alignments"
-SNP_DIR = OUTDIR / "snps"
-FILTERED_SNP_DIR = OUTDIR / ".work/snps"
-SNP_POS_DIR = OUTDIR / ".work/snps"
-DOTPLOT_DIR = OUTDIR / ".work/dotplots"
-DOTPLOT_PAF_DIR = DOTPLOT_DIR / "paf"
-DOTPLOT_FORMATTED_DIR = DOTPLOT_DIR / "formatted"
-DOTPLOT_PDF_DIR = DOTPLOT_DIR / "pdfs"
-DOTPLOT_SVG_DIR = DOTPLOT_DIR / "svgs"
-DOTPLOT_COMBINED_DIR = DOTPLOT_DIR / "combined"
-RUN_SUMMARY_DIR = OUTDIR / ".work/run_summary"
-REGION_TRACK_DIR = OUTDIR / ".work/viewer"
-DOTPLOT_ONLY_SVG_DIR = REGION_TRACK_DIR / "viewer_assets/dotplots"
-MASH_DISTANCES_DIR = OUTDIR / ".work/mash_distances"
-BLOCK_STATS_DIR = OUTDIR / ".work/block_stats"
-UNMASKED_ALIGN_DIR = BLOCK_STATS_DIR / "unmasked_alignments"
-KIMURA2P_DISTMAT_DIR = BLOCK_STATS_DIR / "kimura2p_distances"
-KIMURA2P_DISTMAT_MATRIX_DIR = KIMURA2P_DISTMAT_DIR / "matrices"
-KIMURA2P_DISTMAT_CHUNK_DIR = KIMURA2P_DISTMAT_DIR / "chunks"
-POLYMARKER_INPUT_DIR = OUTDIR / ".work/kasp/polymarker_inputs"
-POLYMARKER_DIR = OUTDIR / ".work/kasp/polymarker"
-POLYMARKER_SUMMARY_DIR = OUTDIR / ".work/kasp/polymarker_summary"
-KASP_GENOTYPES = [
-    record
-    for record in GENOTYPES
-    if record["genome_fasta"]
-]
-KASP_GENOTYPE_NAMES = [
-    record["genotype"]
-    for record in KASP_GENOTYPES
-]
-KASP_GENOME_FASTA_BY_GENOTYPE = {
-    record["genotype"]: record["genome_fasta"]
-    for record in KASP_GENOTYPES
-}
-IN_SILICO_DIR = OUTDIR / ".work/kasp/in_silico_validation"
-VALIDATION_DIR = OUTDIR / ".work/kasp/validation"
-AGGREGATION_DIR = OUTDIR / ".work/aggregation"
-LOG_DIR = OUTDIR / "logs"
-BENCHMARK_DIR = OUTDIR / "benchmarks"
-
-CLEAN_FASTAS = expand(CLEAN_FASTA_DIR / "{sample}.fasta", sample=GENOTYPE_NAMES)
-ALL_GENOMES_FASTA = MULTIFASTA_DIR / "all_genomes.fasta"
-SIBELIAZ_GFF = SIBELIAZ_DIR / "blocks_coords.gff"
-FILTERED_GFF = OUTDIR / ".work/blocks/collinear_blocks.gff"
-BLOCK_LIST = FILTERED_BLOCKS_DIR / "kept_blocks.list"
-BLOCK_COORDINATES_TSV = OUTDIR / "regions/collinear_blocks.tsv"
-ALL_BLOCKS_RAW_FASTA = BLOCK_FASTA_DIR / "all_blocks.raw.fasta"
-SNP_VCF = SNP_DIR / "detected_snps.vcf"
-GROUP_A_LIST = FILTERED_SNP_DIR / "group_a_samples.list"
-GROUP_B_LIST = FILTERED_SNP_DIR / "group_b_samples.list"
-SNP_POS_LONG_TSV = OUTDIR / "snps/snp_coordinates.tsv"
-SNP_POS_WIDE_TSV = SNP_POS_DIR / "snp_positions_wide.tsv"
-DOTPLOT_GALLERY_HTML = OUTDIR / "reports/dotplots.html"
-RUN_SUMMARY_JSON = RUN_SUMMARY_DIR / "run_summary.json"
-RUN_SUMMARY_TXT = OUTDIR / "reports/run_summary.txt"
-DOTPLOT_MANIFEST = REGION_TRACK_DIR / "dotplots_manifest.json"
-MASHTREE_MATRIX = MASH_DISTANCES_DIR / "mashtree.matrix.tsv"
-MASHTREE_TREE = MASH_DISTANCES_DIR / "mashtree.dnd"
-MASKED_BLOCK_N_STATS_TSV = BLOCK_STATS_DIR / "masked_block_n_stats.tsv"
-GFF_TRACKS_JSON = REGION_TRACK_DIR / "gff_tracks.json"
-
-DIAGNOSTIC_STATUS_TSV = FILTERED_SNP_DIR / "diagnostic_status.tsv"
-POLYMARKER_DESIGN_STATUS_TSV = POLYMARKER_SUMMARY_DIR / "polymarker_design_status.tsv"
-IN_SILICO_VALIDATION_STATUS_TSV = VALIDATION_DIR / "in_silico_validation_status.tsv"
-POLYMARKER_ASSAYS_TSV = POLYMARKER_SUMMARY_DIR / "polymarker_assays.tsv"
-POLYMARKER_DESIGN_STATUS_BY_GENOTYPE_TSV = POLYMARKER_SUMMARY_DIR / "polymarker_design_status_by_genotype.tsv"
-IN_SILICO_ASSAY_STATUS_TSV = VALIDATION_DIR / "in_silico_assay_status.tsv"
-IN_SILICO_ASSAY_STATUS_BY_GENOTYPE_TSV = VALIDATION_DIR / "in_silico_assay_status_by_genotype.tsv"
-DIAGNOSTIC_SNPS_VCF = OUTDIR / "snps/diagnostic_snps.vcf"
-CANDIDATE_SNPS_VCF = OUTDIR / "kasp/candidate_snps.vcf"
-SNP_SUMMARY_TSV = OUTDIR / "snps/snp_summary.tsv"
-KASP_SUMMARY_TSV = OUTDIR / "kasp/kasp_snp_summary.tsv"
-ASSAY_SUMMARY_TSV = OUTDIR / "kasp/assay_summary.tsv"
-CANDIDATE_ASSAYS_TSV = OUTDIR / "kasp/candidate_assays.tsv"
-PRIMERS_TO_ORDER_TSV = OUTDIR / "kasp/primers_to_order.tsv"
-
-NB_GENOTYPES = len(GENOTYPES)
-te_lib_value = config["snps"]["repeat_masking"]["library"]
-TE_LIB = Path(te_lib_value) if te_lib_value else None
-USE_MASKING = TE_LIB is not None
-
-ALIGNMENT_FASTA_DIR = MASKED_DIR if USE_MASKING else BLOCK_FASTA_SPLIT_DIR
+def get_distmat_chunk_sentinels(
+    _wildcards=None,
+) -> list[Path]:
+    """Return all distance-matrix chunk completion markers."""
+    return [
+        KIMURA2P_DISTMAT_CHUNK_DIR / f"{chunk_id}.done"
+        for chunk_id in get_chunk_ids()
+    ]

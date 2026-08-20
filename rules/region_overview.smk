@@ -28,7 +28,7 @@ GFF_TRACK_FILES = get_gff_track_files(GFF_TRACKS)
 def get_region_viewer_outputs(mode):
     """Return the region viewer HTML output for one workflow mode."""
     return [
-        OUTDIR / f"reports/region_viewer_{mode}.html"
+        REPORTS_DIR / f"region_viewer_{mode}.html"
     ]
 
 
@@ -62,7 +62,7 @@ rule write_gff_tracks_json:
 
 rule build_dotplot_manifest:
     input:
-        svgs=DOTPLOT_ONLY_SVGS
+        svgs=DOTPLOT_VIEWER_SVGS
     output:
         manifest=DOTPLOT_MANIFEST
     benchmark:
@@ -72,11 +72,11 @@ rule build_dotplot_manifest:
         stderr=LOG_DIR / "build_dotplot_manifest" / "dotplots_manifest.stderr"
     shell:
         r"""
-        mkdir -p "{DOTPLOT_COMBINED_DIR}" "$(dirname "{log.stdout}")"
+        mkdir -p "$(dirname "{log.stdout}")"
 
         python3 "{SCRIPTS_DIR}/build_dotplot_manifest.py" \
             --genotypes "{GENOTYPES_TSV}" \
-            --svg-dir "{DOTPLOT_ONLY_SVG_DIR}" \
+            --svg-dir "{DOTPLOT_VIEWER_ASSETS_DIR}" \
             --output "{output.manifest}" \
             1> "{log.stdout}" \
             2> "{log.stderr}"
@@ -93,7 +93,7 @@ rule generate_region_viewer:
         snp_summary=get_viewer_snp_summary,
         fastas=CLEAN_FASTAS,
         stats_json=RUN_SUMMARY_JSON,
-        mash_dists_tsv=MASHTREE_MATRIX,
+        mash_dists_tsv=MASH_MATRIX,
         n_stats_tsv=MASKED_BLOCK_N_STATS_TSV,
         align_sentinels=get_align_chunk_sentinels,
         distmat_sentinels=get_distmat_chunk_sentinels,
@@ -101,7 +101,7 @@ rule generate_region_viewer:
         dotplot_manifest=DOTPLOT_MANIFEST,
 
     output:
-        html=OUTDIR / "reports/region_viewer_{mode}.html"
+        html=REPORTS_DIR / "region_viewer_{mode}.html"
 
     benchmark:
         BENCHMARK_DIR / "generate_region_viewer/{mode}.tsv"

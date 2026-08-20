@@ -132,7 +132,7 @@ rule filter_snps_by_groups:
         stderr=LOG_DIR / "filter_snps_by_groups" / "filter_snps_by_groups.stderr"
     shell:
         r"""
-        mkdir -p "{FILTERED_SNP_DIR}" "$(dirname "{log.stdout}")"
+        mkdir -p "{SNP_WORK_DIR}" "$(dirname "{log.stdout}")"
         python3 "{SCRIPTS_DIR}/filter_snps_by_groups.py" \
             --input "{input.snps}" \
             --output "{output.status}" \

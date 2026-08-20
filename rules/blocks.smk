@@ -121,7 +121,7 @@ rule collect_blocks:
         stdout=LOG_DIR / "collect_blocks" / "collect_blocks.stdout"
     shell:
         r"""
-        mkdir -p "{FILTERED_BLOCKS_DIR}" "$(dirname "{log.stdout}")"
+        mkdir -p "{BLOCKS_DIR}" "$(dirname "{log.stdout}")"
         bash "{SCRIPTS_DIR}/extract_block_ids.sh" \
             "{input}" \
             "{output}" \
@@ -134,7 +134,7 @@ rule extract_all_blocks_fasta:
         fasta=ALL_GENOMES_FASTA,
         gff=FILTERED_GFF
     output:
-        ALL_BLOCKS_RAW_FASTA
+        temp(ALL_BLOCKS_RAW_FASTA)
     benchmark:
         BENCHMARK_DIR / "extract_all_blocks_fasta.tsv"
     log:
@@ -188,7 +188,7 @@ checkpoint split_block_list_into_chunks:
         chunk_size=config["advanced"]["batching"]["blocks_per_chunk"]
     shell:
         r"""
-        mkdir -p "{FILTERED_BLOCKS_DIR}" "$(dirname "{log.stdout}")"
+        mkdir -p "{BLOCKS_DIR}" "$(dirname "{log.stdout}")"
         python3 "{SCRIPTS_DIR}/split_block_list_into_chunks.py" \
             --input "{input}" \
             --output-dir "{output.chunk_dir}" \

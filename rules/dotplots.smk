@@ -44,12 +44,28 @@ def get_pair_sample_b(wildcards) -> str:
 
 
 DOTPLOT_PAIRS = resolve_dotplot_pairs(GENOTYPE_NAMES, config)
-DOTPLOT_PAIR_IDS = [build_pair_id(sample_a, sample_b) for sample_a, sample_b in DOTPLOT_PAIRS]
-DOTPLOT_PAFS = expand(DOTPLOT_PAF_DIR / "{pair_id}.paf", pair_id=DOTPLOT_PAIR_IDS)
-DOTPLOT_FORMATTED = expand(DOTPLOT_FORMATTED_DIR / "{pair_id}.tsv", pair_id=DOTPLOT_PAIR_IDS)
-DOTPLOT_SVGS = expand(DOTPLOT_SVG_DIR / "{pair_id}.svg", pair_id=DOTPLOT_PAIR_IDS)
-DOTPLOT_ONLY_SVGS = expand(
-    DOTPLOT_ONLY_SVG_DIR / "{pair_id}.dotplot_only.svg",
+DOTPLOT_PAIR_IDS = [
+    build_pair_id(sample_a, sample_b)
+    for sample_a, sample_b in DOTPLOT_PAIRS
+]
+
+DOTPLOT_PAFS = expand(
+    DOTPLOT_PAF_DIR / "{pair_id}.paf",
+    pair_id=DOTPLOT_PAIR_IDS,
+)
+
+DOTPLOT_FORMATTED = expand(
+    DOTPLOT_FORMATTED_DIR / "{pair_id}.tsv",
+    pair_id=DOTPLOT_PAIR_IDS,
+)
+
+DOTPLOT_GALLERY_SVGS = expand(
+    DOTPLOT_GALLERY_ASSETS_DIR / "{pair_id}.svg",
+    pair_id=DOTPLOT_PAIR_IDS,
+)
+
+DOTPLOT_VIEWER_SVGS = expand(
+    DOTPLOT_VIEWER_ASSETS_DIR / "{pair_id}.svg",
     pair_id=DOTPLOT_PAIR_IDS,
 )
 
@@ -59,7 +75,7 @@ rule run_pairwise_minimap2:
         fasta_a=lambda wildcards: CLEAN_FASTA_DIR / f"{get_pair_sample_a(wildcards)}.fasta",
         fasta_b=lambda wildcards: CLEAN_FASTA_DIR / f"{get_pair_sample_b(wildcards)}.fasta"
     output:
-        DOTPLOT_PAF_DIR / "{pair_id}.paf"
+        temp(DOTPLOT_PAF_DIR / "{pair_id}.paf")
     benchmark:
         BENCHMARK_DIR / "run_pairwise_minimap2" / "{pair_id}.tsv"
     log:
@@ -82,7 +98,7 @@ rule format_pairwise_paf_for_blastn2dotplots:
     input:
         DOTPLOT_PAF_DIR / "{pair_id}.paf"
     output:
-        DOTPLOT_FORMATTED_DIR / "{pair_id}.tsv"
+        temp(DOTPLOT_FORMATTED_DIR / "{pair_id}.tsv")
     benchmark:
         BENCHMARK_DIR / "format_pairwise_paf_for_blastn2dotplots" / "{pair_id}.tsv"
     log:
@@ -101,8 +117,8 @@ rule run_pairwise_blastn2dotplots:
         fasta_a=lambda wildcards: CLEAN_FASTA_DIR / f"{get_pair_sample_a(wildcards)}.fasta",
         fasta_b=lambda wildcards: CLEAN_FASTA_DIR / f"{get_pair_sample_b(wildcards)}.fasta"
     output:
-        standard=DOTPLOT_PDF_DIR / "{pair_id}.pdf",
-        dotplot_only=DOTPLOT_PDF_DIR / "{pair_id}.dotplot_only.pdf",
+        standard=temp(DOTPLOT_PDF_DIR / "{pair_id}.pdf"),
+        dotplot_only=temp(DOTPLOT_PDF_DIR / "{pair_id}.dotplot_only.pdf"),
     benchmark:
         BENCHMARK_DIR / "run_pairwise_blastn2dotplots" / "{pair_id}.tsv"
     log:
@@ -129,14 +145,14 @@ rule convert_pairwise_dotplot_pdf_to_svg:
     input:
         DOTPLOT_PDF_DIR / "{pair_id}.pdf"
     output:
-        svg=DOTPLOT_SVG_DIR / "{pair_id}.svg"
+        svg=DOTPLOT_GALLERY_ASSETS_DIR / "{pair_id}.svg"
     benchmark:
         BENCHMARK_DIR / "convert_pairwise_dotplot_pdf_to_svg" / "{pair_id}.tsv"
     log:
         LOG_DIR / "convert_pairwise_dotplot_pdf_to_svg" / "{pair_id}.stderr"
     shell:
         r"""
-        mkdir -p "{DOTPLOT_SVG_DIR}" "$(dirname "{log}")"
+        mkdir -p "{DOTPLOT_ASSETS_DIR}" "$(dirname "{log}")"
 
         pdf2svg "{input}" "{output.svg}" 2> "{log}"
         """
@@ -145,21 +161,21 @@ rule convert_pairwise_dotplot_only_pdf_to_svg:
     input:
         DOTPLOT_PDF_DIR / "{pair_id}.dotplot_only.pdf"
     output:
-        svg=DOTPLOT_ONLY_SVG_DIR / "{pair_id}.dotplot_only.svg"
+        svg=DOTPLOT_VIEWER_ASSETS_DIR / "{pair_id}.svg"
     benchmark:
         BENCHMARK_DIR / "convert_pairwise_dotplot_only_pdf_to_svg" / "{pair_id}.tsv"
     log:
         LOG_DIR / "convert_pairwise_dotplot_only_pdf_to_svg" / "{pair_id}.stderr"
     shell:
         r"""
-        mkdir -p "{DOTPLOT_ONLY_SVG_DIR}" "$(dirname "{log}")"
+        mkdir -p "{DOTPLOT_ASSETS_DIR}" "$(dirname "{log}")"
 
         pdf2svg "{input}" "{output.svg}" 2> "{log}"
         """
 
 rule build_dotplot_gallery_html:
     input:
-        svgs=DOTPLOT_SVGS
+        svgs=DOTPLOT_GALLERY_SVGS
     output:
         html=DOTPLOT_GALLERY_HTML
     benchmark:
@@ -174,9 +190,10 @@ rule build_dotplot_gallery_html:
     shell:
         r"""
         mkdir -p "$(dirname "{output.html}")" "$(dirname "{log.stdout}")"
+
         python3 "{SCRIPTS_DIR}/build_dotplot_gallery_html.py" \
             --samples "{GENOTYPES_TSV}" \
-            --svg-dir "{DOTPLOT_SVG_DIR}" \
+            --svg-dir "{DOTPLOT_GALLERY_ASSETS_DIR}" \
             --output "{output.html}" \
             --pivot "{params.pivot}" \
             --title "{PROJECT_TITLE}" \

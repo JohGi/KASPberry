@@ -83,14 +83,8 @@ RepeatMasker \
     -lib "$te_lib" \
     "$fasta"
 
-cp "$block_tmp_dir"/* "$outdir"/
-
-masked_output="$outdir/${block_name}.masked"
-
-if [[ -f "$masked_output" ]]; then
-    if [[ "$masked_output" != "$output" ]]; then
-        cp "$masked_output" "$output"
-    fi
+if [[ -f "$masked_candidate" ]]; then
+    cp "$masked_candidate" "$output"
 else
     cp "$fasta" "$output"
 fi
