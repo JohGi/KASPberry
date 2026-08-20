@@ -13,6 +13,15 @@ from .payload import build_config_payload
 
 _TEMPLATES_DIR = Path(__file__).parent / "templates"
 _STATIC_DIR = Path(__file__).parent / "static"
+_REGION_VIEWER_JS_FILES = (
+    "core.js",
+    "sidebar.js",
+    "region.js",
+    "alignment.js",
+    "controls.js",
+    "dotplot.js",
+    "main.js",
+)
 
 
 def build_html(region_data: dict[str, object], region_viewer_title: str = "Region viewer") -> str:
@@ -21,7 +30,10 @@ def build_html(region_data: dict[str, object], region_viewer_title: str = "Regio
 
     template = (_TEMPLATES_DIR / "region_viewer.html").read_text(encoding="utf-8")
     css = (_STATIC_DIR / "region_viewer.css").read_text(encoding="utf-8")
-    js = (_STATIC_DIR / "region_viewer.js").read_text(encoding="utf-8")
+    js = "".join(
+        (_STATIC_DIR / filename).read_text(encoding="utf-8")
+        for filename in _REGION_VIEWER_JS_FILES
+    )
 
     css = css.replace("{{ VIEWER_TOP_UI_HEIGHT }}", str(config["viewerTopUiHeight"]))
     css = css.replace("{{ SIDEBAR_WIDTH }}", str(SIDEBAR_WIDTH))
