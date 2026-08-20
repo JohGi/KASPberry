@@ -5,15 +5,12 @@
 
 from __future__ import annotations
 
-import logging
 from pathlib import Path
 
-import yaml
 from attrs import define, field
 
 from .html_template import build_html
 from .io import (
-    count_unique_snps,
     parse_kimura2p_distmat_dir,
     parse_mash_matrix,
     parse_snps,
@@ -29,58 +26,25 @@ from .io import (
     read_summary_stats,
     write_html,
 )
-
-LOGGER = logging.getLogger(__name__)
 from .models import BlockFeature
 from .payload import build_region_payload, build_sample_data
+from .result_io import (
+    group_assays_by_snp,
+    read_assay_results,
+    read_snp_results,
+)
+from .settings import read_analysis_settings
 
-
-import csv
-
-
-def read_analysis_settings(config_yaml_path: Path | None) -> dict[str, object]:
-    """Extract display-relevant analysis settings from the pipeline config."""
-    if config_yaml_path is None:
-        return {}
-
-    try:
-        raw = yaml.safe_load(config_yaml_path.read_text(encoding="utf-8")) or {}
-    except Exception:
-        LOGGER.warning("Could not read config YAML: %s", config_yaml_path)
-        return {}
-
-    snps = raw.get("snps") or {}
-
-    min_len = snps.get("min_block_length")
-    min_flank = snps.get("min_snp_flank")
-
-    genotype_path = Path(raw["inputs"]["genotypes"])
-
-    groups: dict[str, list[str]] = {}
-
-    with genotype_path.open(newline="", encoding="utf-8") as handle:
-        reader = csv.DictReader(handle, delimiter="\t")
-
-        for row in reader:
-            genotype = row["genotype"].strip()
-            group = row["group"].strip()
-
-            if group:
-                groups.setdefault(group, []).append(genotype)
-
-    return {
-        "minimum_block_length_bp": int(min_len) if min_len is not None else None,
-        "minimum_snp_flank_bp": int(min_flank) if min_flank is not None else None,
-        "snp_groups": groups,
-    }
 
 @define
 class RegionOverviewBuilder:
     """Build the final Konva HTML from workflow outputs."""
 
+    mode: str
     samples_tsv_path: Path
     block_coords_tsv_path: Path
     snp_long_path: Path
+    snp_summary_path: Path
     fasta_dir: Path
     summary_stats_json_path: Path
     mash_matrix_path: Path
@@ -90,6 +54,8 @@ class RegionOverviewBuilder:
     gff_tracks_json_path: Path
     title: str
     output_path: Path
+
+    assay_summary_path: Path | None = field(default=None)
     config_yaml_path: Path | None = field(default=None)
     dotplot_manifest_json_path: Path | None = field(default=None)
 
@@ -100,27 +66,32 @@ class RegionOverviewBuilder:
 
         fasta_lengths = read_fasta_lengths(self.fasta_dir)
         blocks_by_sample = read_blocks(self.block_coords_tsv_path)
-        block_ids = self.get_block_ids(blocks_by_sample)
+
         block_alignments = read_block_alignments(
             align_dir=self.masked_align_dir,
-            block_ids=block_ids,
+            block_ids=self.get_block_ids(blocks_by_sample),
         )
+
         snp_long = read_snp_long(self.snp_long_path)
         snps_by_sample = parse_snps(snp_long)
 
-        summary_stats = read_summary_stats(self.summary_stats_json_path)
-        summary_stats.setdefault("global", {})["n_snps_kept"] = count_unique_snps(snp_long)
-        mash_matrix = parse_mash_matrix(
-            path=self.mash_matrix_path,
-            sample_order=sample_order,
-        ).to_dict()
-        kimura2p_matrices = parse_kimura2p_distmat_dir(
-            distmat_dir=self.kimura2p_distmat_dir,
-            sample_order=sample_order,
+        snp_results = read_snp_results(
+            path=self.snp_summary_path,
+            mode=self.mode,
         )
-        masked_block_n_stats = read_masked_block_n_stats(
-            self.masked_block_n_stats_path
-        )
+        self.validate_snp_results(snps_by_sample, snp_results)
+
+        assays_by_snp = {}
+
+        if self.mode == "kasp":
+            if self.assay_summary_path is None:
+                raise ValueError(
+                    "Assay summary path is required in KASP mode."
+                )
+
+            assays_by_snp = group_assays_by_snp(
+                read_assay_results(self.assay_summary_path)
+            )
 
         sample_data = build_sample_data(
             sample_records=sample_records,
@@ -129,41 +100,86 @@ class RegionOverviewBuilder:
             snps_by_sample=snps_by_sample,
         )
 
-        gff_tracks_config = read_gff_tracks_json(self.gff_tracks_json_path)
+        gff_tracks_config = read_gff_tracks_json(
+            self.gff_tracks_json_path
+        )
         gff_tracks_by_sample = read_gff_gene_tracks(
             gff_tracks=gff_tracks_config,
             sample_data=sample_data,
         )
 
-        analysis_settings = read_analysis_settings(self.config_yaml_path)
-
-        dotplot_records = read_dotplot_manifest(
-            path=self.dotplot_manifest_json_path,
-            output_path=self.output_path,
-        )
-
         region_data = build_region_payload(
+            mode=self.mode,
             sample_data=sample_data,
-            summary_stats=summary_stats,
-            mash_matrix=mash_matrix,
-            kimura2p_matrices=kimura2p_matrices,
-            masked_block_n_stats=masked_block_n_stats,
+            snp_results=snp_results,
+            assays_by_snp=assays_by_snp,
+            summary_stats=read_summary_stats(
+                self.summary_stats_json_path
+            ),
+            mash_matrix=parse_mash_matrix(
+                path=self.mash_matrix_path,
+                sample_order=sample_order,
+            ).to_dict(),
+            kimura2p_matrices=parse_kimura2p_distmat_dir(
+                distmat_dir=self.kimura2p_distmat_dir,
+                sample_order=sample_order,
+            ),
+            masked_block_n_stats=read_masked_block_n_stats(
+                self.masked_block_n_stats_path
+            ),
             block_alignments=block_alignments,
             gff_tracks_by_sample=gff_tracks_by_sample,
-            analysis_settings=analysis_settings,
-            dotplots=dotplot_records,
+            analysis_settings=read_analysis_settings(
+                self.config_yaml_path
+            ),
+            dotplots=read_dotplot_manifest(
+                path=self.dotplot_manifest_json_path,
+                output_path=self.output_path,
+            ),
         )
 
-        html = build_html(region_data, self.title)
-        write_html(html, self.output_path)
+        write_html(
+            build_html(region_data, self.title),
+            self.output_path,
+        )
 
     @staticmethod
-    def get_block_ids(blocks_by_sample: dict[str, list[BlockFeature]]) -> list[str]:
-        """Return sorted unique block IDs from sample-indexed block records."""
+    def validate_snp_results(
+        snps_by_sample,
+        snp_results,
+    ) -> None:
+        """Ensure detected SNPs and aggregated results match."""
+        displayed_ids = {
+            snp.feature_id
+            for sample_snps in snps_by_sample.values()
+            for snp in sample_snps
+        }
+        result_ids = set(snp_results)
+
+        missing = displayed_ids - result_ids
+        unexpected = result_ids - displayed_ids
+
+        if missing:
+            raise ValueError(
+                "SNPs missing from aggregated summary: "
+                + ", ".join(sorted(missing)[:10])
+            )
+
+        if unexpected:
+            raise ValueError(
+                "Aggregated SNPs absent from snp_positions_long.tsv: "
+                + ", ".join(sorted(unexpected)[:10])
+            )
+
+    @staticmethod
+    def get_block_ids(
+        blocks_by_sample: dict[str, list[BlockFeature]],
+    ) -> list[str]:
+        """Return sorted unique block IDs."""
         return sorted(
             {
                 block.block_id
-                for sample_blocks in blocks_by_sample.values()
-                for block in sample_blocks
+                for blocks in blocks_by_sample.values()
+                for block in blocks
             }
         )

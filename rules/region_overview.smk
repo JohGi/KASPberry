@@ -40,6 +40,14 @@ def get_viewer_snp_summary(wildcards):
     }[wildcards.mode]
 
 
+def get_viewer_assay_summary(wildcards):
+    """Return the assay summary for KASP mode only."""
+    if wildcards.mode == "kasp":
+        return ASSAY_SUMMARY_TSV
+
+    return []
+
+
 rule write_gff_tracks_json:
     input:
         gff_files=GFF_TRACK_FILES
@@ -91,6 +99,7 @@ rule generate_region_viewer:
         block_coords_tsv=BLOCK_COORDINATES_TSV,
         snp_long=SNP_POS_LONG_TSV,
         snp_summary=get_viewer_snp_summary,
+        assay_summary=get_viewer_assay_summary,
         fastas=CLEAN_FASTAS,
         stats_json=RUN_SUMMARY_JSON,
         mash_dists_tsv=MASH_MATRIX,
@@ -103,6 +112,9 @@ rule generate_region_viewer:
     output:
         html=REPORTS_DIR / "region_viewer_{mode}.html"
 
+    params:
+        mode=lambda wildcards: wildcards.mode,
+
     benchmark:
         BENCHMARK_DIR / "generate_region_viewer/{mode}.tsv"
 
@@ -114,10 +126,21 @@ rule generate_region_viewer:
         r"""
         mkdir -p "$(dirname "{output.html}")" "$(dirname "{log.stdout}")"
 
+        assay_args=()
+
+        if [[ "{params.mode}" == "kasp" ]]; then
+            assay_args=(
+                --assay-summary "{input.assay_summary}"
+            )
+        fi
+
         python3 "{SCRIPTS_DIR}/generate_region_viewer.py" \
+            --mode "{params.mode}" \
             --samples-tsv "{input.samples_tsv}" \
             --block-coords-tsv "{input.block_coords_tsv}" \
             --snp-long "{input.snp_long}" \
+            --snp-summary "{input.snp_summary}" \
+            "${{assay_args[@]}}" \
             --fasta-dir "{CLEAN_FASTA_DIR}" \
             --summary-stats-json "{input.stats_json}" \
             --mash-matrix "{input.mash_dists_tsv}" \

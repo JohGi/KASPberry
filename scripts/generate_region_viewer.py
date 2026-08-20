@@ -21,6 +21,9 @@ def parse_args() -> argparse.Namespace:
         description="Generate an interactive Konva-based region overview HTML."
     )
     parser.add_argument("--samples-tsv", type=Path, required=True)
+    parser.add_argument("--mode", required=True, choices=["snps", "kasp"])
+    parser.add_argument("--snp-summary", type=Path, required=True)
+    parser.add_argument("--assay-summary", type=Path)
     parser.add_argument("--block-coords-tsv", type=Path, required=True)
     parser.add_argument("--snp-long", type=Path, required=True)
     parser.add_argument("--fasta-dir", type=Path, required=True)
@@ -42,6 +45,12 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def validate_args(args: argparse.Namespace) -> None:
+    """Validate mode-specific viewer inputs."""
+    if args.mode == "kasp" and args.assay_summary is None:
+        raise ValueError("--assay-summary is required in kasp mode.")
+    
+
 def setup_logging(log_level: str) -> None:
     """Configure logging."""
     logging.basicConfig(
@@ -53,12 +62,16 @@ def setup_logging(log_level: str) -> None:
 def main() -> None:
     """Run the region overview generator."""
     args = parse_args()
+    validate_args(args)
     setup_logging(args.log_level)
 
     builder = RegionOverviewBuilder(
+        mode=args.mode,
         samples_tsv_path=args.samples_tsv,
         block_coords_tsv_path=args.block_coords_tsv,
         snp_long_path=args.snp_long,
+        snp_summary_path=args.snp_summary,
+        assay_summary_path=args.assay_summary,
         fasta_dir=args.fasta_dir,
         summary_stats_json_path=args.summary_stats_json,
         mash_matrix_path=args.mash_matrix,

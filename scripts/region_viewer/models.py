@@ -7,6 +7,7 @@ from pathlib import Path
 
 from attrs import define, field
 
+
 @define(frozen=True)
 class SampleRecord:
     """Store one sample definition from the samples TSV."""
@@ -35,7 +36,7 @@ class BlockFeature:
 
 @define(frozen=True)
 class SnpFeature:
-    """Store one SNP for one sample."""
+    """Store one SNP occurrence for one sample."""
 
     sample: str
     block_id: str
@@ -47,8 +48,95 @@ class SnpFeature:
 
     @property
     def feature_id(self) -> str:
-        """Return a shared feature identifier."""
+        """Return the canonical SNP identifier."""
         return f"snp::{self.block_id}::{self.aln_pos}"
+
+
+@define(frozen=True)
+class SnpResult:
+    """Store workflow-level status information for one detected SNP."""
+
+    snp_id: str
+    block_id: str
+    aln_pos: int
+
+    diagnostic_status: str
+    diagnostic_failure_reason: str
+
+    final_status: str
+    final_failure_reason: str
+
+    design_status: str | None = None
+    design_failure_reason: str | None = None
+
+    validation_status: str | None = None
+    validation_failure_reason: str | None = None
+
+    def to_payload(self) -> dict[str, object]:
+        """Return the SNP result as a JSON-compatible dictionary."""
+        payload: dict[str, object] = {
+            "snp_id": self.snp_id,
+            "block_id": self.block_id,
+            "aln_pos": self.aln_pos,
+            "diagnostic_status": self.diagnostic_status,
+            "diagnostic_failure_reason": self.diagnostic_failure_reason,
+            "final_status": self.final_status,
+            "final_failure_reason": self.final_failure_reason,
+        }
+
+        if self.design_status is not None:
+            payload["design_status"] = self.design_status
+            payload["design_failure_reason"] = (
+                self.design_failure_reason or ""
+            )
+
+        if self.validation_status is not None:
+            payload["validation_status"] = self.validation_status
+            payload["validation_failure_reason"] = (
+                self.validation_failure_reason or ""
+            )
+
+        return payload
+
+
+@define(frozen=True)
+class AssayResult:
+    """Store one PolyMarker KASP assay and its validation status."""
+
+    assay_id: str
+    snp_id: str
+
+    first_allele: str
+    second_allele: str
+
+    first_primer: str
+    second_primer: str
+    common_primer: str
+
+    first_primer_with_tail: str
+    second_primer_with_tail: str
+
+    source_genotypes: str
+
+    validation_status: str
+    validation_failure_reason: str
+
+    def to_payload(self) -> dict[str, object]:
+        """Return the assay result as a JSON-compatible dictionary."""
+        return {
+            "assay_id": self.assay_id,
+            "snp_id": self.snp_id,
+            "first_allele": self.first_allele,
+            "second_allele": self.second_allele,
+            "first_primer": self.first_primer,
+            "second_primer": self.second_primer,
+            "common_primer": self.common_primer,
+            "first_primer_with_tail": self.first_primer_with_tail,
+            "second_primer_with_tail": self.second_primer_with_tail,
+            "source_genotypes": self.source_genotypes,
+            "validation_status": self.validation_status,
+            "validation_failure_reason": self.validation_failure_reason,
+        }
 
 
 @define(frozen=True)
@@ -92,7 +180,10 @@ class BlockAlignment:
 
     def __attrs_post_init__(self) -> None:
         """Validate that all aligned sequences have the same length."""
-        lengths = {len(sequence) for sequence in self.sequences_by_sample.values()}
+        lengths = {
+            len(sequence)
+            for sequence in self.sequences_by_sample.values()
+        }
 
         if len(lengths) > 1:
             raise ValueError(
@@ -126,6 +217,7 @@ class GffGeneFeature:
     start_in_region: int
     end_in_region: int
     strand: str | None = None
+
 
 @define(frozen=True)
 class GffTrack:
