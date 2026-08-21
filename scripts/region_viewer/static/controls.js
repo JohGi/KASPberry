@@ -126,7 +126,6 @@ stage.on("pointermove", () => {
 stage.on("pointerup", stopDrag);
 stage.on("pointerleave", () => {
   _lastResolvedHoverKey = null;
-  state.isHoveringInteractiveFeature = false;
   stopDrag();
   setViewerCursor("");
 });
@@ -345,12 +344,6 @@ function centerRegionOnRange(start, end) {
   const centerBp = (start + end) / 2;
   const visibleSpan = getVisibleBpSpan();
   setVisibleStartBp(centerBp - visibleSpan / 2);
-  requestStageRedraw();
-}
-
-function centerRegionOnPosition(position) {
-  const visibleSpan = getVisibleBpSpan();
-  setVisibleStartBp(position - visibleSpan / 2);
   requestStageRedraw();
 }
 

@@ -317,29 +317,6 @@ function getBlockSnpAlignmentColumns(blockId) {
   return snpColumns;
 }
 
-function getBlockSnpColumns(blockId) {
-  const columns = [];
-
-  if (!blockId) {
-    return columns;
-  }
-
-  for (const sample of REGION_DATA.samples) {
-    for (const snp of sample.snps) {
-      if (String(snp.block_id) !== String(blockId)) {
-        continue;
-      }
-
-      const alnPos = Number(snp.aln_pos);
-      if (!Number.isNaN(alnPos) && alnPos >= 1) {
-        columns.push(alnPos - 1);
-      }
-    }
-  }
-
-  return [...new Set(columns)].sort((left, right) => left - right);
-}
-
 function getBlockSnpNavigationItems(blockId) {
   const itemsByFeatureId = new Map();
 
@@ -875,7 +852,6 @@ function stopDrag() {
   state.isDraggingViewport = false;
   state.isDraggingScrollbar = false;
   state.scrollbarDragOffsetX = 0;
-  state.isHoveringInteractiveFeature = false;
   _lastResolvedHoverKey = null;
 
   if (wasDragging) {

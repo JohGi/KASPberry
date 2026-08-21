@@ -32,24 +32,6 @@ function buildDotplotPairIndexes() {
   dotplotPairIndexes.samples = [...samples].sort();
 }
 
-function getDotplotYSamples() {
-  const seen = new Set();
-  const result = [];
-  for (const pair of getDotplotPairs()) {
-    if (!seen.has(pair.y_sample)) {
-      seen.add(pair.y_sample);
-      result.push(pair.y_sample);
-    }
-  }
-  return result;
-}
-
-function getDotplotXSamplesForY(ySample) {
-  return getDotplotPairs()
-    .filter(pair => pair.y_sample === ySample)
-    .map(pair => pair.x_sample);
-}
-
 function findDotplotPair(ySample, xSample) {
   if (!ySample || !xSample) {
     return null;
@@ -58,12 +40,8 @@ function findDotplotPair(ySample, xSample) {
   return dotplotPairIndexes.pairByYX.get(`${ySample}::${xSample}`) || null;
 }
 
-function getSelectedDotplotPair() {
-  return findDotplotPair(_dotplotState.selectedY, _dotplotState.selectedX);
-}
-
 function getSampleByName(sampleName) {
-  return REGION_DATA.samples.find(s => s.sample === sampleName) || null;
+  return searchIndexes.sampleByName.get(sampleName) || null;
 }
 
 // Returns the displayed image size, computed from naturalWidth/Height.
@@ -583,25 +561,6 @@ function initDotplotStage() {
       state.isApplyingPin = false;
     });
   });
-}
-
-// Clears all dotplot layers and hides the stage container (used when no pair is selected).
-// Also resets the hover index so it is rebuilt on next activation.
-function clearDotplotStage() {
-  const viewer = document.getElementById("dotplot-viewer");
-  if (viewer) {
-    viewer.classList.add("hidden");
-  }
-  _dotplotHoverIndexDirty = true;
-  _lastResolvedDotplotHoverKey = null;
-  if (!dotplotStage) {
-    return;
-  }
-  dotplotImageLayer.destroyChildren();
-  dotplotTrackLayer.destroyChildren();
-  dotplotDebugLayer.destroyChildren();
-  dotplotHighlightLayer.destroyChildren();
-  dotplotStage.draw();
 }
 
 // Full batched redraw of the dotplot Konva stage.
@@ -1251,12 +1210,10 @@ function applyDotplotResolvedHover(resolved) {
   _lastResolvedDotplotHoverKey = key;
 
   if (!resolved) {
-    state.isHoveringInteractiveFeature = false;
     clearHoveredFeature();
     return;
   }
 
-  state.isHoveringInteractiveFeature = true;
   setHoveredFeature(resolved.featureType, resolved.featureId);
 }
 

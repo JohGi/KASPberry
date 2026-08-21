@@ -145,7 +145,6 @@ const state = {
   alignmentScrollbarDragOffsetX: 0,
   alignmentFocusedSnpColumn: null,
   activeKeyboardViewer: "region",
-  isHoveringInteractiveFeature: false,
   isApplyingPin: false
 };
 

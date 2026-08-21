@@ -140,12 +140,10 @@ function applyResolvedHover(resolved) {
   _lastResolvedHoverKey = key;
 
   if (!resolved) {
-    state.isHoveringInteractiveFeature = false;
     clearHoveredFeature();
     return;
   }
 
-  state.isHoveringInteractiveFeature = true;
   setHoveredFeature(resolved.featureType, resolved.featureId);
 }
 
@@ -171,11 +169,6 @@ function setAlignmentCursor(cursor) {
   }
 }
 
-function resetViewerCursors() {
-  setViewerCursor("");
-  setAlignmentCursor("");
-}
-
 function getStageWidth() {
   const viewerElement = getViewerElement();
   return Math.max(1, viewerElement.clientWidth);
@@ -191,10 +184,6 @@ function getDrawableTrackWidth() {
 
 function getVisibleBiologicalEndX() {
   return worldXToScreenX(getVisibleEndBp());
-}
-
-function getVisibleBiologicalWidth() {
-  return Math.max(1, getVisibleBiologicalEndX() - getLeftMargin());
 }
 
 function getContentWidth() {

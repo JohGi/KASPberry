@@ -104,7 +104,7 @@ const VIEWER_MODE_INFO_TOOLTIPS = {
     "",
     "Locally collinear blocks were first identified across the input samples with SibeliaZ, then filtered to retain blocks that were present exactly once in each sample, had consistent strand orientation, and passed the configured minimum block length.",
     "",
-    "For each retained block, sequences were extracted, hard-masked with RepeatMasker, and aligned with MAFFT. Biallelic SNPs were then called from the masked block alignments with SeqTUI, using the configured minimum flank length, i.e., the minimum number of perfectly aligned bases required on both sides of each SNP, with no indel, additional SNP, or N. Depending on the analysis configuration, the displayed SNPs may also have been further restricted to a marker subset or to group-discriminant variants.",
+    "For each retained block, sequences were extracted, hard-masked with RepeatMasker, and aligned with MAFFT. Biallelic SNPs were then called from the masked block alignments with SeqTUI, using the configured minimum flank length, i.e., the minimum number of perfectly aligned bases required on both sides of each SNP, with no indel, additional SNP, or N.",
     "",
     "References: SibeliaZ, Minkin & Medvedev 2020; RepeatMasker, Tarailo-Graovac & Chen 2009; MAFFT, Katoh & Standley 2013; SeqTUI, Ranwez 2026."
   ].join("\n"),
@@ -251,25 +251,6 @@ function formatSnpGroups(settings) {
     .map(([group, samples]) => `${group}: ${samples.join(", ")}`)
     .join(" | ");
 }
-// function formatSnpGroups(settings) {
-//   const groupA = settings.snp_group_a || [];
-//   const groupB = settings.snp_group_b || [];
-
-//   if (groupA.length === 0 && groupB.length === 0) {
-//     return "none";
-//   }
-
-//   if (groupA.length === 0) {
-//     return `all other samples vs ${groupB.join(", ")}`;
-//   }
-
-//   if (groupB.length === 0) {
-//     return `${groupA.join(", ")} vs all other samples`;
-//   }
-
-//   return `${groupA.join(", ")} vs ${groupB.join(", ")}`;
-// }
-
 function renderAnalysisSettings() {
   const settings = REGION_DATA.analysis_settings;
   const container = document.getElementById("analysis-settings-content");

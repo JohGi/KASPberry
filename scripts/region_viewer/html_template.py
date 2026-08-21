@@ -30,7 +30,7 @@ def build_html(region_data: dict[str, object], region_viewer_title: str = "Regio
 
     template = (_TEMPLATES_DIR / "region_viewer.html").read_text(encoding="utf-8")
     css = (_STATIC_DIR / "region_viewer.css").read_text(encoding="utf-8")
-    js = "".join(
+    js = "\n".join(
         (_STATIC_DIR / filename).read_text(encoding="utf-8")
         for filename in _REGION_VIEWER_JS_FILES
     )
