@@ -4,6 +4,18 @@ let _hoverIndex = [];
 let _hoverIndexDirty = true;
 let _hoverIndexGeometryKey = "";
 
+const SCROLLBAR = {
+  height: 18,
+  bottomPadding: 10,
+  minThumbWidth: 36,
+  trackInset: 8
+};
+
+const REGION_VIEWER = {
+  axisToFirstSampleGap: 14,
+  samplesToLegendGap: 10
+};
+
 const REGION_RENDERING = {
   rightMargin: 5,
   endPaddingPx: 24,
@@ -281,6 +293,79 @@ function computePanelTop(panelIndex) {
   return panelTop;
 }
 
+function getMainViewerContentHeight() {
+  const sampleHeights = REGION_DATA.samples.reduce(
+    (total, sample) => total + getSamplePanelHeight(sample),
+    0
+  );
+
+  return getViewerToolbarHeight()
+    + BROWSER_LAYOUT.topMargin
+    + REGION_VIEWER.axisToFirstSampleGap
+    + sampleHeights
+    + Math.max(0, REGION_DATA.samples.length - 1) * BROWSER_LAYOUT.panelGap
+    + REGION_VIEWER.samplesToLegendGap
+    + getGffLegendHeight()
+    + BROWSER_LAYOUT.bottomMargin
+    + SCROLLBAR.height
+    + SCROLLBAR.bottomPadding;
+}
+
+function getSamplesBottomY() {
+  const sampleHeights = REGION_DATA.samples.reduce(
+    (total, sample) => total + getSamplePanelHeight(sample),
+    0
+  );
+
+  return getViewerToolbarHeight()
+    + BROWSER_LAYOUT.topMargin
+    + REGION_VIEWER.axisToFirstSampleGap
+    + sampleHeights
+    + Math.max(0, REGION_DATA.samples.length - 1) * BROWSER_LAYOUT.panelGap;
+}
+
+function getGffLegendY() {
+  return getSamplesBottomY() + REGION_VIEWER.samplesToLegendGap;
+}
+
+function drawGffTrackLegend(layer) {
+  const trackNames = getAllGffTrackNames();
+
+  if (trackNames.length === 0) {
+    return;
+  }
+
+  let x = getLeftMargin();
+  const y = getGffLegendY() + GFF_LEGEND.topPadding;
+
+  for (const trackName of trackNames) {
+    const color = getGffTrackColor(trackName);
+    const textWidth = estimateTextWidth(trackName, GFF_LEGEND.fontSize);
+
+    layer.add(new Konva.Circle({
+      x: x + GFF_LEGEND.dotRadius,
+      y: y + GFF_LEGEND.fontSize / 2,
+      radius: GFF_LEGEND.dotRadius,
+      fill: color,
+      listening: false
+    }));
+
+    layer.add(new Konva.Text({
+      x: x + GFF_LEGEND.dotRadius * 2 + GFF_LEGEND.dotTextGap,
+      y,
+      text: trackName,
+      fontSize: GFF_LEGEND.fontSize,
+      fill: "#4b5563",
+      listening: false
+    }));
+
+    x += GFF_LEGEND.dotRadius * 2
+      + GFF_LEGEND.dotTextGap
+      + textWidth
+      + GFF_LEGEND.itemGap;
+  }
+}
+
 function isPointerOverSampleTrack(pointerY) {
   for (let index = 0; index < REGION_DATA.samples.length; index += 1) {
     const panelTop = computePanelTop(index);
@@ -313,48 +398,8 @@ function worldXToScreenX(position) {
   return getLeftMargin() + (position - visibleStart) * getWorldToScreenScale();
 }
 
-function formatNumber(value, decimals = 0) {
-  const fixed = value.toFixed(decimals);
-  const parts = fixed.split(".");
-
-  if (parts.length === 1) {
-    return parts[0];
-  }
-
-  const trimmedFraction = parts[1].replace(/0+$/, "");
-  if (trimmedFraction === "") {
-    return parts[0];
-  }
-
-  return `${parts[0]}.${trimmedFraction}`;
-}
-
-function getAxisUnit() {
-  const visibleSpan = getVisibleBpSpan();
-
-  if (visibleSpan <= COORDINATE_FORMAT.bpToKbThresholdBp) {
-    return "bp";
-  }
-
-  if (visibleSpan <= COORDINATE_FORMAT.kbToMbThresholdBp) {
-    return "kb";
-  }
-
-  return "Mb";
-}
-
 function formatAxisValue(value) {
-  const unit = getAxisUnit();
-
-  if (unit === "bp") {
-    return `${formatNumber(value, 0)} bp`;
-  }
-
-  if (unit === "kb") {
-    return `${formatNumber(value / 1000, 1)} kb`;
-  }
-
-  return `${formatNumber(value / 1000000, 3)} Mb`;
+  return formatGenomicCoordinate(value, getVisibleBpSpan());
 }
 
 function niceStep(value) {
@@ -910,6 +955,120 @@ const _snpHighlightShape = new Konva.Shape({
 });
 highlightLayer.add(_snpHighlightShape);
 
+function getBlockHighlightGeometries(featureId) {
+  const visibleStart = getVisibleStartBp();
+  const visibleEnd = getVisibleEndBp();
+  const results = [];
+
+  const entries = state.featureGroups.get(featureId) || [];
+  for (const entry of entries) {
+    const info = entry.info;
+    if (!intersectsRange(info.block_start_in_region, info.block_end_in_region, visibleStart, visibleEnd)) {
+      continue;
+    }
+
+    const panelIndex = viewerIndexes.sampleNameToPanelIndex.get(entry.sample);
+    const panelTop = computePanelTop(panelIndex);
+    const clippedStart = Math.max(info.block_start_in_region, visibleStart);
+    const clippedEnd = Math.min(info.block_end_in_region, visibleEnd);
+    const x0 = worldXToScreenX(clippedStart);
+    const x1 = worldXToScreenX(clippedEnd);
+    results.push({
+      x: x0,
+      y: panelTop + TRACK_GEOMETRY.trackYOffset + 0.5,
+      width: Math.max(FEATURE_RENDERING.blockHighlightMinWidthPx, x1 - x0),
+      height: TRACK_GEOMETRY.trackHeight - 1
+    });
+  }
+
+  return results;
+}
+
+function getSnpHighlightGeometries(featureId) {
+  const visibleStart = getVisibleStartBp();
+  const visibleEnd = getVisibleEndBp();
+  const results = [];
+
+  const entries = state.featureGroups.get(featureId) || [];
+  for (const entry of entries) {
+    const info = entry.info;
+    if (!isPositionVisible(info.pos_in_region, visibleStart, visibleEnd)) {
+      continue;
+    }
+
+    const panelIndex = viewerIndexes.sampleNameToPanelIndex.get(entry.sample);
+    const panelTop = computePanelTop(panelIndex);
+    const x = worldXToScreenX(info.pos_in_region);
+    const y0 = getSnpY(panelTop);
+    results.push({ x, y0, y1: y0 + getSnpHeight() - 2 });
+  }
+
+  return results;
+}
+
+function updateHighlightShapes() {
+  const displayed = getDisplayedFeature();
+  const color = displayed && displayed.source === "pin"
+    ? FEATURE_COLORS.highlightPinned
+    : FEATURE_COLORS.highlightHover;
+
+  const blockGeoms = displayed && displayed.featureType === "block"
+    ? getBlockHighlightGeometries(displayed.featureId)
+    : [];
+
+  _blockHighlightColor = color;
+  _blockHighlightGeoms = blockGeoms;
+  _blockHighlightShape.visible(blockGeoms.length > 0);
+
+  const snpGeoms = displayed && displayed.featureType === "snp"
+    ? getSnpHighlightGeometries(displayed.featureId)
+    : [];
+
+  _snpHighlightColor = color;
+  _snpHighlightGeoms = snpGeoms;
+  _snpHighlightShape.visible(snpGeoms.length > 0);
+
+  highlightLayer.batchDraw();
+}
+
+function startViewportDrag(pointerX) {
+  if (getMaxScrollX() <= 0) {
+    return;
+  }
+
+  state.isDraggingViewport = true;
+  state.suppressHover = true;
+  state.dragStartPointerX = pointerX;
+  state.dragStartScrollX = state.scrollX;
+  setBodyCursor("grabbing");
+}
+
+function updateViewportDrag(pointerX) {
+  const deltaX = pointerX - state.dragStartPointerX;
+  const worldDelta = deltaX * (getContentWidth() / getDrawableTrackWidth());
+  state.scrollX = clampScrollX(state.dragStartScrollX - worldDelta);
+  requestStageRedraw();
+}
+
+function updateScrollbarDrag(pointerX) {
+  setScrollFromThumbX(pointerX - state.scrollbarDragOffsetX);
+  requestStageRedraw();
+}
+
+function stopDrag() {
+  const wasDragging = state.isDraggingViewport || state.isDraggingScrollbar;
+  state.isDraggingViewport = false;
+  state.isDraggingScrollbar = false;
+  state.scrollbarDragOffsetX = 0;
+  _lastResolvedHoverKey = null;
+
+  if (wasDragging) {
+    state.suppressHover = false;
+    setBodyCursor("default");
+    setViewerCursor("");
+  }
+}
+
 stage.on("click", (event) => {
   if (state.isDraggingViewport || state.isDraggingScrollbar) {
     return;
@@ -934,6 +1093,73 @@ stage.on("click", (event) => {
   requestAnimationFrame(() => {
     state.isApplyingPin = false;
   });
+});
+
+stage.on("pointerdown", (event) => {
+  if (event.target !== stage) {
+    return;
+  }
+
+  const pointer = stage.getPointerPosition();
+  if (!pointer) {
+    return;
+  }
+
+  const scrollbarY = getScrollbarY();
+  if (pointer.y >= scrollbarY) {
+    return;
+  }
+
+  startViewportDrag(pointer.x);
+});
+
+stage.on("pointermove", () => {
+  const pointer = stage.getPointerPosition();
+  if (!pointer) {
+    return;
+  }
+
+  if (state.isDraggingViewport) {
+    updateViewportDrag(pointer.x);
+    return;
+  }
+
+  if (state.isDraggingScrollbar) {
+    updateScrollbarDrag(pointer.x);
+    return;
+  }
+
+  const scrollbarY = getScrollbarY();
+  if (pointer.y >= scrollbarY) {
+    applyResolvedHover(null);
+    setViewerCursor("");
+    return;
+  }
+
+  if (!state.suppressHover && !state.isApplyingPin) {
+    const resolved = resolveHoveredFeature(pointer.x, pointer.y);
+    applyResolvedHover(resolved);
+
+    if (resolved) {
+      setViewerCursor("pointer");
+      return;
+    }
+  }
+
+  if (isPointerOverSampleTrack(pointer.y)) {
+    setViewerCursor("");
+  } else if (getMaxScrollX() > 0) {
+    setViewerCursor("grab");
+  } else {
+    setViewerCursor("");
+  }
+});
+
+stage.on("pointerup", stopDrag);
+stage.on("pointerleave", () => {
+  _lastResolvedHoverKey = null;
+  stopDrag();
+  setViewerCursor("");
 });
 
 const alignmentStage = new Konva.Stage({

@@ -10,6 +10,78 @@ function syncSidebarHeightToViewerColumn() {
   rightColumn.style.height = `${viewerHeight}px`;
 }
 
+const MAX_SIDEBAR_WIDTH_RATIO = 0.7;
+
+function setupColumnResizer() {
+  const contentRow = document.getElementById("content-row");
+  const rightColumn = document.getElementById("right-column");
+  const resizer = document.getElementById("column-resizer");
+
+  if (!contentRow || !rightColumn || !resizer) {
+    return;
+  }
+
+  const sidebarMinWidth = Number.parseFloat(
+    window.getComputedStyle(rightColumn).minWidth
+  );
+  let isResizing = false;
+
+  resizer.addEventListener("pointerdown", (event) => {
+    isResizing = true;
+    resizer.classList.add("is-dragging");
+    setBodyCursor("col-resize");
+    resizer.setPointerCapture(event.pointerId);
+    showViewerBusyOverlay(" ");
+    event.preventDefault();
+  });
+
+  resizer.addEventListener("pointermove", (event) => {
+    if (!isResizing) {
+      return;
+    }
+
+    const rowRect = contentRow.getBoundingClientRect();
+    const maxSidebarWidth = rowRect.width * MAX_SIDEBAR_WIDTH_RATIO;
+    const proposedWidth = rowRect.right - event.clientX;
+    const sidebarWidth = Math.max(
+      sidebarMinWidth,
+      Math.min(maxSidebarWidth, proposedWidth)
+    );
+
+    rightColumn.style.flexBasis = `${sidebarWidth}px`;
+    rightColumn.style.width = `${sidebarWidth}px`;
+  });
+
+  function stopColumnResize(event) {
+    if (!isResizing) {
+      return;
+    }
+
+    isResizing = false;
+    resizer.classList.remove("is-dragging");
+    setBodyCursor("default");
+
+    if (resizer.hasPointerCapture(event.pointerId)) {
+      resizer.releasePointerCapture(event.pointerId);
+    }
+
+    normalizeScrollX();
+    showViewerBusyOverlay("Rendering viewer\u2026");
+    requestStageRedraw();
+    requestAlignmentRedraw();
+    requestDotplotRedraw();
+    syncSidebarHeightToViewerColumn();
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        hideViewerBusyOverlay();
+      });
+    });
+  }
+
+  resizer.addEventListener("pointerup", stopColumnResize);
+  resizer.addEventListener("pointercancel", stopColumnResize);
+}
+
 function setupFloatingTooltips() {
   const tooltip = document.getElementById("floating-tooltip");
 
@@ -62,123 +134,6 @@ function getViewerToolbarHeight() {
   // document flow, so no space needs to be reserved at the top of the Konva stage.
   return 0;
 }
-
-stage.on("pointerdown", (event) => {
-  if (event.target !== stage) {
-    return;
-  }
-
-  const pointer = stage.getPointerPosition();
-  if (!pointer) {
-    return;
-  }
-
-  const scrollbarY = getScrollbarY();
-  if (pointer.y >= scrollbarY) {
-    return;
-  }
-
-  startViewportDrag(pointer.x);
-});
-
-stage.on("pointermove", () => {
-  const pointer = stage.getPointerPosition();
-  if (!pointer) {
-    return;
-  }
-
-  if (state.isDraggingViewport) {
-    updateViewportDrag(pointer.x);
-    return;
-  }
-
-  if (state.isDraggingScrollbar) {
-    updateScrollbarDrag(pointer.x);
-    return;
-  }
-
-  const scrollbarY = getScrollbarY();
-  if (pointer.y >= scrollbarY) {
-    applyResolvedHover(null);
-    setViewerCursor("");
-    return;
-  }
-
-  if (!state.suppressHover && !state.isApplyingPin) {
-    const resolved = resolveHoveredFeature(pointer.x, pointer.y);
-    applyResolvedHover(resolved);
-
-    if (resolved) {
-      setViewerCursor("pointer");
-      return;
-    }
-  }
-
-  if (isPointerOverSampleTrack(pointer.y)) {
-    setViewerCursor("");
-  } else if (getMaxScrollX() > 0) {
-    setViewerCursor("grab");
-  } else {
-    setViewerCursor("");
-  }
-});
-
-stage.on("pointerup", stopDrag);
-stage.on("pointerleave", () => {
-  _lastResolvedHoverKey = null;
-  stopDrag();
-  setViewerCursor("");
-});
-
-alignmentStage.on("pointerdown", (event) => {
-  if (event.target !== alignmentStage) {
-    return;
-  }
-
-  const pointer = alignmentStage.getPointerPosition();
-  if (!pointer) {
-    return;
-  }
-
-  const alignmentData = getAlignmentData(state.activeAlignmentBlockId);
-  const sampleCount = getAlignmentSampleNames(alignmentData).length;
-  const scrollbarY = getAlignmentScrollbarY(sampleCount);
-
-  if (pointer.y >= scrollbarY) {
-    return;
-  }
-
-  startAlignmentViewportDrag(pointer.x);
-});
-
-alignmentStage.on("pointermove", () => {
-  const pointer = alignmentStage.getPointerPosition();
-  if (!pointer) {
-    return;
-  }
-
-  if (state.isDraggingAlignmentViewport) {
-    updateAlignmentViewportDrag(pointer.x);
-    return;
-  }
-
-  if (state.isDraggingAlignmentScrollbar) {
-    updateAlignmentScrollbarDrag(pointer.x);
-    return;
-  }
-
-  if (state.activeAlignmentBlockId && getAlignmentData(state.activeAlignmentBlockId)) {
-    setAlignmentCursor("grab");
-  } else {
-    setAlignmentCursor("");
-  }
-});
-
-alignmentStage.on("pointerup", stopAlignmentDrag);
-alignmentStage.on("pointerleave", () => {
-  stopAlignmentDrag();
-  setAlignmentCursor("");
-});
 
 function setSearchMode(mode) {
   _searchState.mode = mode;

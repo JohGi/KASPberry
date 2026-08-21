@@ -40,35 +40,6 @@ const BROWSER_ZOOM = {
   zoomSteps: 16
 };
 
-const SCROLLBAR = {
-  height: 18,
-  bottomPadding: 10,
-  minThumbWidth: 36,
-  trackInset: 8
-};
-
-const REGION_VIEWER = {
-  axisToFirstSampleGap: 14,
-  samplesToLegendGap: 10
-};
-
-const ALIGNMENT = {
-  leftMargin: 120,
-  topMargin: 28,
-  rowHeight: 22,
-  charWidth: 14,
-  minCharWidth: 6,
-  maxCharWidth: 28,
-  letterFontSize: 9,
-  labelFontSize: 13,
-  axisHeight: 24,
-  bottomPadding: 28,
-  scrollbarHeight: 16,
-  scrollbarBottomPadding: 8,
-  scrollbarMinThumbWidth: 36,
-  panFraction: 0.1
-};
-
 const GFF_TRACK = {
   height: 12,
   gap: 5,
@@ -108,52 +79,47 @@ const SAMPLE_LABEL = {
 
 const SNP_POINTER_TOLERANCE_PX = 8;
 
-// Normalized bounds of the real plotting area inside the dotplot SVG.
-// Values are ratios of the displayed SVG box (0 = left/top, 1 = right/bottom).
-// Adjust these by trial and error to align external genomic tracks with SVG axes.
-const DOTPLOT_AXIS_BOUNDS = {
-  // X ratios: fraction of SVG width, measured from the left (0 = left, 1 = right).
-  // xZeroRatio = pixel position of genomic coordinate 1 (left end of x axis).
-  // xMaxRatio  = pixel position of maximum genomic coordinate (right end of x axis).
-  xZeroRatio: 0, //0.05,
-  xMaxRatio: 1, //0.992,
-  // Y ratios: measured from the BOTTOM of the SVG (0 = bottom, 1 = top).
-  // yZeroRatio = position of genomic coordinate 1 (bottom of y axis).
-  // yMaxRatio  = position of maximum genomic coordinate (top of y axis).
-  // Conversion to CSS pixel y: pixelY = imageHeight * (1 - ratio).
-  yZeroRatio: 0, //0.0668,
-  yMaxRatio: 1 //0.9683
-};
+function formatNumber(value, decimals = 0) {
+  const fixed = value.toFixed(decimals);
+  const parts = fixed.split(".");
 
-// Set to true to draw calibration lines at axis boundaries on track canvases.
-const DOTPLOT_DEBUG_LAYOUT = false;
+  if (parts.length === 1) {
+    return parts[0];
+  }
 
-// Track dimensions include one feature inset on each side so the inner region
-// matches the browser-mode sample track.
-const DOTPLOT_TRACK = {
-  yTrackWidth:    TRACK_GEOMETRY.trackHeight + 2 * TRACK_GEOMETRY.featureInset,
-  xTrackHeight:   TRACK_GEOMETRY.trackHeight + 2 * TRACK_GEOMETRY.featureInset,
-  debugColor:     "#3b82f6",
-  debugLineWidth: 1.5
-};
+  const trimmedFraction = parts[1].replace(/0+$/, "");
+  if (trimmedFraction === "") {
+    return parts[0];
+  }
 
-// TRACK_HIGHLIGHT_INSET controls highlight stroke positioning independently of
-// TRACK_GEOMETRY.featureInset, which positions rendered feature geometry.
-const TRACK_HIGHLIGHT_INSET = 0.5;
+  return `${parts[0]}.${trimmedFraction}`;
+}
 
-// Dotplot zoom settings.
-const DOTPLOT_ZOOM_STEP = 1.3;
-const DOTPLOT_ZOOM_MIN  = 0.25;
-const DOTPLOT_ZOOM_MAX  = 10;
+function getGenomicCoordinateUnit(referenceValue) {
+  if (referenceValue <= COORDINATE_FORMAT.bpToKbThresholdBp) {
+    return "bp";
+  }
 
-const DOTPLOT_AXIS = {
-  tickLength: 5,
-  fontSize: 10,
-  labelPadding: 2,
-  color: "#444444",
-  labelColor: "#555555",
-  targetTickSpacingPx: 90
-};
+  if (referenceValue <= COORDINATE_FORMAT.kbToMbThresholdBp) {
+    return "kb";
+  }
+
+  return "Mb";
+}
+
+function formatGenomicCoordinate(value, referenceValue) {
+  const unit = getGenomicCoordinateUnit(referenceValue);
+
+  if (unit === "bp") {
+    return `${formatNumber(value, 0)} bp`;
+  }
+
+  if (unit === "kb") {
+    return `${formatNumber(value / 1000, 1)} kb`;
+  }
+
+  return `${formatNumber(value / 1000000, 3)} Mb`;
+}
 
 const state = {
   hoveredFeatureId: null,
@@ -590,77 +556,4 @@ function getSamplePanelHeight(sample) {
 
 function getGffLegendHeight() {
   return getAllGffTrackNames().length > 0 ? GFF_LEGEND.height : 0;
-}
-
-function getMainViewerContentHeight() {
-  const sampleHeights = REGION_DATA.samples.reduce(
-    (total, sample) => total + getSamplePanelHeight(sample),
-    0
-  );
-
-  return getViewerToolbarHeight()
-    + BROWSER_LAYOUT.topMargin
-    + REGION_VIEWER.axisToFirstSampleGap
-    + sampleHeights
-    + Math.max(0, REGION_DATA.samples.length - 1) * BROWSER_LAYOUT.panelGap
-    + REGION_VIEWER.samplesToLegendGap
-    + getGffLegendHeight()
-    + BROWSER_LAYOUT.bottomMargin
-    + SCROLLBAR.height
-    + SCROLLBAR.bottomPadding;
-}
-
-function getSamplesBottomY() {
-  const sampleHeights = REGION_DATA.samples.reduce(
-    (total, sample) => total + getSamplePanelHeight(sample),
-    0
-  );
-
-  return getViewerToolbarHeight()
-    + BROWSER_LAYOUT.topMargin
-    + REGION_VIEWER.axisToFirstSampleGap
-    + sampleHeights
-    + Math.max(0, REGION_DATA.samples.length - 1) * BROWSER_LAYOUT.panelGap;
-}
-
-function getGffLegendY() {
-  return getSamplesBottomY() + REGION_VIEWER.samplesToLegendGap;
-}
-
-function drawGffTrackLegend(layer) {
-  const trackNames = getAllGffTrackNames();
-
-  if (trackNames.length === 0) {
-    return;
-  }
-
-  let x = getLeftMargin();
-  const y = getGffLegendY() + GFF_LEGEND.topPadding;
-
-  for (const trackName of trackNames) {
-    const color = getGffTrackColor(trackName);
-    const textWidth = estimateTextWidth(trackName, GFF_LEGEND.fontSize);
-
-    layer.add(new Konva.Circle({
-      x: x + GFF_LEGEND.dotRadius,
-      y: y + GFF_LEGEND.fontSize / 2,
-      radius: GFF_LEGEND.dotRadius,
-      fill: color,
-      listening: false
-    }));
-
-    layer.add(new Konva.Text({
-      x: x + GFF_LEGEND.dotRadius * 2 + GFF_LEGEND.dotTextGap,
-      y,
-      text: trackName,
-      fontSize: GFF_LEGEND.fontSize,
-      fill: "#4b5563",
-      listening: false
-    }));
-
-    x += GFF_LEGEND.dotRadius * 2
-      + GFF_LEGEND.dotTextGap
-      + textWidth
-      + GFF_LEGEND.itemGap;
-  }
 }

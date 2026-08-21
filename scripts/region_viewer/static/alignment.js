@@ -1,4 +1,69 @@
-const MAX_SIDEBAR_WIDTH_RATIO = 0.7;
+const ALIGNMENT = {
+  leftMargin: 120,
+  topMargin: 28,
+  rowHeight: 22,
+  charWidth: 14,
+  minCharWidth: 6,
+  maxCharWidth: 28,
+  letterFontSize: 9,
+  labelFontSize: 13,
+  axisHeight: 24,
+  bottomPadding: 28,
+  scrollbarHeight: 16,
+  scrollbarBottomPadding: 8,
+  scrollbarMinThumbWidth: 36,
+  panFraction: 0.1
+};
+
+alignmentStage.on("pointerdown", (event) => {
+  if (event.target !== alignmentStage) {
+    return;
+  }
+
+  const pointer = alignmentStage.getPointerPosition();
+  if (!pointer) {
+    return;
+  }
+
+  const alignmentData = getAlignmentData(state.activeAlignmentBlockId);
+  const sampleCount = getAlignmentSampleNames(alignmentData).length;
+  const scrollbarY = getAlignmentScrollbarY(sampleCount);
+
+  if (pointer.y >= scrollbarY) {
+    return;
+  }
+
+  startAlignmentViewportDrag(pointer.x);
+});
+
+alignmentStage.on("pointermove", () => {
+  const pointer = alignmentStage.getPointerPosition();
+  if (!pointer) {
+    return;
+  }
+
+  if (state.isDraggingAlignmentViewport) {
+    updateAlignmentViewportDrag(pointer.x);
+    return;
+  }
+
+  if (state.isDraggingAlignmentScrollbar) {
+    updateAlignmentScrollbarDrag(pointer.x);
+    return;
+  }
+
+  if (state.activeAlignmentBlockId && getAlignmentData(state.activeAlignmentBlockId)) {
+    setAlignmentCursor("grab");
+  } else {
+    setAlignmentCursor("");
+  }
+});
+
+alignmentStage.on("pointerup", stopAlignmentDrag);
+alignmentStage.on("pointerleave", () => {
+  stopAlignmentDrag();
+  setAlignmentCursor("");
+});
 
 function getAlignmentContainer() {
   return document.getElementById("alignment-viewer");
@@ -224,15 +289,7 @@ function getBaseTextFill(base) {
 }
 
 function formatAlignmentAxisValue(value) {
-  if (value <= COORDINATE_FORMAT.bpToKbThresholdBp) {
-    return `${formatNumber(value, 0)} bp`;
-  }
-
-  if (value <= COORDINATE_FORMAT.kbToMbThresholdBp) {
-    return `${formatNumber(value / 1000, 1)} kb`;
-  }
-
-  return `${formatNumber(value / 1000000, 3)} Mb`;
+  return formatGenomicCoordinate(value, value);
 }
 
 function drawAlignmentAxis(layer, alignmentLength, snpColumns) {
@@ -787,112 +844,4 @@ function stopAlignmentDrag() {
     setBodyCursor("default");
     setAlignmentCursor("");
   }
-}
-
-function startViewportDrag(pointerX) {
-  if (getMaxScrollX() <= 0) {
-    return;
-  }
-
-  state.isDraggingViewport = true;
-  state.suppressHover = true;
-  state.dragStartPointerX = pointerX;
-  state.dragStartScrollX = state.scrollX;
-  setBodyCursor("grabbing");
-}
-
-function updateViewportDrag(pointerX) {
-  const deltaX = pointerX - state.dragStartPointerX;
-  const worldDelta = deltaX * (getContentWidth() / getDrawableTrackWidth());
-  state.scrollX = clampScrollX(state.dragStartScrollX - worldDelta);
-  requestStageRedraw();
-}
-
-function updateScrollbarDrag(pointerX) {
-  setScrollFromThumbX(pointerX - state.scrollbarDragOffsetX);
-  requestStageRedraw();
-}
-
-function stopDrag() {
-  const wasDragging = state.isDraggingViewport || state.isDraggingScrollbar;
-  state.isDraggingViewport = false;
-  state.isDraggingScrollbar = false;
-  state.scrollbarDragOffsetX = 0;
-  _lastResolvedHoverKey = null;
-
-  if (wasDragging) {
-    state.suppressHover = false;
-    setBodyCursor("default");
-    setViewerCursor("");
-  }
-}
-
-function setupColumnResizer() {
-  const contentRow = document.getElementById("content-row");
-  const rightColumn = document.getElementById("right-column");
-  const resizer = document.getElementById("column-resizer");
-
-  if (!contentRow || !rightColumn || !resizer) {
-    return;
-  }
-
-  const sidebarMinWidth = Number.parseFloat(
-    window.getComputedStyle(rightColumn).minWidth
-  );
-  let isResizing = false;
-
-  resizer.addEventListener("pointerdown", (event) => {
-    isResizing = true;
-    resizer.classList.add("is-dragging");
-    setBodyCursor("col-resize");
-    resizer.setPointerCapture(event.pointerId);
-    showViewerBusyOverlay(" ");
-    event.preventDefault();
-  });
-
-  resizer.addEventListener("pointermove", (event) => {
-    if (!isResizing) {
-      return;
-    }
-
-    const rowRect = contentRow.getBoundingClientRect();
-    const maxSidebarWidth = rowRect.width * MAX_SIDEBAR_WIDTH_RATIO;
-    const proposedWidth = rowRect.right - event.clientX;
-    const sidebarWidth = Math.max(
-      sidebarMinWidth,
-      Math.min(maxSidebarWidth, proposedWidth)
-    );
-
-    rightColumn.style.flexBasis = `${sidebarWidth}px`;
-    rightColumn.style.width = `${sidebarWidth}px`;
-  });
-
-  function stopColumnResize(event) {
-    if (!isResizing) {
-      return;
-    }
-
-    isResizing = false;
-    resizer.classList.remove("is-dragging");
-    setBodyCursor("default");
-
-    if (resizer.hasPointerCapture(event.pointerId)) {
-      resizer.releasePointerCapture(event.pointerId);
-    }
-
-    normalizeScrollX();
-    showViewerBusyOverlay("Rendering viewer\u2026");
-    requestStageRedraw();
-    requestAlignmentRedraw();
-    requestDotplotRedraw();
-    syncSidebarHeightToViewerColumn();
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        hideViewerBusyOverlay();
-      });
-    });
-  }
-
-  resizer.addEventListener("pointerup", stopColumnResize);
-  resizer.addEventListener("pointercancel", stopColumnResize);
 }

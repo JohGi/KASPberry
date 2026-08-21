@@ -2,6 +2,53 @@ const DOTPLOT_RENDERING = {
   intersectionMinSizePx: 2
 };
 
+// Normalized bounds of the real plotting area inside the dotplot SVG.
+// Values are ratios of the displayed SVG box (0 = left/top, 1 = right/bottom).
+// Adjust these by trial and error to align external genomic tracks with SVG axes.
+const DOTPLOT_AXIS_BOUNDS = {
+  // X ratios: fraction of SVG width, measured from the left (0 = left, 1 = right).
+  // xZeroRatio = pixel position of genomic coordinate 1 (left end of x axis).
+  // xMaxRatio  = pixel position of maximum genomic coordinate (right end of x axis).
+  xZeroRatio: 0, //0.05,
+  xMaxRatio: 1, //0.992,
+  // Y ratios: measured from the BOTTOM of the SVG (0 = bottom, 1 = top).
+  // yZeroRatio = position of genomic coordinate 1 (bottom of y axis).
+  // yMaxRatio  = position of maximum genomic coordinate (top of y axis).
+  // Conversion to CSS pixel y: pixelY = imageHeight * (1 - ratio).
+  yZeroRatio: 0, //0.0668,
+  yMaxRatio: 1 //0.9683
+};
+
+// Set to true to draw calibration lines at axis boundaries on track canvases.
+const DOTPLOT_DEBUG_LAYOUT = false;
+
+// Track dimensions include one feature inset on each side so the inner region
+// matches the browser-mode sample track.
+const DOTPLOT_TRACK = {
+  yTrackWidth:    TRACK_GEOMETRY.trackHeight + 2 * TRACK_GEOMETRY.featureInset,
+  xTrackHeight:   TRACK_GEOMETRY.trackHeight + 2 * TRACK_GEOMETRY.featureInset,
+  debugColor:     "#3b82f6",
+  debugLineWidth: 1.5
+};
+
+// TRACK_HIGHLIGHT_INSET controls highlight stroke positioning independently of
+// TRACK_GEOMETRY.featureInset, which positions rendered feature geometry.
+const TRACK_HIGHLIGHT_INSET = 0.5;
+
+// Dotplot zoom settings.
+const DOTPLOT_ZOOM_STEP = 1.3;
+const DOTPLOT_ZOOM_MIN  = 0.25;
+const DOTPLOT_ZOOM_MAX  = 10;
+
+const DOTPLOT_AXIS = {
+  tickLength: 5,
+  fontSize: 10,
+  labelPadding: 2,
+  color: "#444444",
+  labelColor: "#555555",
+  targetTickSpacingPx: 90
+};
+
 function getDotplotPairs() {
   return (REGION_DATA.dotplots && REGION_DATA.dotplots.pairs) || [];
 }
@@ -201,30 +248,8 @@ function mapYCoordinateToStagePx(position, sample, geometry) {
   return geometry.yZeroPixel - ratio * (geometry.yZeroPixel - geometry.yMaxPixel);
 }
 
-function getAxisUnitForSpan(visibleSpan) {
-  if (visibleSpan <= COORDINATE_FORMAT.bpToKbThresholdBp) {
-    return "bp";
-  }
-
-  if (visibleSpan <= COORDINATE_FORMAT.kbToMbThresholdBp) {
-    return "kb";
-  }
-
-  return "Mb";
-}
-
 function formatAxisValueForSpan(value, visibleSpan) {
-  const unit = getAxisUnitForSpan(visibleSpan);
-
-  if (unit === "bp") {
-    return `${formatNumber(value, 0)} bp`;
-  }
-
-  if (unit === "kb") {
-    return `${formatNumber(value / 1000, 1)} kb`;
-  }
-
-  return `${formatNumber(value / 1000000, 3)} Mb`;
+  return formatGenomicCoordinate(value, visibleSpan);
 }
 
 function getDotplotAxisTickValues(sample, pixelSpan) {
@@ -1467,7 +1492,7 @@ function centerPinnedFeature() {
   centerRegionOnRange(range.start, range.end);
 }
 
-function _computeDotplotBlockIntersection(featureId) {
+function _getDotplotMappedBlockBounds(featureId) {
   const geometry = computeDotplotGeometry();
   if (!geometry) { return null; }
 
@@ -1489,6 +1514,15 @@ function _computeDotplotBlockIntersection(featureId) {
   const x1 = Math.max(xLeft, xRight);
   const y0 = Math.min(yStart, yEnd);
   const y1 = Math.max(yStart, yEnd);
+
+  return { geometry, x0, x1, y0, y1 };
+}
+
+function _computeDotplotBlockIntersection(featureId) {
+  const bounds = _getDotplotMappedBlockBounds(featureId);
+  if (!bounds) { return null; }
+
+  const { x0, x1, y0, y1 } = bounds;
 
   return {
     x: x0,
@@ -1503,27 +1537,10 @@ function _computeDotplotBlockIntersection(featureId) {
 // interval on both the selected X and Y samples.
 // Returns { x, y, width, height } in stage pixels, or null.
 function _computeDotplotBlockProjection(featureId) {
-  const geometry = computeDotplotGeometry();
-  if (!geometry) { return null; }
+  const bounds = _getDotplotMappedBlockBounds(featureId);
+  if (!bounds) { return null; }
 
-  const xSampleData = getSampleByName(_dotplotState.selectedX);
-  const ySampleData = getSampleByName(_dotplotState.selectedY);
-  if (!xSampleData || !ySampleData) { return null; }
-
-  const xBlock = xSampleData.blocks.find(b => b.feature_id === featureId);
-  const yBlock = ySampleData.blocks.find(b => b.feature_id === featureId);
-  if (!xBlock || !yBlock) { return null; }
-
-  const xLeft = mapXCoordinateToStagePx(xBlock.block_start_in_region, xSampleData, geometry);
-  const xRight = mapXCoordinateToStagePx(xBlock.block_end_in_region, xSampleData, geometry);
-
-  const yStart = mapYCoordinateToStagePx(yBlock.block_start_in_region, ySampleData, geometry);
-  const yEnd = mapYCoordinateToStagePx(yBlock.block_end_in_region, ySampleData, geometry);
-
-  const x0 = Math.min(xLeft, xRight);
-  const x1 = Math.max(xLeft, xRight);
-  const y0 = Math.min(yStart, yEnd);
-  const y1 = Math.max(yStart, yEnd);
+  const { geometry, x0, x1, y0, y1 } = bounds;
 
   return {
     vertical: {
