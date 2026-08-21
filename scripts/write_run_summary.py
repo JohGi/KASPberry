@@ -15,15 +15,63 @@ import polars as pl
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", choices=["snps", "kasp"], required=True)
-    parser.add_argument("--genotypes", type=Path, required=True)
-    parser.add_argument("--block-coords", type=Path, required=True)
-    parser.add_argument("--snp-summary", type=Path, required=True)
-    parser.add_argument("--assay-summary", type=Path)
-    parser.add_argument("--masked-block-n-stats", type=Path, required=True)
-    parser.add_argument("--clean-fastas", type=Path, nargs="+", required=True)
-    parser.add_argument("--json-output", type=Path, required=True)
-    parser.add_argument("--txt-output", type=Path, required=True)
+
+    parser.add_argument(
+        "--mode",
+        choices=["snps", "kasp"],
+        required=True,
+    )
+
+    parser.add_argument(
+        "--repeat-masking",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--repeat-masking-library",
+        type=Path,
+    )
+
+    parser.add_argument(
+        "--genotypes",
+        type=Path,
+        required=True,
+    )
+    parser.add_argument(
+        "--block-coords",
+        type=Path,
+        required=True,
+    )
+    parser.add_argument(
+        "--snp-summary",
+        type=Path,
+        required=True,
+    )
+    parser.add_argument(
+        "--assay-summary",
+        type=Path,
+    )
+    parser.add_argument(
+        "--masked-block-n-stats",
+        type=Path,
+        required=True,
+    )
+    parser.add_argument(
+        "--clean-fastas",
+        type=Path,
+        nargs="+",
+        required=True,
+    )
+    parser.add_argument(
+        "--json-output",
+        type=Path,
+        required=True,
+    )
+    parser.add_argument(
+        "--txt-output",
+        type=Path,
+        required=True,
+    )
+
     return parser.parse_args()
 
 
@@ -45,14 +93,18 @@ def count_reasons(
         for row in df.iter_rows(named=True)
         if row[status_col] == "FAIL" and row[reason_col]
     )
+
     return dict(sorted(reasons.items()))
 
 
-def interval_union_length(intervals: list[tuple[int, int]]) -> int:
+def interval_union_length(
+    intervals: list[tuple[int, int]],
+) -> int:
     if not intervals:
         return 0
 
     intervals = sorted(intervals)
+
     total = 0
     start, end = intervals[0]
 
@@ -114,11 +166,13 @@ def build_summary(args) -> dict:
         ]
 
         region_length = fasta_lengths[genotype]
+
         cumulated = (
             int(genotype_blocks["block_len_bp"].sum())
             if genotype_blocks.height
             else 0
         )
+
         covered = interval_union_length(intervals)
 
         genotype_repeats = repeat_stats.filter(
@@ -126,18 +180,29 @@ def build_summary(args) -> dict:
         )
 
         repeat_masked_bp = (
-            int(genotype_repeats["repeat_masked_n_count"].sum())
+            int(
+                genotype_repeats[
+                    "repeat_masked_n_count"
+                ].sum()
+            )
             if genotype_repeats.height
             else 0
         )
+
         block_bp_for_repeat_stats = (
-            int(genotype_repeats["unmasked_length_bp"].sum())
+            int(
+                genotype_repeats[
+                    "unmasked_length_bp"
+                ].sum()
+            )
             if genotype_repeats.height
             else 0
         )
 
         repeat_masked_pct = (
-            100 * repeat_masked_bp / block_bp_for_repeat_stats
+            100
+            * repeat_masked_bp
+            / block_bp_for_repeat_stats
             if block_bp_for_repeat_stats
             else 0.0
         )
@@ -164,11 +229,26 @@ def build_summary(args) -> dict:
         "input": {
             "n_genotypes": len(genotypes),
         },
+        "repeat_masking": {
+            "tool": "RepeatMasker",
+            "simple_repeats_and_low_complexity": (
+                args.repeat_masking
+            ),
+            "custom_library": (
+                str(args.repeat_masking_library)
+                if args.repeat_masking_library is not None
+                else None
+            ),
+        },
         "global": {
             # Kept for compatibility with the current viewer.
             "n_blocks_kept": blocks["block_id"].n_unique(),
-            "min_block_len_bp": int(blocks["block_len_bp"].min()),
-            "max_block_len_bp": int(blocks["block_len_bp"].max()),
+            "min_block_len_bp": int(
+                blocks["block_len_bp"].min()
+            ),
+            "max_block_len_bp": int(
+                blocks["block_len_bp"].max()
+            ),
             "mean_block_len_bp": round(
                 float(blocks["block_len_bp"].mean()),
                 2,
@@ -178,7 +258,9 @@ def build_summary(args) -> dict:
         "snp_discovery": {
             "detected_snps": snps.height,
             "diagnostic_snps": diagnostic,
-            "non_diagnostic_snps": snps.height - diagnostic,
+            "non_diagnostic_snps": (
+                snps.height - diagnostic
+            ),
         },
         "failure_reasons": {
             "snps": count_reasons(
@@ -215,7 +297,9 @@ def build_summary(args) -> dict:
         }
 
         summary["in_silico_validation"] = {
-            "assays_passing_validation": passing_assays,
+            "assays_passing_validation": (
+                passing_assays
+            ),
             "assays_failing_validation": (
                 assays.height - passing_assays
             ),
@@ -228,17 +312,26 @@ def build_summary(args) -> dict:
             "candidate_assays": passing_assays,
         }
 
-        summary["failure_reasons"]["assays"] = count_reasons(
-            assays,
-            "validation_status",
-            "validation_failure_reason",
+        summary["failure_reasons"]["assays"] = (
+            count_reasons(
+                assays,
+                "validation_status",
+                "validation_failure_reason",
+            )
         )
 
     return summary
 
 
-def add_section(lines: list[str], title: str):
-    lines.extend(["", title, "-" * len(title)])
+def add_section(
+    lines: list[str],
+    title: str,
+):
+    lines.extend([
+        "",
+        title,
+        "-" * len(title),
+    ])
 
 
 def build_text(summary: dict) -> str:
@@ -248,89 +341,189 @@ def build_text(summary: dict) -> str:
     ]
 
     add_section(lines, "Input")
+
     lines.append(
         "Genotypes (one input region each): "
         f"{summary['input']['n_genotypes']}"
     )
 
+    masking = summary["repeat_masking"]
+
+    add_section(lines, "Repeat masking")
+
+    lines.append(
+        "Simple repeats and low-complexity regions: "
+        + (
+            "masked"
+            if masking[
+                "simple_repeats_and_low_complexity"
+            ]
+            else "not masked"
+        )
+    )
+
+    if masking["custom_library"]:
+        lines.append(
+            "Custom repeat library: "
+            f"{masking['custom_library']}"
+        )
+    else:
+        lines.append(
+            "Custom repeat library: none"
+        )
+
     stats = summary["global"]
 
     add_section(lines, "Collinear blocks")
+
     lines.extend([
-        f"Collinear blocks: {stats['n_blocks_kept']}",
-        f"Smallest block length (bp): {stats['min_block_len_bp']}",
-        f"Largest block length (bp): {stats['max_block_len_bp']}",
-        f"Mean block length (bp): {stats['mean_block_len_bp']:.2f}",
+        (
+            "Collinear blocks: "
+            f"{stats['n_blocks_kept']}"
+        ),
+        (
+            "Smallest block length (bp): "
+            f"{stats['min_block_len_bp']}"
+        ),
+        (
+            "Largest block length (bp): "
+            f"{stats['max_block_len_bp']}"
+        ),
+        (
+            "Mean block length (bp): "
+            f"{stats['mean_block_len_bp']:.2f}"
+        ),
     ])
 
     stats = summary["snp_discovery"]
 
     add_section(lines, "SNP discovery")
+
     lines.extend([
-        f"Detected SNPs: {stats['detected_snps']}",
-        f"Diagnostic SNPs: {stats['diagnostic_snps']}",
-        f"Non-diagnostic SNPs: {stats['non_diagnostic_snps']}",
+        (
+            "Detected SNPs: "
+            f"{stats['detected_snps']}"
+        ),
+        (
+            "Diagnostic SNPs: "
+            f"{stats['diagnostic_snps']}"
+        ),
+        (
+            "Non-diagnostic SNPs: "
+            f"{stats['non_diagnostic_snps']}"
+        ),
     ])
 
     if summary["mode"] == "kasp":
         stats = summary["kasp_assay_design"]
 
-        add_section(lines, "KASP assay design")
+        add_section(
+            lines,
+            "KASP assay design",
+        )
+
         lines.extend([
-            "SNPs with at least one assay proposed: "
-            f"{stats['snps_with_assay_proposed']}",
-            f"Assays proposed: {stats['assays_proposed']}",
+            (
+                "SNPs with at least one assay proposed: "
+                f"{stats['snps_with_assay_proposed']}"
+            ),
+            (
+                "Assays proposed: "
+                f"{stats['assays_proposed']}"
+            ),
         ])
 
-        stats = summary["in_silico_validation"]
+        stats = summary[
+            "in_silico_validation"
+        ]
 
-        add_section(lines, "In silico validation")
+        add_section(
+            lines,
+            "In silico validation",
+        )
+
         lines.extend([
-            "Assays passing validation: "
-            f"{stats['assays_passing_validation']}",
-            "Assays failing validation: "
-            f"{stats['assays_failing_validation']}",
+            (
+                "Assays passing validation: "
+                f"{stats['assays_passing_validation']}"
+            ),
+            (
+                "Assays failing validation: "
+                f"{stats['assays_failing_validation']}"
+            ),
         ])
 
         stats = summary["final_candidates"]
 
-        add_section(lines, "Final candidates")
+        add_section(
+            lines,
+            "Final candidates",
+        )
+
         lines.extend([
-            f"Candidate SNPs: {stats['candidate_snps']}",
-            f"Candidate assays: {stats['candidate_assays']}",
+            (
+                "Candidate SNPs: "
+                f"{stats['candidate_snps']}"
+            ),
+            (
+                "Candidate assays: "
+                f"{stats['candidate_assays']}"
+            ),
         ])
 
     reasons = summary["failure_reasons"]
 
     if any(reasons.values()):
-        add_section(lines, "Failure reasons")
+        add_section(
+            lines,
+            "Failure reasons",
+        )
 
         if reasons["snps"]:
             lines.append("SNPs:")
+
             lines.extend(
                 f"  {reason}: {count}"
-                for reason, count in reasons["snps"].items()
+                for reason, count
+                in reasons["snps"].items()
             )
 
         if reasons.get("assays"):
             lines.append("Assays:")
+
             lines.extend(
                 f"  {reason}: {count}"
-                for reason, count in reasons["assays"].items()
+                for reason, count
+                in reasons["assays"].items()
             )
 
-    add_section(lines, "Per-genotype region statistics")
+    add_section(
+        lines,
+        "Per-genotype region statistics",
+    )
 
     for genotype, stats in summary["samples"].items():
         lines.extend([
             genotype,
-            f"  Region length (bp): {stats['region_length_bp']}",
-            "  Cumulated collinear block length (bp): "
-            f"{stats['cumulated_block_bp']}",
-            "  Region covered by collinear blocks (%): "
-            f"{stats['covered_pct_of_region']:.2f}",
-            "  Repeat-masked bases in collinear blocks (%): "
-            f"{stats['repeat_masked_pct_of_collinear_blocks']:.2f}",
+            (
+                "  Region length (bp): "
+                f"{stats['region_length_bp']}"
+            ),
+            (
+                "  Cumulated collinear block "
+                "length (bp): "
+                f"{stats['cumulated_block_bp']}"
+            ),
+            (
+                "  Region covered by collinear "
+                "blocks (%): "
+                f"{stats['covered_pct_of_region']:.2f}"
+            ),
+            (
+                "  Repeat-masked bases in "
+                "collinear blocks (%): "
+                f"{stats['repeat_masked_pct_of_collinear_blocks']:.2f}"
+            ),
             "",
         ])
 
@@ -339,15 +532,29 @@ def build_text(summary: dict) -> str:
 
 def main():
     args = parse_args()
+
     summary = build_summary(args)
 
-    args.json_output.parent.mkdir(parents=True, exist_ok=True)
-    args.txt_output.parent.mkdir(parents=True, exist_ok=True)
+    args.json_output.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
+    args.txt_output.parent.mkdir(
+        parents=True,
+        exist_ok=True,
+    )
 
     args.json_output.write_text(
-        json.dumps(summary, indent=2) + "\n"
+        json.dumps(
+            summary,
+            indent=2,
+        )
+        + "\n"
     )
-    args.txt_output.write_text(build_text(summary))
+
+    args.txt_output.write_text(
+        build_text(summary)
+    )
 
 
 if __name__ == "__main__":

@@ -46,6 +46,7 @@ rule write_run_summary:
         txt=RUN_SUMMARY_TXT
     params:
         mode=lambda wildcards: get_run_summary_mode(),
+        repeat_library=str(TE_LIB) if TE_LIB is not None else "",
     benchmark:
         BENCHMARK_DIR / "write_run_summary.tsv"
     log:
@@ -66,12 +67,22 @@ rule write_run_summary:
             )
         fi
 
+        repeat_masking_args=()
+
+        if [[ -n "{params.repeat_library}" ]]; then
+            repeat_masking_args=(
+                --repeat-masking-library "{params.repeat_library}"
+            )
+        fi
+
         python3 "{SCRIPTS_DIR}/write_run_summary.py" \
             --mode "{params.mode}" \
             --genotypes "{input.genotypes}" \
             --block-coords "{input.block_coords}" \
             --snp-summary "{input.snp_summary}" \
             "${{assay_args[@]}}" \
+            --repeat-masking \
+            "${{repeat_masking_args[@]}}" \
             --clean-fastas {input.clean_fastas:q} \
             --masked-block-n-stats "{input.masked_block_n_stats}" \
             --json-output "{output.json}" \

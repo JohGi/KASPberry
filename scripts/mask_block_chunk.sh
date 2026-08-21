@@ -9,7 +9,7 @@ Usage:
   mask_block_chunk.sh \
     --chunk-list chunk_0000.list \
     --fasta-dir results/04_block_fastas/per_block \
-    --te-lib repeats.fasta \
+    [--te-lib repeats.fasta] \
     --outdir results/05_masked_block_fastas \
     --threads 1
 EOF
@@ -55,7 +55,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-if [[ -z "$chunk_list" || -z "$fasta_dir" || -z "$te_lib" || -z "$outdir" || -z "$threads" ]]; then
+if [[ -z "$chunk_list" || -z "$fasta_dir" || -z "$outdir" || -z "$threads" ]]; then
     echo "Error: missing required arguments." >&2
     usage >&2
     exit 1
@@ -71,7 +71,7 @@ if [[ ! -d "$fasta_dir" ]]; then
     exit 1
 fi
 
-if [[ ! -s "$te_lib" ]]; then
+if [[ -n "$te_lib" && ! -s "$te_lib" ]]; then
     echo "Error: TE library '$te_lib' not found or empty." >&2
     exit 1
 fi
@@ -94,10 +94,16 @@ while read -r block_id; do
 
     echo "[INFO] Masking block '${block_id}'." >&2
 
-    bash "$mask_script" \
-        --fasta "$fasta_path" \
-        --te-lib "$te_lib" \
-        --outdir "$outdir" \
-        --threads "$threads" \
+    mask_args=(
+        --fasta "$fasta_path"
+        --outdir "$outdir"
+        --threads "$threads"
         --output "$output_path"
+    )
+
+    if [[ -n "$te_lib" ]]; then
+        mask_args+=( --te-lib "$te_lib" )
+    fi
+
+    bash "$mask_script" "${mask_args[@]}"
 done < "$chunk_list"

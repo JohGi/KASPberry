@@ -31,7 +31,7 @@ rule mask_block_chunk:
         stderr=LOG_DIR / "mask_block_chunk" / "{chunk_id}.stderr"
     threads: 1
     params:
-        te_lib=TE_LIB,
+        te_lib_arg=f'--te-lib "{TE_LIB}"' if TE_LIB else "",
         outdir=str(MASKED_DIR)
     shell:
         r"""
@@ -39,7 +39,7 @@ rule mask_block_chunk:
         bash "{SCRIPTS_DIR}/mask_block_chunk.sh" \
             --chunk-list "{input.chunk_list}" \
             --fasta-dir "{input.fasta_dir}" \
-            --te-lib "{params.te_lib}" \
+            {params.te_lib_arg} \
             --outdir "{params.outdir}" \
             --threads {threads} \
             1> "{log.stdout}" \

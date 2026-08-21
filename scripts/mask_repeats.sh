@@ -6,9 +6,9 @@ usage() {
 Mask repeats in a block FASTA using RepeatMasker.
 
 Usage:
-  mask_block_fasta.sh \
+  mask_repeats.sh \
     --fasta input.fasta \
-    --te-lib repeats.fasta \
+    [--te-lib repeats.fasta] \
     --outdir masked_dir \
     --threads 3 \
     --output output.masked
@@ -51,7 +51,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-if [[ -z "$fasta" || -z "$te_lib" || -z "$outdir" || -z "$threads" || -z "$output" ]]; then
+if [[ -z "$fasta" || -z "$outdir" || -z "$threads" || -z "$output" ]]; then
     echo "Error: missing required arguments." >&2
     usage >&2
     exit 1
@@ -62,7 +62,7 @@ if [[ ! -s "$fasta" ]]; then
     exit 1
 fi
 
-if [[ ! -s "$te_lib" ]]; then
+if [[ -n "$te_lib" && ! -s "$te_lib" ]]; then
     echo "Error: TE library '$te_lib' not found or empty." >&2
     exit 1
 fi
@@ -76,12 +76,35 @@ trap 'rm -rf "$block_tmp_dir"' EXIT
 
 masked_candidate="$block_tmp_dir/${block_name}.masked"
 
-RepeatMasker \
-    -pa "$threads" \
-    -no_is \
-    -dir "$block_tmp_dir" \
-    -lib "$te_lib" \
-    "$fasta"
+repeatmasker_args=(
+    -pa "$threads"
+    -no_is
+    -dir "$block_tmp_dir"
+)
+
+if [[ -n "$te_lib" ]]; then
+    repeatmasker_args+=( -lib "$te_lib" )
+else
+    # RepeatMasker >= 4.2 requires either a custom library or a configured
+    # FamDB even when -noint is used. KASPberry therefore supplies a small
+    # technical placeholder library solely to satisfy this requirement.
+    # -noint ensures that only simple repeats and low-complexity regions
+    # are actually masked.
+    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    placeholder_lib="${script_dir}/resources/repeatmasker_placeholder.fa"
+
+    if [[ ! -s "$placeholder_lib" ]]; then
+        echo "Error: RepeatMasker placeholder library '$placeholder_lib' not found or empty." >&2
+        exit 1
+    fi
+
+    repeatmasker_args+=(
+        -lib "$placeholder_lib"
+        -noint
+    )
+fi
+
+RepeatMasker "${repeatmasker_args[@]}" "$fasta"
 
 if [[ -f "$masked_candidate" ]]; then
     cp "$masked_candidate" "$output"

@@ -95,7 +95,9 @@ properties:
               - "null"
             minLength: 1
             default: null
-            description: Optional repeat library used for repeat masking.
+            description: >
+              Simple repeats and low-complexity regions are always masked.
+              This optional library enables additional custom repeat masking.
 
 
   kasp:

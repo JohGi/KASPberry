@@ -1,0 +1,6 @@
+genotype	group	region_fasta	genome_fasta	source_seq	region_start
+Karur		dummy1.fasta		chrA	1096
+Soldur		dummy2.fasta		chrA	1263
+Belalur		dummy3.fasta		chrA	1029
+Lloyd		dummy4.fasta		chrA	1045
+Dic2		dummy5.fasta		chrA	1066

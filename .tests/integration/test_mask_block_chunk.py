@@ -23,6 +23,10 @@ TEST_CASES = [
         "case_name": "with_repeats",
         "target": "results/.work/masked_block_fastas/chunks/chunk_0001.done",
     },
+    {
+        "case_name": "without_library",
+        "target": "results/.work/masked_block_fastas/chunks/chunk_0002.done",
+    },
 ]
 
 
@@ -61,5 +65,5 @@ def test_mask_block_chunk_cases(
     compare_directories(
         expected_dir=case_dir / "expected" / "results" / ".work" / "masked_block_fastas",
         observed_dir=tmp_path / "results" / ".work" / "masked_block_fastas",
-        ignore_suffixes={".out", ".tbl", ".cat", ".all"}
+        ignore_suffixes={".out", ".tbl", ".cat", ".all"},
     )

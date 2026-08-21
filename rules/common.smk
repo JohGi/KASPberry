@@ -254,13 +254,7 @@ PRIMERS_TO_ORDER_TSV = KASP_DIR / "primers_to_order.tsv"
 te_lib_value = config["snps"]["repeat_masking"]["library"]
 
 TE_LIB = Path(te_lib_value) if te_lib_value else None
-USE_MASKING = TE_LIB is not None
-
-ALIGNMENT_FASTA_DIR = (
-    MASKED_DIR
-    if USE_MASKING
-    else BLOCK_FASTA_SPLIT_DIR
-)
+ALIGNMENT_FASTA_DIR = MASKED_DIR
 
 
 # ---------------------------------------------------------------------------
@@ -288,18 +282,10 @@ def get_chunk_ids(_wildcards=None) -> list[str]:
 
 def get_alignment_inputs(wildcards) -> list[Path]:
     """Return prerequisite inputs for one alignment chunk."""
-    inputs = [
-        MASK_CHUNK_DIR / f"{wildcards.chunk_id}.list"
+    return [
+        MASK_CHUNK_DIR / f"{wildcards.chunk_id}.list",
+        MASKED_CHUNK_DIR / f"{wildcards.chunk_id}.done",
     ]
-
-    if USE_MASKING:
-        inputs.append(
-            MASKED_CHUNK_DIR / f"{wildcards.chunk_id}.done"
-        )
-    else:
-        inputs.append(get_split_block_dir())
-
-    return inputs
 
 
 def get_align_chunk_sentinels(_wildcards=None) -> list[Path]:
