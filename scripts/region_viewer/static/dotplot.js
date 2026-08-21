@@ -594,7 +594,8 @@ function initDotplotStage() {
 
 // Full batched redraw of the dotplot Konva stage.
 // Uses one Konva.Shape per feature group — no one-node-per-feature.
-// Visual style matches browser mode: white region, gray blocks, red SNPs, black outline.
+// Visual style matches browser mode: white region, gray blocks, PASS/rejected SNPs,
+// black outline.
 // Also rebuilds the hover spatial index so hit-testing is always in sync with the layout.
 // Computes along-axis geometry for all blocks and SNPs of one sample track,
 // in a "local horizontal" coordinate system where the primary axis runs along
@@ -618,9 +619,46 @@ function buildTrackAlongAxisGeoms(blocks, snps, mapper) {
   }
   const snpPositions = [];
   for (const snp of snps) {
+    if (!shouldDisplaySnp(snp.feature_id)) {
+      continue;
+    }
     snpPositions.push({ along: mapper(snp.pos_in_region), featureId: snp.feature_id });
   }
   return { fillRects, snpPositions };
+}
+
+function splitDotplotSnpEntriesByStatus(entries) {
+  const pass = [];
+  const rejected = [];
+
+  for (const entry of entries) {
+    if (isRejectedSnp(entry.featureId)) {
+      rejected.push(entry);
+    } else {
+      pass.push(entry);
+    }
+  }
+
+  return { pass, rejected };
+}
+
+function drawDotplotSnpLines(layer, entries, color, drawLine) {
+  if (entries.length === 0) {
+    return;
+  }
+
+  layer.add(new Konva.Shape({
+    sceneFunc(ctx, shape) {
+      ctx.beginPath();
+      for (const entry of entries) {
+        drawLine(ctx, entry);
+      }
+      ctx.fillStrokeShape(shape);
+    },
+    stroke: color,
+    strokeWidth: FEATURE_RENDERING.snpMinWidthPx,
+    listening: false
+  }));
 }
 
 function redrawDotplotStage() {
@@ -708,6 +746,8 @@ function redrawDotplotStage() {
   const ySnpEntries = yGeoms.snpPositions.map(s => ({
     cy: s.along, x0: yRegionX + TRACK_GEOMETRY.featureInset, x1: yRegionX + yRegionW - TRACK_GEOMETRY.featureInset, featureId: s.featureId
   }));
+  const xSnpEntriesByStatus = splitDotplotSnpEntriesByStatus(xSnpEntries);
+  const ySnpEntriesByStatus = splitDotplotSnpEntriesByStatus(ySnpEntries);
 
   // ── Build hover spatial index ───────────────────────────────────────────────
   // Store only the along-axis positions needed by resolveDotplotHoveredFeature.
@@ -754,22 +794,24 @@ function redrawDotplotStage() {
       }));
     }
 
-    // Red SNP lines (batched).
-    if (xSnpEntries.length > 0) {
-      dotplotTrackLayer.add(new Konva.Shape({
-        sceneFunc(ctx, shape) {
-          ctx.beginPath();
-          for (const s of xSnpEntries) {
-            ctx.moveTo(s.cx, s.y0);
-            ctx.lineTo(s.cx, s.y1);
-          }
-          ctx.fillStrokeShape(shape);
-        },
-        stroke: FEATURE_COLORS.snp,
-        strokeWidth: FEATURE_RENDERING.snpMinWidthPx,
-        listening: false
-      }));
-    }
+    drawDotplotSnpLines(
+      dotplotTrackLayer,
+      xSnpEntriesByStatus.rejected,
+      FEATURE_COLORS.rejectedSnp,
+      (ctx, snp) => {
+        ctx.moveTo(snp.cx, snp.y0);
+        ctx.lineTo(snp.cx, snp.y1);
+      }
+    );
+    drawDotplotSnpLines(
+      dotplotTrackLayer,
+      xSnpEntriesByStatus.pass,
+      FEATURE_COLORS.snp,
+      (ctx, snp) => {
+        ctx.moveTo(snp.cx, snp.y0);
+        ctx.lineTo(snp.cx, snp.y1);
+      }
+    );
 
     // Black rounded outline.
     dotplotTrackLayer.add(new Konva.Shape({
@@ -812,22 +854,24 @@ function redrawDotplotStage() {
       }));
     }
 
-    // Red SNP lines (batched).
-    if (ySnpEntries.length > 0) {
-      dotplotTrackLayer.add(new Konva.Shape({
-        sceneFunc(ctx, shape) {
-          ctx.beginPath();
-          for (const s of ySnpEntries) {
-            ctx.moveTo(s.x0, s.cy);
-            ctx.lineTo(s.x1, s.cy);
-          }
-          ctx.fillStrokeShape(shape);
-        },
-        stroke: FEATURE_COLORS.snp,
-        strokeWidth: FEATURE_RENDERING.snpMinWidthPx,
-        listening: false
-      }));
-    }
+    drawDotplotSnpLines(
+      dotplotTrackLayer,
+      ySnpEntriesByStatus.rejected,
+      FEATURE_COLORS.rejectedSnp,
+      (ctx, snp) => {
+        ctx.moveTo(snp.x0, snp.cy);
+        ctx.lineTo(snp.x1, snp.cy);
+      }
+    );
+    drawDotplotSnpLines(
+      dotplotTrackLayer,
+      ySnpEntriesByStatus.pass,
+      FEATURE_COLORS.snp,
+      (ctx, snp) => {
+        ctx.moveTo(snp.x0, snp.cy);
+        ctx.lineTo(snp.x1, snp.cy);
+      }
+    );
 
     // Black rounded outline.
     dotplotTrackLayer.add(new Konva.Shape({
@@ -1560,6 +1604,10 @@ function _computeDotplotBlockProjection(featureId) {
 
 
 function _computeDotplotSnpProjection(featureId) {
+  if (!shouldDisplaySnp(featureId)) {
+    return null;
+  }
+
   const geometry = computeDotplotGeometry();
   if (!geometry) { return null; }
 
@@ -1599,7 +1647,10 @@ function updateDotplotHighlightShapes() {
   let blockGeoms = [];
   let snpGeoms   = [];
 
-  if (displayed) {
+  if (
+    displayed &&
+    !(displayed.featureType === "snp" && !shouldDisplaySnp(displayed.featureId))
+  ) {
     const result = getDotplotHighlightGeometries(displayed.featureType, displayed.featureId);
     blockGeoms = result.blockGeoms;
     snpGeoms   = result.snpGeoms;
@@ -1624,7 +1675,11 @@ function updateDotplotHighlightShapes() {
   }
 
   if (_dotplotSnpProjectionShape) {
-    if (displayed && displayed.featureType === "snp") {
+    if (
+      displayed &&
+      displayed.featureType === "snp" &&
+      shouldDisplaySnp(displayed.featureId)
+    ) {
       _dotplotSnpProjectionGeom = _computeDotplotSnpProjection(displayed.featureId);
     } else {
       _dotplotSnpProjectionGeom = null;

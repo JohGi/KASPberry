@@ -129,6 +129,46 @@ function setupFloatingTooltips() {
 
 setupFloatingTooltips();
 
+function setupRejectedSnpToggle() {
+  const toggle = document.getElementById("show-rejected-snps");
+
+  if (!toggle) {
+    return;
+  }
+
+  toggle.checked = state.showRejectedSnps;
+  toggle.addEventListener("change", () => {
+    state.showRejectedSnps = toggle.checked;
+    _hoverIndexDirty = true;
+    _lastResolvedHoverKey = null;
+    _dotplotHoverIndexDirty = true;
+    _lastResolvedDotplotHoverKey = null;
+
+    if (
+      state.hoveredFeatureType === "snp" &&
+      state.hoveredFeatureId &&
+      isRejectedSnp(state.hoveredFeatureId)
+    ) {
+      clearHoveredFeature();
+    }
+
+    if (
+      state.pinnedFeatureType === "snp" &&
+      state.pinnedFeatureId &&
+      isRejectedSnp(state.pinnedFeatureId)
+    ) {
+      clearPinnedFeature();
+    }
+
+    requestStageRedraw();
+    if (isDotplotModeActive()) {
+      requestDotplotRedraw();
+    }
+  });
+}
+
+setupRejectedSnpToggle();
+
 function getViewerToolbarHeight() {
   // The toolbar is no longer overlaid on the canvas; it lives above it in normal
   // document flow, so no space needs to be reserved at the top of the Konva stage.

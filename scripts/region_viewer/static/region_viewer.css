@@ -140,6 +140,7 @@ body {
 
 .viewer-panel-topbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
 }
@@ -154,6 +155,12 @@ body {
   margin-left: auto;
   display: flex;
   align-items: center;
+}
+
+.viewer-panel-topbar-toggle {
+  display: flex;
+  align-items: center;
+  margin-left: 10px;
 }
 
 .viewer-wrapper {
@@ -178,6 +185,65 @@ body {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.viewer-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 12px;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.viewer-toggle input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.viewer-toggle-switch {
+  position: relative;
+  width: 28px;
+  height: 16px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: #cbd5e1;
+  transition: background-color 120ms ease;
+}
+
+.viewer-toggle-switch::after {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  content: "";
+  transition: transform 120ms ease;
+}
+
+.viewer-toggle input:checked + .viewer-toggle-switch {
+  background: #2f5f95;
+}
+
+.viewer-toggle input:checked + .viewer-toggle-switch::after {
+  transform: translateX(12px);
+}
+
+.viewer-toggle input:focus-visible + .viewer-toggle-switch {
+  outline: 2px solid #2f5f95;
+  outline-offset: 2px;
 }
 
 .viewer-toolbar-group.has-separator::before {

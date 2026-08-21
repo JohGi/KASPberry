@@ -5,6 +5,7 @@ Konva.pixelRatio = 1;
 const FEATURE_COLORS = {
   block: "#d9d9d9",
   snp: "#d62728",
+  rejectedSnp: "#666666",
   highlightPinned: "rgb(0,120,255)",
   highlightHover: "#93c5fd"
 };
@@ -145,7 +146,8 @@ const state = {
   alignmentScrollbarDragOffsetX: 0,
   alignmentFocusedSnpColumn: null,
   activeKeyboardViewer: "region",
-  isApplyingPin: false
+  isApplyingPin: false,
+  showRejectedSnps: true
 };
 
 const derivedData = {
@@ -169,6 +171,29 @@ const viewerIndexes = {
   sampleNameToPanelIndex: new Map(),
   blockSnpByBlockId: new Map()
 };
+
+let _hasWarnedMissingSnpResult = false;
+
+function getSnpResult(featureId) {
+  const result = REGION_DATA.snp_results?.[featureId];
+
+  if (!result && !_hasWarnedMissingSnpResult) {
+    console.warn(
+      `Missing workflow result for SNP feature "${featureId}"; keeping it visible.`
+    );
+    _hasWarnedMissingSnpResult = true;
+  }
+
+  return result || null;
+}
+
+function isRejectedSnp(featureId) {
+  return getSnpResult(featureId)?.final_status === "FAIL";
+}
+
+function shouldDisplaySnp(featureId) {
+  return state.showRejectedSnps || !isRejectedSnp(featureId);
+}
 
 const _searchState = {
   mode: "id",
@@ -442,7 +467,7 @@ function getOrderedBlockFeatureIds() {
 }
 
 function getOrderedSnpFeatureIds() {
-  return derivedData.orderedSnpFeatureIds;
+  return derivedData.orderedSnpFeatureIds.filter(shouldDisplaySnp);
 }
 
 function getWrappedNeighbor(items, currentItem, direction) {

@@ -82,7 +82,10 @@ function rebuildHoverSpatialIndex() {
 
     const snps = [];
     for (const snp of sample.snps) {
-      if (isPositionVisible(snp.pos_in_region, visibleStart, visibleEnd)) {
+      if (
+        shouldDisplaySnp(snp.feature_id) &&
+        isPositionVisible(snp.pos_in_region, visibleStart, visibleEnd)
+      ) {
         snps.push({ screenX: worldXToScreenX(snp.pos_in_region), featureId: snp.feature_id });
       }
     }
@@ -751,13 +754,21 @@ function drawSample(
   }
 
   for (const snp of sample.snps) {
-    if (!isPositionVisible(snp.pos_in_region, visibleStart, visibleEnd)) {
+    if (
+      !shouldDisplaySnp(snp.feature_id) ||
+      !isPositionVisible(snp.pos_in_region, visibleStart, visibleEnd)
+    ) {
       continue;
     }
 
     const x = worldXToScreenX(snp.pos_in_region);
     const y0 = getSnpY(panelTop);
-    snpLineQueue.push({ x, y0, y1: y0 + getSnpHeight() - 2 });
+    const line = { x, y0, y1: y0 + getSnpHeight() - 2 };
+    if (isRejectedSnp(snp.feature_id)) {
+      snpLineQueue.rejected.push(line);
+    } else {
+      snpLineQueue.pass.push(line);
+    }
   }
 }
 
@@ -985,6 +996,10 @@ function getBlockHighlightGeometries(featureId) {
 }
 
 function getSnpHighlightGeometries(featureId) {
+  if (!shouldDisplaySnp(featureId)) {
+    return [];
+  }
+
   const visibleStart = getVisibleStartBp();
   const visibleEnd = getVisibleEndBp();
   const results = [];
@@ -1335,7 +1350,7 @@ function redrawStage() {
   drawGlobalAxis(regionLayer);
 
   const blockRectQueue = [];
-  const snpLineQueue = [];
+  const snpLineQueue = { pass: [], rejected: [] };
   const gffRectQueues = new Map();
 
   REGION_DATA.samples.forEach((sample, index) => {
@@ -1365,21 +1380,28 @@ function redrawStage() {
     }));
   }
 
-  if (snpLineQueue.length > 0) {
+  function drawSnpLines(lines, color) {
+    if (lines.length === 0) {
+      return;
+    }
+
     regionLayer.add(new Konva.Shape({
       sceneFunc(ctx, shape) {
         ctx.beginPath();
-        for (const seg of snpLineQueue) {
+        for (const seg of lines) {
           ctx.moveTo(seg.x, seg.y0);
           ctx.lineTo(seg.x, seg.y1);
         }
         ctx.fillStrokeShape(shape);
       },
-      stroke: FEATURE_COLORS.snp,
+      stroke: color,
       strokeWidth: FEATURE_RENDERING.snpMinWidthPx,
       listening: false
     }));
   }
+
+  drawSnpLines(snpLineQueue.rejected, FEATURE_COLORS.rejectedSnp);
+  drawSnpLines(snpLineQueue.pass, FEATURE_COLORS.snp);
 
   gffRectQueues.forEach((rects, color) => {
     regionLayer.add(new Konva.Shape({
