@@ -3,40 +3,6 @@
 
 from __future__ import annotations
 
-from .constants import (
-    BLOCK_FILL,
-    BLOCK_HIGHLIGHT_MIN_WIDTH_PX,
-    BLOCK_MIN_WIDTH_PX,
-    BOTTOM_MARGIN,
-    BP_TO_KB_THRESHOLD_BP,
-    DOTPLOT_INTERSECTION_MIN_SIZE_PX,
-    END_PADDING_PX,
-    FEATURE_HEIGHT,
-    HOVER_HIGHLIGHT_COLOR,
-    KB_TO_MB_THRESHOLD_BP,
-    LEFT_MARGIN,
-    MAX_ZOOM_CAP,
-    PANEL_GAP,
-    PANEL_HEIGHT,
-    PIN_HIGHLIGHT_COLOR,
-    RESIZER_WIDTH,
-    RIGHT_MARGIN,
-    SIDEBAR_MAX_WIDTH_RATIO,
-    SIDEBAR_MIN_WIDTH,
-    SNP_COLOR,
-    SNP_HEIGHT,
-    SNP_HIGHLIGHT_MIN_WIDTH_PX,
-    SNP_LINE_WIDTH,
-    SNP_MIN_WIDTH_PX,
-    TARGET_TICK_SPACING_PX,
-    TARGET_VISIBLE_BP,
-    TOP_MARGIN,
-    TRACK_HEIGHT,
-    TRACK_Y_OFFSET,
-    VIEWER_MIN_WIDTH,
-    VIEWER_TOP_UI_HEIGHT,
-    ZOOM_STEPS,
-)
 from .models import (
     AssayResult,
     BlockAlignment,
@@ -214,43 +180,4 @@ def build_region_payload(
                 for record in (dotplots or [])
             ],
         },
-    }
-
-
-def build_config_payload() -> dict[str, object]:
-    """Build the viewer configuration payload."""
-    return {
-        "minWidth": VIEWER_MIN_WIDTH,
-        "leftMargin": LEFT_MARGIN,
-        "rightMargin": RIGHT_MARGIN,
-        "topMargin": TOP_MARGIN,
-        "bottomMargin": BOTTOM_MARGIN,
-        "endPaddingPx": END_PADDING_PX,
-        "panelHeight": PANEL_HEIGHT,
-        "panelGap": PANEL_GAP,
-        "trackY": TRACK_Y_OFFSET,
-        "trackHeight": TRACK_HEIGHT,
-        "featureHeight": FEATURE_HEIGHT,
-        "snpHeight": SNP_HEIGHT,
-        "snpStrokeWidth": SNP_LINE_WIDTH,
-        "blockFill": BLOCK_FILL,
-        "snpColor": SNP_COLOR,
-        "viewerTopUiHeight": VIEWER_TOP_UI_HEIGHT,
-        "targetVisibleBp": TARGET_VISIBLE_BP,
-        "targetTickSpacingPx": TARGET_TICK_SPACING_PX,
-        "bpToKbThresholdBp": BP_TO_KB_THRESHOLD_BP,
-        "kbToMbThresholdBp": KB_TO_MB_THRESHOLD_BP,
-        "maxZoomCap": MAX_ZOOM_CAP,
-        "zoomSteps": ZOOM_STEPS,
-        "blockMinWidthPx": BLOCK_MIN_WIDTH_PX,
-        "blockHighlightMinWidthPx": BLOCK_HIGHLIGHT_MIN_WIDTH_PX,
-        "snpMinWidthPx": SNP_MIN_WIDTH_PX,
-        "snpHighlightMinWidthPx": SNP_HIGHLIGHT_MIN_WIDTH_PX,
-        "dotplotIntersectionMinSizePx":
-            DOTPLOT_INTERSECTION_MIN_SIZE_PX,
-        "pinHighlightColor": PIN_HIGHLIGHT_COLOR,
-        "hoverHighlightColor": HOVER_HIGHLIGHT_COLOR,
-        "sidebarMinWidth": SIDEBAR_MIN_WIDTH,
-        "sidebarMaxWidthRatio": SIDEBAR_MAX_WIDTH_RATIO,
-        "resizerWidth": RESIZER_WIDTH,
     }

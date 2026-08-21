@@ -4,6 +4,12 @@ let _hoverIndex = [];
 let _hoverIndexDirty = true;
 let _hoverIndexGeometryKey = "";
 
+const REGION_RENDERING = {
+  rightMargin: 5,
+  endPaddingPx: 24,
+  targetTickSpacingPx: 100
+};
+
 function getHoverSpatialIndexGeometryKey() {
   return [
     getVisibleStartBp(),
@@ -59,8 +65,8 @@ function rebuildHoverSpatialIndex() {
 
   _hoverIndex = REGION_DATA.samples.map((sample, i) => {
     const panelTop = computePanelTop(i);
-    const trackTop = panelTop + CONFIG.trackY;
-    const trackBottom = trackTop + CONFIG.trackHeight;
+    const trackTop = panelTop + TRACK_GEOMETRY.trackYOffset;
+    const trackBottom = trackTop + TRACK_GEOMETRY.trackHeight;
 
     const snps = [];
     for (const snp of sample.snps) {
@@ -75,7 +81,7 @@ function rebuildHoverSpatialIndex() {
       if (intersectsRange(block.block_start_in_region, block.block_end_in_region, visibleStart, visibleEnd)) {
         const x0 = worldXToScreenX(Math.max(block.block_start_in_region, visibleStart));
         const x1 = worldXToScreenX(Math.min(block.block_end_in_region, visibleEnd));
-        const x1eff = Math.max(x0 + CONFIG.blockMinWidthPx, x1);
+        const x1eff = Math.max(x0 + FEATURE_RENDERING.blockMinWidthPx, x1);
         blocks.push({ x0, x1eff, featureId: block.feature_id });
       }
     }
@@ -175,11 +181,11 @@ function getStageWidth() {
 }
 
 function getViewportTrackWidth() {
-  return getStageWidth() - getLeftMargin() - CONFIG.rightMargin;
+  return getStageWidth() - getLeftMargin() - REGION_RENDERING.rightMargin;
 }
 
 function getDrawableTrackWidth() {
-  return Math.max(1, getViewportTrackWidth() - CONFIG.endPaddingPx);
+  return Math.max(1, getViewportTrackWidth() - REGION_RENDERING.endPaddingPx);
 }
 
 function getVisibleBiologicalEndX() {
@@ -207,13 +213,13 @@ function getInitialZoomX() {
 }
 
 function getMaxZoomX() {
-  const theoretical = REGION_DATA.max_region_length / CONFIG.targetVisibleBp;
-  return Math.min(CONFIG.maxZoomCap, Math.max(getInitialZoomX(), theoretical));
+  const theoretical = REGION_DATA.max_region_length / BROWSER_ZOOM.targetVisibleBp;
+  return Math.min(BROWSER_ZOOM.maxZoomCap, Math.max(getInitialZoomX(), theoretical));
 }
 
 function getZoomFactor() {
   const maxZoom = getMaxZoomX();
-  return Math.pow(maxZoom / getInitialZoomX(), 1 / CONFIG.zoomSteps);
+  return Math.pow(maxZoom / getInitialZoomX(), 1 / BROWSER_ZOOM.zoomSteps);
 }
 
 function getVisibleBpSpan() {
@@ -265,11 +271,11 @@ function moveByViewportFraction(direction, fraction = 0.1) {
 
 function computePanelTop(panelIndex) {
   let panelTop = getViewerToolbarHeight()
-    + CONFIG.topMargin
+    + BROWSER_LAYOUT.topMargin
     + REGION_VIEWER.axisToFirstSampleGap;
 
   for (let index = 0; index < panelIndex; index += 1) {
-    panelTop += getSamplePanelHeight(REGION_DATA.samples[index]) + CONFIG.panelGap;
+    panelTop += getSamplePanelHeight(REGION_DATA.samples[index]) + BROWSER_LAYOUT.panelGap;
   }
 
   return panelTop;
@@ -278,8 +284,8 @@ function computePanelTop(panelIndex) {
 function isPointerOverSampleTrack(pointerY) {
   for (let index = 0; index < REGION_DATA.samples.length; index += 1) {
     const panelTop = computePanelTop(index);
-    const trackTop = panelTop + CONFIG.trackY;
-    const trackBottom = trackTop + CONFIG.trackHeight;
+    const trackTop = panelTop + TRACK_GEOMETRY.trackYOffset;
+    const trackBottom = trackTop + TRACK_GEOMETRY.trackHeight;
     if (pointerY >= trackTop && pointerY <= trackBottom) {
       return true;
     }
@@ -326,11 +332,11 @@ function formatNumber(value, decimals = 0) {
 function getAxisUnit() {
   const visibleSpan = getVisibleBpSpan();
 
-  if (visibleSpan <= CONFIG.bpToKbThresholdBp) {
+  if (visibleSpan <= COORDINATE_FORMAT.bpToKbThresholdBp) {
     return "bp";
   }
 
-  if (visibleSpan <= CONFIG.kbToMbThresholdBp) {
+  if (visibleSpan <= COORDINATE_FORMAT.kbToMbThresholdBp) {
     return "kb";
   }
 
@@ -398,7 +404,7 @@ function drawGlobalAxis(layer) {
   const visibleEnd = getVisibleEndBp();
   const visibleSpan = Math.max(1, visibleEnd - visibleStart + 1);
 
-  const targetPx = CONFIG.targetTickSpacingPx;
+  const targetPx = REGION_RENDERING.targetTickSpacingPx;
   const bpPerPixel = visibleSpan / Math.max(1, getDrawableTrackWidth());
   const rawStep = bpPerPixel * targetPx;
   const step = niceStep(rawStep);
@@ -434,7 +440,7 @@ function drawGlobalAxis(layer) {
 function drawSampleLabel(layer, panelTop, sampleName) {
   const label = new Konva.Text({
     x: SAMPLE_LABEL.x,
-    y: panelTop + CONFIG.trackY + 4,
+    y: panelTop + TRACK_GEOMETRY.trackYOffset + 4,
     width: getLeftMargin() - SAMPLE_LABEL.x - SAMPLE_LABEL.rightPadding,
     text: sampleName,
     fontSize: SAMPLE_LABEL.fontSize,
@@ -462,8 +468,8 @@ function drawSampleOutline(layer, sample, panelTop) {
 
   const x0 = worldXToScreenX(clippedStart);
   const x1 = worldXToScreenX(clippedEnd);
-  const yTop = panelTop + CONFIG.trackY;
-  const yBottom = yTop + CONFIG.trackHeight;
+  const yTop = panelTop + TRACK_GEOMETRY.trackYOffset;
+  const yBottom = yTop + TRACK_GEOMETRY.trackHeight;
   const isFullyVisible = clippedStart === 1 && clippedEnd === sample.region_length;
 
   if (isFullyVisible) {
@@ -471,7 +477,7 @@ function drawSampleOutline(layer, sample, panelTop) {
       x: x0,
       y: yTop,
       width: Math.max(1, x1 - x0),
-      height: CONFIG.trackHeight,
+      height: TRACK_GEOMETRY.trackHeight,
       stroke: "black",
       strokeWidth: 1,
       fillEnabled: false,
@@ -531,13 +537,13 @@ function drawSampleTrackBackground(layer, sample, panelTop) {
 
   const x0 = worldXToScreenX(clippedStart);
   const x1 = worldXToScreenX(clippedEnd);
-  const y = panelTop + CONFIG.trackY;
+  const y = panelTop + TRACK_GEOMETRY.trackYOffset;
 
   layer.add(new Konva.Rect({
     x: x0,
     y,
     width: Math.max(1, x1 - x0),
-    height: CONFIG.trackHeight,
+    height: TRACK_GEOMETRY.trackHeight,
     fill: "#ffffff",
     strokeWidth: 0,
     listening: false
@@ -545,11 +551,11 @@ function drawSampleTrackBackground(layer, sample, panelTop) {
 }
 
 function getFeatureY(panelTop) {
-  return panelTop + CONFIG.trackY + 1;
+  return panelTop + TRACK_GEOMETRY.trackYOffset + 1;
 }
 
 function getSnpY(panelTop) {
-  return panelTop + CONFIG.trackY + 1;
+  return panelTop + TRACK_GEOMETRY.trackYOffset + 1;
 }
 
 function getBlockGeometry(feature, panelTop, minWidthPx) {
@@ -567,14 +573,14 @@ function getBlockGeometry(feature, panelTop, minWidthPx) {
     x: x0,
     y: y0,
     width: Math.max(minWidthPx, x1 - x0),
-    height: CONFIG.featureHeight
+    height: TRACK_GEOMETRY.featureHeight
   };
 }
 
 function getGffTrackY(panelTop, trackIndex) {
   return panelTop
-    + CONFIG.trackY
-    + CONFIG.trackHeight
+    + TRACK_GEOMETRY.trackYOffset
+    + TRACK_GEOMETRY.trackHeight
     + GFF_TRACK.topGap
     + trackIndex * (GFF_TRACK.height + GFF_TRACK.gap);
 }
@@ -696,7 +702,7 @@ function drawSample(
       continue;
     }
 
-    blockRectQueue.push(getBlockGeometry(block, panelTop, CONFIG.blockMinWidthPx));
+    blockRectQueue.push(getBlockGeometry(block, panelTop, FEATURE_RENDERING.blockMinWidthPx));
   }
 
   for (const snp of sample.snps) {
@@ -706,7 +712,7 @@ function drawSample(
 
     const x = worldXToScreenX(snp.pos_in_region);
     const y0 = getSnpY(panelTop);
-    snpLineQueue.push({ x, y0, y1: y0 + CONFIG.snpHeight - 2 });
+    snpLineQueue.push({ x, y0, y1: y0 + TRACK_GEOMETRY.snpHeight - 2 });
   }
 }
 
@@ -871,7 +877,7 @@ stage.add(outlineLayer);
 stage.add(interactionLayer);
 
 let _blockHighlightGeoms = [];
-let _blockHighlightColor = CONFIG.hoverHighlightColor;
+let _blockHighlightColor = FEATURE_COLORS.highlightHover;
 const _blockHighlightShape = new Konva.Shape({
   sceneFunc(ctx, shape) {
     ctx.beginPath();
@@ -887,7 +893,7 @@ const _blockHighlightShape = new Konva.Shape({
 highlightLayer.add(_blockHighlightShape);
 
 let _snpHighlightGeoms = [];
-let _snpHighlightColor = CONFIG.hoverHighlightColor;
+let _snpHighlightColor = FEATURE_COLORS.highlightHover;
 const _snpHighlightShape = new Konva.Shape({
   sceneFunc(ctx, shape) {
     ctx.beginPath();
@@ -896,7 +902,7 @@ const _snpHighlightShape = new Konva.Shape({
       ctx.lineTo(s.x, s.y1);
     }
     ctx.strokeStyle = _snpHighlightColor;
-    ctx.lineWidth = CONFIG.snpHighlightMinWidthPx;
+    ctx.lineWidth = FEATURE_RENDERING.snpHighlightMinWidthPx;
     ctx.stroke();
   },
   visible: false,
@@ -1127,7 +1133,7 @@ function redrawStage() {
         }
         ctx.fillStrokeShape(shape);
       },
-      fill: CONFIG.blockFill,
+      fill: FEATURE_COLORS.block,
       strokeWidth: 0,
       listening: false
     }));
@@ -1143,8 +1149,8 @@ function redrawStage() {
         }
         ctx.fillStrokeShape(shape);
       },
-      stroke: CONFIG.snpColor,
-      strokeWidth: CONFIG.snpMinWidthPx,
+      stroke: FEATURE_COLORS.snp,
+      strokeWidth: FEATURE_RENDERING.snpMinWidthPx,
       listening: false
     }));
   }

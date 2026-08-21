@@ -373,9 +373,9 @@ function getBlockHighlightGeometries(featureId) {
     const x1 = worldXToScreenX(clippedEnd);
     results.push({
       x: x0,
-      y: panelTop + CONFIG.trackY + 0.5,
-      width: Math.max(CONFIG.blockHighlightMinWidthPx, x1 - x0),
-      height: CONFIG.trackHeight - 1
+      y: panelTop + TRACK_GEOMETRY.trackYOffset + 0.5,
+      width: Math.max(FEATURE_RENDERING.blockHighlightMinWidthPx, x1 - x0),
+      height: TRACK_GEOMETRY.trackHeight - 1
     });
   }
 
@@ -398,7 +398,7 @@ function getSnpHighlightGeometries(featureId) {
     const panelTop = computePanelTop(panelIndex);
     const x = worldXToScreenX(info.pos_in_region);
     const y0 = getSnpY(panelTop);
-    results.push({ x, y0, y1: y0 + CONFIG.snpHeight - 2 });
+    results.push({ x, y0, y1: y0 + TRACK_GEOMETRY.snpHeight - 2 });
   }
 
   return results;
@@ -407,8 +407,8 @@ function getSnpHighlightGeometries(featureId) {
 function updateHighlightShapes() {
   const displayed = getDisplayedFeature();
   const color = displayed && displayed.source === "pin"
-    ? CONFIG.pinHighlightColor
-    : CONFIG.hoverHighlightColor;
+    ? FEATURE_COLORS.highlightPinned
+    : FEATURE_COLORS.highlightHover;
 
   const blockGeoms = displayed && displayed.featureType === "block"
     ? getBlockHighlightGeometries(displayed.featureId)

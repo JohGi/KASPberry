@@ -284,7 +284,7 @@ function resolveSourcePositionSearch(sampleName, position) {
 
 function centerRegionOnRange(start, end) {
   const rangeLength = Math.max(1, end - start + 1);
-  const targetVisibleBp = Math.max(CONFIG.targetVisibleBp, rangeLength * 3);
+  const targetVisibleBp = Math.max(BROWSER_ZOOM.targetVisibleBp, rangeLength * 3);
   const desiredZoom = REGION_DATA.max_region_length / targetVisibleBp;
   const newZoom = Math.min(
     getMaxZoomX(),
@@ -298,7 +298,7 @@ function centerRegionOnRange(start, end) {
 }
 
 function centerRegionOnPositionWithZoom(position) {
-  const desiredZoom = REGION_DATA.max_region_length / CONFIG.targetVisibleBp;
+  const desiredZoom = REGION_DATA.max_region_length / BROWSER_ZOOM.targetVisibleBp;
   state.zoomX = Math.min(getMaxZoomX(), Math.max(getInitialZoomX(), desiredZoom));
   const visibleSpan = getVisibleBpSpan();
   setVisibleStartBp(position - visibleSpan / 2);

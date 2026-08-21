@@ -1,7 +1,45 @@
 const REGION_DATA = {{ REGION_DATA }};
-const CONFIG = {{ CONFIG }};
 
 Konva.pixelRatio = 1;
+
+const FEATURE_COLORS = {
+  block: "#d9d9d9",
+  snp: "#d62728",
+  highlightPinned: "rgb(0,120,255)",
+  highlightHover: "#93c5fd"
+};
+
+const TRACK_GEOMETRY = {
+  trackHeight: 28,
+  trackYOffset: 12,
+  featureHeight: 26,
+  snpHeight: 28
+};
+
+const FEATURE_RENDERING = {
+  blockMinWidthPx: 1,
+  blockHighlightMinWidthPx: 2,
+  snpMinWidthPx: 1,
+  snpHighlightMinWidthPx: 2
+};
+
+const COORDINATE_FORMAT = {
+  bpToKbThresholdBp: 10_000,
+  kbToMbThresholdBp: 1_000_000
+};
+
+const BROWSER_LAYOUT = {
+  topMargin: 30,
+  bottomMargin: 10,
+  panelGap: 10,
+  panelHeight: 52
+};
+
+const BROWSER_ZOOM = {
+  targetVisibleBp: 2_000,
+  maxZoomCap: 10_000,
+  zoomSteps: 16
+};
 
 const SCROLLBAR = {
   height: 18,
@@ -92,10 +130,10 @@ const DOTPLOT_AXIS_BOUNDS = {
 const DOTPLOT_DEBUG_LAYOUT = false;
 
 // Track dimensions: +2 (1 px inset per side) so the inner region rect matches
-// CONFIG.trackHeight — the same visible height as browser-mode sample tracks.
+// TRACK_GEOMETRY.trackHeight — the same visible height as browser-mode sample tracks.
 const DOTPLOT_TRACK = {
-  yTrackWidth:    CONFIG.trackHeight + 2,
-  xTrackHeight:   CONFIG.trackHeight + 2,
+  yTrackWidth:    TRACK_GEOMETRY.trackHeight + 2,
+  xTrackHeight:   TRACK_GEOMETRY.trackHeight + 2,
   debugColor:     "#3b82f6",
   debugLineWidth: 1.5
 };
@@ -233,9 +271,9 @@ let _lastResolvedDotplotHoverKey = null;
 
 // Dotplot highlight layer backing data — updated by updateDotplotHighlightShapes().
 let _dotplotBlockHighlightGeoms = [];
-let _dotplotBlockHighlightColor = CONFIG.hoverHighlightColor;
+let _dotplotBlockHighlightColor = FEATURE_COLORS.highlightHover;
 let _dotplotSnpHighlightGeoms   = [];
-let _dotplotSnpHighlightColor   = CONFIG.hoverHighlightColor;
+let _dotplotSnpHighlightColor   = FEATURE_COLORS.highlightHover;
 // These Konva.Shape nodes are created once during initDotplotStage() and
 // re-added to dotplotHighlightLayer on every full redraw.
 let _dotplotBlockHighlightShape    = null;
@@ -536,7 +574,7 @@ function getGffTrackColor(trackName) {
 function getSamplePanelHeight(sample) {
   const gffTrackCount = getSampleGffTracks(sample).length;
 
-  return CONFIG.panelHeight
+  return BROWSER_LAYOUT.panelHeight
     + gffTrackCount * (GFF_TRACK.height + GFF_TRACK.gap);
 }
 
@@ -551,13 +589,13 @@ function getMainViewerContentHeight() {
   );
 
   return getViewerToolbarHeight()
-    + CONFIG.topMargin
+    + BROWSER_LAYOUT.topMargin
     + REGION_VIEWER.axisToFirstSampleGap
     + sampleHeights
-    + Math.max(0, REGION_DATA.samples.length - 1) * CONFIG.panelGap
+    + Math.max(0, REGION_DATA.samples.length - 1) * BROWSER_LAYOUT.panelGap
     + REGION_VIEWER.samplesToLegendGap
     + getGffLegendHeight()
-    + CONFIG.bottomMargin
+    + BROWSER_LAYOUT.bottomMargin
     + SCROLLBAR.height
     + SCROLLBAR.bottomPadding;
 }
@@ -569,10 +607,10 @@ function getSamplesBottomY() {
   );
 
   return getViewerToolbarHeight()
-    + CONFIG.topMargin
+    + BROWSER_LAYOUT.topMargin
     + REGION_VIEWER.axisToFirstSampleGap
     + sampleHeights
-    + Math.max(0, REGION_DATA.samples.length - 1) * CONFIG.panelGap;
+    + Math.max(0, REGION_DATA.samples.length - 1) * BROWSER_LAYOUT.panelGap;
 }
 
 function getGffLegendY() {

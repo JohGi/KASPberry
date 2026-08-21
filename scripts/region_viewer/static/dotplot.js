@@ -1,3 +1,7 @@
+const DOTPLOT_RENDERING = {
+  intersectionMinSizePx: 2
+};
+
 function getDotplotPairs() {
   return (REGION_DATA.dotplots && REGION_DATA.dotplots.pairs) || [];
 }
@@ -198,11 +202,11 @@ function mapYCoordinateToStagePx(position, sample, geometry) {
 }
 
 function getAxisUnitForSpan(visibleSpan) {
-  if (visibleSpan <= CONFIG.bpToKbThresholdBp) {
+  if (visibleSpan <= COORDINATE_FORMAT.bpToKbThresholdBp) {
     return "bp";
   }
 
-  if (visibleSpan <= CONFIG.kbToMbThresholdBp) {
+  if (visibleSpan <= COORDINATE_FORMAT.kbToMbThresholdBp) {
     return "kb";
   }
 
@@ -448,7 +452,7 @@ function initDotplotStage() {
       if (_dotplotSnpHighlightGeoms.length === 0) { return; }
       ctx.save();
       ctx.strokeStyle = _dotplotSnpHighlightColor;
-      ctx.lineWidth = CONFIG.snpHighlightMinWidthPx;
+      ctx.lineWidth = FEATURE_RENDERING.snpHighlightMinWidthPx;
       ctx.beginPath();
       for (const s of _dotplotSnpHighlightGeoms) {
         if (s.axis === "x") {
@@ -494,7 +498,7 @@ function initDotplotStage() {
 
       ctx.save();
       ctx.strokeStyle = "rgba(59, 130, 246, 0.45)";
-      ctx.lineWidth = CONFIG.snpHighlightMinWidthPx;
+      ctx.lineWidth = FEATURE_RENDERING.snpHighlightMinWidthPx;
       ctx.beginPath();
 
       ctx.moveTo(x, y);
@@ -569,7 +573,7 @@ function initDotplotStage() {
 // Also rebuilds the hover spatial index so hit-testing is always in sync with the layout.
 // Computes along-axis geometry for all blocks and SNPs of one sample track,
 // in a "local horizontal" coordinate system where the primary axis runs along
-// the track and the cross-axis is the track height (CONFIG.trackHeight).
+// the track and the cross-axis is the track height (TRACK_GEOMETRY.trackHeight).
 //
 // Returns:
 //   fillRects:    [{along0, len, featureId}]  — block fill segments along the primary axis
@@ -584,7 +588,7 @@ function buildTrackAlongAxisGeoms(blocks, snps, mapper) {
     const px0    = mapper(block.block_start_in_region);
     const px1    = mapper(block.block_end_in_region);
     const along0 = Math.min(px0, px1);
-    const len    = Math.max(CONFIG.blockMinWidthPx, Math.abs(px1 - px0));
+    const len    = Math.max(FEATURE_RENDERING.blockMinWidthPx, Math.abs(px1 - px0));
     fillRects.push({ along0, len, featureId: block.feature_id });
   }
   const snpPositions = [];
@@ -629,19 +633,19 @@ function redrawDotplotStage() {
 
   drawDotplotCoordinateAxes(dotplotTrackLayer, geometry, xSampleData, ySampleData);
 
-  // Region bounds: the outer DOTPLOT_TRACK width/height = CONFIG.trackHeight + 2
+  // Region bounds: the outer DOTPLOT_TRACK width/height = TRACK_GEOMETRY.trackHeight + 2
   // accommodates the 1 px region border on each side (TRACK_FEATURE_INSET).
-  // The inner region (xRegionH = CONFIG.trackHeight) matches the browser-mode white track rect.
+  // The inner region matches the browser-mode white track rect.
   // DOTPLOT_TRACK_GAP separates the SVG image from each track region.
   const xRegionX = geometry.xZero;
   const xRegionY = geometry.imageHeight + geometry.xAxisGap + TRACK_FEATURE_INSET;
   const xRegionW = Math.max(1, geometry.xMax - geometry.xZero);
-  const xRegionH = CONFIG.trackHeight;
+  const xRegionH = TRACK_GEOMETRY.trackHeight;
 
   // Y-track region is offset right by the Y-GFF gutter + side gap so GFF tracks fit to its left.
   const yRegionX = geometry.yGffWidth + geometry.yGffSideGap + TRACK_FEATURE_INSET;
   const yRegionY = geometry.yMaxPixel;
-  const yRegionW = CONFIG.trackHeight;
+  const yRegionW = TRACK_GEOMETRY.trackHeight;
   const yRegionH = Math.max(1, geometry.yZeroPixel - geometry.yMaxPixel);
 
   // Build normalised along-axis geometry for each track using the shared helper.
@@ -664,7 +668,7 @@ function redrawDotplotStage() {
   // Stage-absolute fill/line geometry for rendering.
   // TRACK_FEATURE_INSET mirrors getFeatureY / getSnpY (1 px inset from region border).
   // X-track: horizontal — along = x, across = y.  Y-track: vertical — along = y, across = x.
-  const featureH = Math.max(1, xRegionH - 2 * TRACK_FEATURE_INSET); // = CONFIG.featureHeight
+  const featureH = Math.max(1, xRegionH - 2 * TRACK_FEATURE_INSET); // = TRACK_GEOMETRY.featureHeight
   const featureW = Math.max(1, yRegionW - 2 * TRACK_FEATURE_INSET); // same for y-track
 
   const xBlockRects = xGeoms.fillRects.map(r => ({
@@ -720,7 +724,7 @@ function redrawDotplotStage() {
           }
           ctx.fillStrokeShape(shape);
         },
-        fill: CONFIG.blockFill,
+        fill: FEATURE_COLORS.block,
         strokeWidth: 0,
         listening: false
       }));
@@ -737,8 +741,8 @@ function redrawDotplotStage() {
           }
           ctx.fillStrokeShape(shape);
         },
-        stroke: CONFIG.snpColor,
-        strokeWidth: CONFIG.snpMinWidthPx,
+        stroke: FEATURE_COLORS.snp,
+        strokeWidth: FEATURE_RENDERING.snpMinWidthPx,
         listening: false
       }));
     }
@@ -778,7 +782,7 @@ function redrawDotplotStage() {
           }
           ctx.fillStrokeShape(shape);
         },
-        fill: CONFIG.blockFill,
+        fill: FEATURE_COLORS.block,
         strokeWidth: 0,
         listening: false
       }));
@@ -795,8 +799,8 @@ function redrawDotplotStage() {
           }
           ctx.fillStrokeShape(shape);
         },
-        stroke: CONFIG.snpColor,
-        strokeWidth: CONFIG.snpMinWidthPx,
+        stroke: FEATURE_COLORS.snp,
+        strokeWidth: FEATURE_RENDERING.snpMinWidthPx,
         listening: false
       }));
     }
@@ -1490,8 +1494,8 @@ function _computeDotplotBlockIntersection(featureId) {
   return {
     x: x0,
     y: y0,
-    width: Math.max(CONFIG.dotplotIntersectionMinSizePx, x1 - x0),
-    height: Math.max(CONFIG.dotplotIntersectionMinSizePx, y1 - y0)
+    width: Math.max(DOTPLOT_RENDERING.intersectionMinSizePx, x1 - x0),
+    height: Math.max(DOTPLOT_RENDERING.intersectionMinSizePx, y1 - y0)
   };
 }
 
@@ -1526,14 +1530,14 @@ function _computeDotplotBlockProjection(featureId) {
     vertical: {
       x: x0,
       y: y0,
-      width: Math.max(CONFIG.dotplotIntersectionMinSizePx, x1 - x0),
+      width: Math.max(DOTPLOT_RENDERING.intersectionMinSizePx, x1 - x0),
       height: geometry.yZeroPixel - y0
     },
     horizontal: {
       x: geometry.xZero,
       y: y0,
       width: x1 - geometry.xZero,
-      height: Math.max(CONFIG.dotplotIntersectionMinSizePx, y1 - y0)
+      height: Math.max(DOTPLOT_RENDERING.intersectionMinSizePx, y1 - y0)
     }
   };
 }
@@ -1573,8 +1577,8 @@ function updateDotplotHighlightShapes() {
 
   const displayed = getDisplayedFeature();
   const color = displayed && displayed.source === "pin"
-    ? CONFIG.pinHighlightColor
-    : CONFIG.hoverHighlightColor;
+    ? FEATURE_COLORS.highlightPinned
+    : FEATURE_COLORS.highlightHover;
 
   let blockGeoms = [];
   let snpGeoms   = [];

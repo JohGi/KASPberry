@@ -4,7 +4,6 @@
   --border: #d9d9d9;
   --text: #1f1f1f;
   --muted: #6b7280;
-  --viewer-top-ui-height: {{ VIEWER_TOP_UI_HEIGHT }}px;
 }
 
 * {
@@ -99,8 +98,8 @@ body {
 }
 
 .column-resizer {
-  flex: 0 0 {{ RESIZER_WIDTH }}px;
-  width: {{ RESIZER_WIDTH }}px;
+  flex: 0 0 8px;
+  width: 8px;
   align-self: stretch;
   cursor: col-resize;
   border-radius: 999px;
@@ -301,9 +300,9 @@ body {
 }
 
 .right-column {
-  flex: 0 0 {{ SIDEBAR_WIDTH }}px;
-  width: {{ SIDEBAR_WIDTH }}px;
-  min-width: {{ SIDEBAR_MIN_WIDTH }}px;
+  flex: 0 0 320px;
+  width: 320px;
+  min-width: 260px;
   display: flex;
   flex-direction: column;
   min-height: 0;

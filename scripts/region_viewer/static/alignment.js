@@ -1,3 +1,8 @@
+const ALIGNMENT_SIDEBAR = {
+  minWidth: 260,
+  maxWidthRatio: 0.7
+};
+
 function getAlignmentContainer() {
   return document.getElementById("alignment-viewer");
 }
@@ -222,11 +227,11 @@ function getBaseTextFill(base) {
 }
 
 function formatAlignmentAxisValue(value) {
-  if (value <= CONFIG.bpToKbThresholdBp) {
+  if (value <= COORDINATE_FORMAT.bpToKbThresholdBp) {
     return `${formatNumber(value, 0)} bp`;
   }
 
-  if (value <= CONFIG.kbToMbThresholdBp) {
+  if (value <= COORDINATE_FORMAT.kbToMbThresholdBp) {
     return `${formatNumber(value / 1000, 1)} kb`;
   }
 
@@ -851,10 +856,10 @@ function setupColumnResizer() {
     }
 
     const rowRect = contentRow.getBoundingClientRect();
-    const maxSidebarWidth = rowRect.width * CONFIG.sidebarMaxWidthRatio;
+    const maxSidebarWidth = rowRect.width * ALIGNMENT_SIDEBAR.maxWidthRatio;
     const proposedWidth = rowRect.right - event.clientX;
     const sidebarWidth = Math.max(
-      CONFIG.sidebarMinWidth,
+      ALIGNMENT_SIDEBAR.minWidth,
       Math.min(maxSidebarWidth, proposedWidth)
     );
 
