@@ -130,7 +130,8 @@ class RegionOverviewBuilder:
             block_alignments=block_alignments,
             gff_tracks_by_sample=gff_tracks_by_sample,
             analysis_settings=read_analysis_settings(
-                self.config_yaml_path
+                self.config_yaml_path,
+                mode=self.mode,
             ),
             dotplots=read_dotplot_manifest(
                 path=self.dotplot_manifest_json_path,

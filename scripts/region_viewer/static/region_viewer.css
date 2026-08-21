@@ -793,6 +793,52 @@ body {
   font-size: 15px;
 }
 
+.analysis-settings {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: white;
+}
+
+.analysis-settings-section + .analysis-settings-section {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.analysis-settings-section h3 {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+
+.analysis-settings-groups,
+.analysis-settings-options {
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.analysis-settings-group,
+.analysis-settings-option-set {
+  padding-left: 8px;
+  border-left: 2px solid #dce5ef;
+}
+
+.analysis-settings-group-name {
+  margin-bottom: 2px;
+  font-weight: 600;
+}
+
+.analysis-settings-option-set ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+
+.analysis-settings-option-set code {
+  overflow-wrap: anywhere;
+}
+
 /* ================================================================
    Search UI
    ================================================================ */

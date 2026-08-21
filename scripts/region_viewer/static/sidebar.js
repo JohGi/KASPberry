@@ -238,19 +238,94 @@ function renderGlobalSummaryStats() {
   return html;
 }
 
-function formatSnpGroups(settings) {
-  const groups = settings.snp_groups || {};
+function renderAnalysisSettingsRows(entries) {
+  let html = `<div class="kv">`;
 
-  const entries = Object.entries(groups);
-
-  if (entries.length === 0) {
-    return "none";
+  for (const [label, value] of entries) {
+    html += `<div class="key">${escapeHtml(label)}</div><div>${escapeHtml(String(value))}</div>`;
   }
 
-  return entries
-    .map(([group, samples]) => `${group}: ${samples.join(", ")}`)
-    .join(" | ");
+  return `${html}</div>`;
 }
+
+function renderAnalysisSettingsSection(title, content) {
+  return `
+    <section class="analysis-settings-section">
+      <h3>${escapeHtml(title)}</h3>
+      ${content}
+    </section>
+  `;
+}
+
+function renderDiagnosticGroups(groups) {
+  const entries = Object.entries(groups || {});
+
+  if (entries.length === 0) {
+    return renderAnalysisSettingsSection(
+      "Diagnostic groups",
+      `<p class="hint">No genotype groups available.</p>`
+    );
+  }
+
+  const groupMarkup = entries.map(([group, genotypes]) => `
+    <div class="analysis-settings-group">
+      <div class="analysis-settings-group-name">${escapeHtml(group)}</div>
+      <div>${escapeHtml((genotypes || []).join(", "))}</div>
+    </div>
+  `).join("");
+
+  return renderAnalysisSettingsSection(
+    "Diagnostic groups",
+    `<div class="analysis-settings-groups">${groupMarkup}</div>`
+  );
+}
+
+function renderAdvancedOptions(settings) {
+  const labels = {
+    sibeliaz: "SibeliaZ",
+    mafft: "MAFFT",
+    mfeprimer_specificity: "MFEprimer specificity",
+    mfeprimer_dimer: "MFEprimer dimer",
+    mfeprimer_hairpin: "MFEprimer hairpin"
+  };
+  const allowedOptions = REGION_DATA.mode === "kasp"
+    ? Object.keys(labels)
+    : ["sibeliaz", "mafft"];
+  const optionSets = Object.entries(settings.advanced_options || {})
+    .filter(([name, options]) => allowedOptions.includes(name) && Array.isArray(options) && options.length > 0);
+
+  if (optionSets.length === 0) {
+    return "";
+  }
+
+  const optionsMarkup = optionSets.map(([name, options]) => `
+    <div class="analysis-settings-option-set">
+      <div class="analysis-settings-group-name">${escapeHtml(labels[name])}</div>
+      <ul>
+        ${options.map(option => `<li><code>${escapeHtml(String(option))}</code></li>`).join("")}
+      </ul>
+    </div>
+  `).join("");
+
+  return renderAnalysisSettingsSection(
+    "Advanced options",
+    `<div class="analysis-settings-options">${optionsMarkup}</div>`
+  );
+}
+
+function formatCustomRepeatLibrary(library) {
+  if (library === null || library === undefined || String(library).trim() === "") {
+    return "None";
+  }
+
+  const pathParts = String(library)
+    .replaceAll("\\", "/")
+    .split("/")
+    .filter(Boolean);
+
+  return pathParts[pathParts.length - 1] || String(library);
+}
+
 function renderAnalysisSettings() {
   const settings = REGION_DATA.analysis_settings;
   const container = document.getElementById("analysis-settings-content");
@@ -271,21 +346,30 @@ function renderAnalysisSettings() {
     ? `${settings.minimum_snp_flank_bp} bp`
     : "NA";
 
-  const snpGroups = formatSnpGroups(settings);
-
-  const entries = [
+  let html = `<div class="analysis-settings">`;
+  html += renderAnalysisSettingsSection("SNP discovery", renderAnalysisSettingsRows([
     ["Minimum block length", minBlock],
-    ["Minimum SNP flank", minFlank],
-    ["SNP filtering groups", snpGroups]
-  ];
+    ["Minimum SNP flank", minFlank]
+  ]));
+  html += renderDiagnosticGroups(settings.snp_groups);
 
-  let html = `<div class="summary-card"><div class="kv">`;
+  const repeatMasking = settings.repeat_masking || {};
+  html += renderAnalysisSettingsSection("Repeat masking", renderAnalysisSettingsRows([
+    ["Simple repeats and low complexity", "Yes"],
+    ["Custom repeat library", formatCustomRepeatLibrary(repeatMasking.custom_repeat_library)]
+  ]));
 
-  for (const [label, value] of entries) {
-    html += `<div class="key">${escapeHtml(label)}</div><div>${escapeHtml(value)}</div>`;
+  if (REGION_DATA.mode === "kasp") {
+    const kasp = settings.kasp_assay_design || {};
+    html += renderAnalysisSettingsSection("KASP assay design", renderAnalysisSettingsRows([
+      ["PolyMarker subgenomes", kasp.polymarker_subgenomes ?? "NA"],
+      ["MFEprimer minimum binding Tm", kasp.mfeprimer_min_tm ?? "NA"],
+      ["MFEprimer dimer ΔG cutoff", kasp.mfeprimer_dimer_max_dg ?? "NA"]
+    ]));
   }
 
-  html += `</div></div>`;
+  html += renderAdvancedOptions(settings);
+  html += `</div>`;
 
   container.innerHTML = html;
 }
