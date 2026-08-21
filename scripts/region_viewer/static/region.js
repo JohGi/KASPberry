@@ -551,11 +551,11 @@ function drawSampleTrackBackground(layer, sample, panelTop) {
 }
 
 function getFeatureY(panelTop) {
-  return panelTop + TRACK_GEOMETRY.trackYOffset + 1;
+  return panelTop + TRACK_GEOMETRY.trackYOffset + TRACK_GEOMETRY.featureInset;
 }
 
 function getSnpY(panelTop) {
-  return panelTop + TRACK_GEOMETRY.trackYOffset + 1;
+  return panelTop + TRACK_GEOMETRY.trackYOffset + TRACK_GEOMETRY.featureInset;
 }
 
 function getBlockGeometry(feature, panelTop, minWidthPx) {
@@ -573,7 +573,7 @@ function getBlockGeometry(feature, panelTop, minWidthPx) {
     x: x0,
     y: y0,
     width: Math.max(minWidthPx, x1 - x0),
-    height: TRACK_GEOMETRY.featureHeight
+    height: getFeatureHeight()
   };
 }
 
@@ -712,7 +712,7 @@ function drawSample(
 
     const x = worldXToScreenX(snp.pos_in_region);
     const y0 = getSnpY(panelTop);
-    snpLineQueue.push({ x, y0, y1: y0 + TRACK_GEOMETRY.snpHeight - 2 });
+    snpLineQueue.push({ x, y0, y1: y0 + getSnpHeight() - 2 });
   }
 }
 

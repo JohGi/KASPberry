@@ -398,7 +398,7 @@ function getSnpHighlightGeometries(featureId) {
     const panelTop = computePanelTop(panelIndex);
     const x = worldXToScreenX(info.pos_in_region);
     const y0 = getSnpY(panelTop);
-    results.push({ x, y0, y1: y0 + TRACK_GEOMETRY.snpHeight - 2 });
+    results.push({ x, y0, y1: y0 + getSnpHeight() - 2 });
   }
 
   return results;

@@ -12,8 +12,7 @@ const FEATURE_COLORS = {
 const TRACK_GEOMETRY = {
   trackHeight: 28,
   trackYOffset: 12,
-  featureHeight: 26,
-  snpHeight: 28
+  featureInset: 1
 };
 
 const FEATURE_RENDERING = {
@@ -32,7 +31,7 @@ const BROWSER_LAYOUT = {
   topMargin: 30,
   bottomMargin: 10,
   panelGap: 10,
-  panelHeight: 52
+  panelBottomSpace: 12
 };
 
 const BROWSER_ZOOM = {
@@ -129,20 +128,17 @@ const DOTPLOT_AXIS_BOUNDS = {
 // Set to true to draw calibration lines at axis boundaries on track canvases.
 const DOTPLOT_DEBUG_LAYOUT = false;
 
-// Track dimensions: +2 (1 px inset per side) so the inner region rect matches
-// TRACK_GEOMETRY.trackHeight — the same visible height as browser-mode sample tracks.
+// Track dimensions include one feature inset on each side so the inner region
+// matches the browser-mode sample track.
 const DOTPLOT_TRACK = {
-  yTrackWidth:    TRACK_GEOMETRY.trackHeight + 2,
-  xTrackHeight:   TRACK_GEOMETRY.trackHeight + 2,
+  yTrackWidth:    TRACK_GEOMETRY.trackHeight + 2 * TRACK_GEOMETRY.featureInset,
+  xTrackHeight:   TRACK_GEOMETRY.trackHeight + 2 * TRACK_GEOMETRY.featureInset,
   debugColor:     "#3b82f6",
   debugLineWidth: 1.5
 };
 
-// Track feature insets — mirror browser-mode track geometry so dotplot external
-// tracks render identically to browser-mode sample tracks.
-//   TRACK_FEATURE_INSET   = offset used by getFeatureY() / getSnpY() (1 px)
-//   TRACK_HIGHLIGHT_INSET = offset used by getBlockHighlightGeometries() (0.5 px)
-const TRACK_FEATURE_INSET   = 1;
+// TRACK_HIGHLIGHT_INSET controls highlight stroke positioning independently of
+// TRACK_GEOMETRY.featureInset, which positions rendered feature geometry.
 const TRACK_HIGHLIGHT_INSET = 0.5;
 
 // Dotplot zoom settings.
@@ -571,10 +567,24 @@ function getGffTrackColor(trackName) {
   return derivedData.gffTrackColorByName.get(trackName) ?? "#9ca3af";
 }
 
+function getFeatureHeight() {
+  return TRACK_GEOMETRY.trackHeight - 2 * TRACK_GEOMETRY.featureInset;
+}
+
+function getSnpHeight() {
+  return TRACK_GEOMETRY.trackHeight;
+}
+
+function getBaseSamplePanelHeight() {
+  return TRACK_GEOMETRY.trackYOffset
+    + TRACK_GEOMETRY.trackHeight
+    + BROWSER_LAYOUT.panelBottomSpace;
+}
+
 function getSamplePanelHeight(sample) {
   const gffTrackCount = getSampleGffTracks(sample).length;
 
-  return BROWSER_LAYOUT.panelHeight
+  return getBaseSamplePanelHeight()
     + gffTrackCount * (GFF_TRACK.height + GFF_TRACK.gap);
 }
 

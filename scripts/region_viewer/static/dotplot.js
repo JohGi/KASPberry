@@ -118,11 +118,11 @@ function getDotplotXGffTotalHeight(xSampleData) {
 
 // Computes the full geometry for the dotplot Konva stage.
 // All coordinates are in stage space:
-//   y-track region:  x = [TRACK_FEATURE_INSET, yTrackWidth-TRACK_FEATURE_INSET],
+//   y-track region:  x = [featureInset, yTrackWidth-featureInset],
 //                  y = [yMaxPixel, yZeroPixel].
 //   image occupies x = [yTrackWidth+DOTPLOT_TRACK_GAP, …],  y = [0, imageHeight].
 //   x-track region:  x = [xZero, xMax],
-//                  y = [imageHeight+DOTPLOT_TRACK_GAP+TRACK_FEATURE_INSET, …].
+//                  y = [imageHeight+DOTPLOT_TRACK_GAP+featureInset, …].
 // The axis-bounds ratios (DOTPLOT_AXIS_BOUNDS) are applied to imageWidth/Height so
 // coordinate mapping is always relative to the image, regardless of gap size.
 function computeDotplotGeometry() {
@@ -633,17 +633,16 @@ function redrawDotplotStage() {
 
   drawDotplotCoordinateAxes(dotplotTrackLayer, geometry, xSampleData, ySampleData);
 
-  // Region bounds: the outer DOTPLOT_TRACK width/height = TRACK_GEOMETRY.trackHeight + 2
-  // accommodates the 1 px region border on each side (TRACK_FEATURE_INSET).
+  // Region bounds include one feature inset on each side of the visible track.
   // The inner region matches the browser-mode white track rect.
   // DOTPLOT_TRACK_GAP separates the SVG image from each track region.
   const xRegionX = geometry.xZero;
-  const xRegionY = geometry.imageHeight + geometry.xAxisGap + TRACK_FEATURE_INSET;
+  const xRegionY = geometry.imageHeight + geometry.xAxisGap + TRACK_GEOMETRY.featureInset;
   const xRegionW = Math.max(1, geometry.xMax - geometry.xZero);
   const xRegionH = TRACK_GEOMETRY.trackHeight;
 
   // Y-track region is offset right by the Y-GFF gutter + side gap so GFF tracks fit to its left.
-  const yRegionX = geometry.yGffWidth + geometry.yGffSideGap + TRACK_FEATURE_INSET;
+  const yRegionX = geometry.yGffWidth + geometry.yGffSideGap + TRACK_GEOMETRY.featureInset;
   const yRegionY = geometry.yMaxPixel;
   const yRegionW = TRACK_GEOMETRY.trackHeight;
   const yRegionH = Math.max(1, geometry.yZeroPixel - geometry.yMaxPixel);
@@ -666,29 +665,29 @@ function redrawDotplotStage() {
     : { fillRects: [], snpPositions: [] };
 
   // Stage-absolute fill/line geometry for rendering.
-  // TRACK_FEATURE_INSET mirrors getFeatureY / getSnpY (1 px inset from region border).
+  // TRACK_GEOMETRY.featureInset mirrors getFeatureY / getSnpY.
   // X-track: horizontal — along = x, across = y.  Y-track: vertical — along = y, across = x.
-  const featureH = Math.max(1, xRegionH - 2 * TRACK_FEATURE_INSET); // = TRACK_GEOMETRY.featureHeight
-  const featureW = Math.max(1, yRegionW - 2 * TRACK_FEATURE_INSET); // same for y-track
+  const featureH = getFeatureHeight();
+  const featureW = getFeatureHeight();
 
   const xBlockRects = xGeoms.fillRects.map(r => ({
-    x: r.along0, y: xRegionY + TRACK_FEATURE_INSET, width: r.len, height: featureH, featureId: r.featureId
+    x: r.along0, y: xRegionY + TRACK_GEOMETRY.featureInset, width: r.len, height: featureH, featureId: r.featureId
   }));
   const xSnpEntries = xGeoms.snpPositions.map(s => ({
-    cx: s.along, y0: xRegionY + TRACK_FEATURE_INSET, y1: xRegionY + xRegionH - TRACK_FEATURE_INSET, featureId: s.featureId
+    cx: s.along, y0: xRegionY + TRACK_GEOMETRY.featureInset, y1: xRegionY + xRegionH - TRACK_GEOMETRY.featureInset, featureId: s.featureId
   }));
 
   const yBlockRects = yGeoms.fillRects.map(r => ({
-    x: yRegionX + TRACK_FEATURE_INSET, y: r.along0, width: featureW, height: r.len, featureId: r.featureId
+    x: yRegionX + TRACK_GEOMETRY.featureInset, y: r.along0, width: featureW, height: r.len, featureId: r.featureId
   }));
   const ySnpEntries = yGeoms.snpPositions.map(s => ({
-    cy: s.along, x0: yRegionX + TRACK_FEATURE_INSET, x1: yRegionX + yRegionW - TRACK_FEATURE_INSET, featureId: s.featureId
+    cy: s.along, x0: yRegionX + TRACK_GEOMETRY.featureInset, x1: yRegionX + yRegionW - TRACK_GEOMETRY.featureInset, featureId: s.featureId
   }));
 
   // ── Build hover spatial index ───────────────────────────────────────────────
   // Store only the along-axis positions needed by resolveDotplotHoveredFeature.
   // getDotplotHighlightGeometries derives cross-axis highlight bounds from region bounds
-  // + TRACK_FEATURE_INSET / TRACK_HIGHLIGHT_INSET, so they never drift from browser mode.
+  // + TRACK_GEOMETRY.featureInset / TRACK_HIGHLIGHT_INSET, so they never drift from browser mode.
   const xBlocks = xBlockRects.map(r => ({ x0: r.x, x1: r.x + r.width, featureId: r.featureId }));
   xBlocks.sort((a, b) => a.x0 - b.x0);
   const xSnps = xSnpEntries.map(s => ({ cx: s.cx, featureId: s.featureId }));
@@ -825,7 +824,7 @@ function redrawDotplotStage() {
     // Baseline Y: centre of each track strip, same formula as browser getGffTrackY.
     // Here panelTop equivalent = xRegionY (top of the x-track region, region height = xRegionH).
     // We place GFF tracks starting after xRegionH + GFF_TRACK.topGap below xRegionY.
-    const xGffOriginY = xRegionY + xRegionH; // bottom of x-sample region (TRACK_FEATURE_INSET already counted)
+    const xGffOriginY = xRegionY + xRegionH; // bottom of x-sample region (feature inset already counted)
     const gffRectQueuesX = new Map();
 
     xGffTracks.forEach((track, trackIndex) => {
@@ -883,7 +882,7 @@ function redrawDotplotStage() {
   if (ySampleData && geometry.yGffWidth > 0) {
     const yGffTracks = getSampleGffTracks(ySampleData);
     // X origin for track strips: they stack leftward from the y-region left edge, with a side gap.
-    // yRegionX = geometry.yGffWidth + geometry.yGffSideGap + TRACK_FEATURE_INSET; strips sit to its left.
+    // yRegionX includes TRACK_GEOMETRY.featureInset; strips sit to its left.
     const yGffRightEdge = geometry.yGffWidth + geometry.yGffSideGap; // left edge of y-track region (before inset)
     const gffRectQueuesY = new Map();
 
@@ -1259,13 +1258,13 @@ function getDotplotHighlightGeometries(featureType, featureId) {
       }
     }
   } else if (featureType === "snp") {
-    // SNP highlights span the same inset as feature lines (TRACK_FEATURE_INSET = 1 px).
+    // SNP highlights span the same inset as feature lines.
     for (const s of xTrack.snps) {
       if (s.featureId === featureId) {
         snpGeoms.push({
           cx: s.cx,
-          y0: xTrack.regionY + TRACK_FEATURE_INSET,
-          y1: xTrack.regionY + xTrack.regionH - TRACK_FEATURE_INSET,
+          y0: xTrack.regionY + TRACK_GEOMETRY.featureInset,
+          y1: xTrack.regionY + xTrack.regionH - TRACK_GEOMETRY.featureInset,
           axis: "x"
         });
       }
@@ -1274,8 +1273,8 @@ function getDotplotHighlightGeometries(featureType, featureId) {
       if (s.featureId === featureId) {
         snpGeoms.push({
           cy: s.cy,
-          x0: yTrack.regionX + TRACK_FEATURE_INSET,
-          x1: yTrack.regionX + yTrack.regionW - TRACK_FEATURE_INSET,
+          x0: yTrack.regionX + TRACK_GEOMETRY.featureInset,
+          x1: yTrack.regionX + yTrack.regionW - TRACK_GEOMETRY.featureInset,
           axis: "y"
         });
       }
