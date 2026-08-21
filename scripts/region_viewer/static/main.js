@@ -1,7 +1,5 @@
 function initializeViewer() {
-  state.featureGroups = buildFeatureGroups(REGION_DATA);
-  initDerivedData();
-  buildSearchIndexes();
+  buildViewerIndexes();
   renderAnalysisSettings();
   renderSidebarDefault();
 

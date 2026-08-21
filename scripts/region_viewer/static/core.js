@@ -165,6 +165,11 @@ const searchIndexes = {
   sampleByName: new Map()
 };
 
+const viewerIndexes = {
+  sampleNameToPanelIndex: new Map(),
+  blockSnpByBlockId: new Map()
+};
+
 const _searchState = {
   mode: "id",
   isOpen: false
@@ -252,17 +257,40 @@ function invalidateSidebarCache() {
   lastSidebarRenderState.isPinned = false;
 }
 
-function buildFeatureGroups(data) {
-  const groups = new Map();
+function buildViewerIndexes() {
+  const featureGroups = new Map();
+  const blockPositions = new Map();
+  const snpPositions = new Map();
+  const trackNameSet = new Set();
+  const blockSnpAccumulators = new Map();
 
-  for (const sample of data.samples) {
+  searchIndexes.blockIdToFeatureId.clear();
+  searchIndexes.snpKeyToFeatureId.clear();
+  searchIndexes.featureIdToFeatureType.clear();
+  searchIndexes.featureIdToRegionRange.clear();
+  searchIndexes.sampleByName.clear();
+  viewerIndexes.sampleNameToPanelIndex.clear();
+  viewerIndexes.blockSnpByBlockId.clear();
+
+  derivedData.sampleOrder = [];
+
+  for (const [panelIndex, sample] of REGION_DATA.samples.entries()) {
+    const sampleName = sample.sample;
+    derivedData.sampleOrder.push(sampleName);
+    searchIndexes.sampleByName.set(sampleName, sample);
+    viewerIndexes.sampleNameToPanelIndex.set(sampleName, panelIndex);
+
+    for (const track of (sample.gff_tracks || [])) {
+      trackNameSet.add(track.track_name);
+    }
+
     for (const block of sample.blocks) {
       const entry = {
-        sample: sample.sample,
+        sample: sampleName,
         featureType: "block",
         featureId: block.feature_id,
         info: {
-          sample: sample.sample,
+          sample: sampleName,
           block_id: block.block_id,
           block_start_in_region: block.block_start_in_region,
           block_end_in_region: block.block_end_in_region,
@@ -272,19 +300,34 @@ function buildFeatureGroups(data) {
         }
       };
 
-      if (!groups.has(block.feature_id)) {
-        groups.set(block.feature_id, []);
+      if (!featureGroups.has(block.feature_id)) {
+        featureGroups.set(block.feature_id, []);
       }
-      groups.get(block.feature_id).push(entry);
+      featureGroups.get(block.feature_id).push(entry);
+
+      const numericBlockId = Number(block.block_id);
+      if (!searchIndexes.blockIdToFeatureId.has(numericBlockId)) {
+        searchIndexes.blockIdToFeatureId.set(numericBlockId, block.feature_id);
+      }
+      searchIndexes.featureIdToFeatureType.set(block.feature_id, "block");
+      if (!searchIndexes.featureIdToRegionRange.has(block.feature_id)) {
+        searchIndexes.featureIdToRegionRange.set(block.feature_id, {
+          start: block.block_start_in_region,
+          end: block.block_end_in_region
+        });
+      }
+      if (!blockPositions.has(block.feature_id)) {
+        blockPositions.set(block.feature_id, Number(block.block_start_in_region));
+      }
     }
 
     for (const snp of sample.snps) {
       const entry = {
-        sample: sample.sample,
+        sample: sampleName,
         featureType: "snp",
         featureId: snp.feature_id,
         info: {
-          sample: sample.sample,
+          sample: sampleName,
           block_id: snp.block_id,
           aln_pos: snp.aln_pos,
           nt: snp.nt,
@@ -294,14 +337,104 @@ function buildFeatureGroups(data) {
         }
       };
 
-      if (!groups.has(snp.feature_id)) {
-        groups.set(snp.feature_id, []);
+      if (!featureGroups.has(snp.feature_id)) {
+        featureGroups.set(snp.feature_id, []);
       }
-      groups.get(snp.feature_id).push(entry);
+      featureGroups.get(snp.feature_id).push(entry);
+
+      const snpKey = `${snp.block_id}:${snp.aln_pos}`;
+      if (!searchIndexes.snpKeyToFeatureId.has(snpKey)) {
+        searchIndexes.snpKeyToFeatureId.set(snpKey, snp.feature_id);
+      }
+      searchIndexes.featureIdToFeatureType.set(snp.feature_id, "snp");
+      if (!searchIndexes.featureIdToRegionRange.has(snp.feature_id)) {
+        searchIndexes.featureIdToRegionRange.set(snp.feature_id, {
+          start: snp.pos_in_region,
+          end: snp.pos_in_region
+        });
+      }
+      if (!snpPositions.has(snp.feature_id)) {
+        snpPositions.set(snp.feature_id, Number(snp.pos_in_region));
+      }
+
+      const alignmentPosition = Number(snp.aln_pos);
+      if (Number.isNaN(alignmentPosition) || alignmentPosition < 1) {
+        continue;
+      }
+
+      const blockId = String(snp.block_id);
+      if (!blockSnpAccumulators.has(blockId)) {
+        blockSnpAccumulators.set(blockId, {
+          alignmentColumns: new Set(),
+          navigationItemsByFeatureId: new Map()
+        });
+      }
+
+      const blockSnpAccumulator = blockSnpAccumulators.get(blockId);
+      const columnIndex = alignmentPosition - 1;
+      blockSnpAccumulator.alignmentColumns.add(columnIndex);
+      if (!blockSnpAccumulator.navigationItemsByFeatureId.has(snp.feature_id)) {
+        blockSnpAccumulator.navigationItemsByFeatureId.set(snp.feature_id, {
+          featureId: snp.feature_id,
+          columnIndex
+        });
+      }
     }
   }
 
-  return groups;
+  state.featureGroups = featureGroups;
+  derivedData.allGffTrackNames = [...trackNameSet].sort();
+  derivedData.gffTrackColorByName = new Map(
+    derivedData.allGffTrackNames.map(function(name, index) {
+      return [name, GFF_TRACK.colors[index % GFF_TRACK.colors.length]];
+    })
+  );
+  derivedData.orderedBlockFeatureIds = [...blockPositions.entries()]
+    .sort(function(a, b) { return a[1] - b[1]; })
+    .map(function(entry) { return entry[0]; });
+  derivedData.orderedSnpFeatureIds = [...snpPositions.entries()]
+    .sort(function(a, b) { return a[1] - b[1]; })
+    .map(function(entry) { return entry[0]; });
+
+  for (const [blockId, accumulator] of blockSnpAccumulators) {
+    viewerIndexes.blockSnpByBlockId.set(blockId, {
+      alignmentColumns: accumulator.alignmentColumns,
+      navigationItems: [...accumulator.navigationItemsByFeatureId.values()]
+        .sort((left, right) => left.columnIndex - right.columnIndex)
+    });
+  }
+
+  initializeKimura2pGlobalColorScaleBounds();
+}
+
+function initializeKimura2pGlobalColorScaleBounds() {
+  const k2pValues = [];
+  Object.entries(REGION_DATA.kimura2p_matrices || {}).forEach(function([blockId, matrix]) {
+    if (!matrix || !matrix.values) {
+      return;
+    }
+    matrix.values.forEach(function(row, rowIndex) {
+      row.forEach(function(value, colIndex) {
+        if (colIndex <= rowIndex) {
+          return;
+        }
+        const numericValue = Number(value);
+        if (!Number.isNaN(numericValue)) {
+          k2pValues.push(numericValue);
+        }
+      });
+    });
+  });
+
+  if (k2pValues.length === 0) {
+    console.warn("Kimura 2P color scale: no numeric off-diagonal values found.");
+    derivedData.kimura2pGlobalColorScaleBounds = { min: 0, max: 1 };
+  } else {
+    derivedData.kimura2pGlobalColorScaleBounds = {
+      min: Math.min(...k2pValues),
+      max: Math.max(...k2pValues)
+    };
+  }
 }
 
 function getOrderedBlockFeatureIds() {

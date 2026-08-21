@@ -295,57 +295,21 @@ function drawAlignmentAxis(layer, alignmentLength, snpColumns) {
 }
 
 function getBlockSnpAlignmentColumns(blockId) {
-  const snpColumns = new Set();
-
   if (!blockId) {
-    return snpColumns;
+    return new Set();
   }
 
-  for (const sample of REGION_DATA.samples) {
-    for (const snp of sample.snps) {
-      if (String(snp.block_id) !== String(blockId)) {
-        continue;
-      }
-
-      const alnPos = Number(snp.aln_pos);
-      if (!Number.isNaN(alnPos) && alnPos >= 1) {
-        snpColumns.add(alnPos - 1);
-      }
-    }
-  }
-
-  return snpColumns;
+  return viewerIndexes.blockSnpByBlockId.get(String(blockId))?.alignmentColumns
+    || new Set();
 }
 
 function getBlockSnpNavigationItems(blockId) {
-  const itemsByFeatureId = new Map();
-
   if (!blockId) {
     return [];
   }
 
-  for (const sample of REGION_DATA.samples) {
-    for (const snp of sample.snps) {
-      if (String(snp.block_id) !== String(blockId)) {
-        continue;
-      }
-
-      const alnPos = Number(snp.aln_pos);
-      if (Number.isNaN(alnPos) || alnPos < 1) {
-        continue;
-      }
-
-      if (!itemsByFeatureId.has(snp.feature_id)) {
-        itemsByFeatureId.set(snp.feature_id, {
-          featureId: snp.feature_id,
-          columnIndex: alnPos - 1
-        });
-      }
-    }
-  }
-
-  return [...itemsByFeatureId.values()]
-    .sort((left, right) => left.columnIndex - right.columnIndex);
+  return viewerIndexes.blockSnpByBlockId.get(String(blockId))?.navigationItems
+    || [];
 }
 
 function getCurrentAlignmentCenterColumn() {

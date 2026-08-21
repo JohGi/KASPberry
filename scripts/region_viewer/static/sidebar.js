@@ -357,28 +357,28 @@ function getBlockHighlightGeometries(featureId) {
   const visibleStart = getVisibleStartBp();
   const visibleEnd = getVisibleEndBp();
   const results = [];
-  for (let i = 0; i < REGION_DATA.samples.length; i += 1) {
-    const sample = REGION_DATA.samples[i];
-    for (const block of sample.blocks) {
-      if (block.feature_id !== featureId) {
-        continue;
-      }
-      if (!intersectsRange(block.block_start_in_region, block.block_end_in_region, visibleStart, visibleEnd)) {
-        continue;
-      }
-      const panelTop = computePanelTop(i);
-      const clippedStart = Math.max(block.block_start_in_region, visibleStart);
-      const clippedEnd = Math.min(block.block_end_in_region, visibleEnd);
-      const x0 = worldXToScreenX(clippedStart);
-      const x1 = worldXToScreenX(clippedEnd);
-      results.push({
-        x: x0,
-        y: panelTop + CONFIG.trackY + 0.5,
-        width: Math.max(CONFIG.blockHighlightMinWidthPx, x1 - x0),
-        height: CONFIG.trackHeight - 1
-      });
+
+  const entries = state.featureGroups.get(featureId) || [];
+  for (const entry of entries) {
+    const info = entry.info;
+    if (!intersectsRange(info.block_start_in_region, info.block_end_in_region, visibleStart, visibleEnd)) {
+      continue;
     }
+
+    const panelIndex = viewerIndexes.sampleNameToPanelIndex.get(entry.sample);
+    const panelTop = computePanelTop(panelIndex);
+    const clippedStart = Math.max(info.block_start_in_region, visibleStart);
+    const clippedEnd = Math.min(info.block_end_in_region, visibleEnd);
+    const x0 = worldXToScreenX(clippedStart);
+    const x1 = worldXToScreenX(clippedEnd);
+    results.push({
+      x: x0,
+      y: panelTop + CONFIG.trackY + 0.5,
+      width: Math.max(CONFIG.blockHighlightMinWidthPx, x1 - x0),
+      height: CONFIG.trackHeight - 1
+    });
   }
+
   return results;
 }
 
@@ -386,21 +386,21 @@ function getSnpHighlightGeometries(featureId) {
   const visibleStart = getVisibleStartBp();
   const visibleEnd = getVisibleEndBp();
   const results = [];
-  for (let i = 0; i < REGION_DATA.samples.length; i += 1) {
-    const sample = REGION_DATA.samples[i];
-    for (const snp of sample.snps) {
-      if (snp.feature_id !== featureId) {
-        continue;
-      }
-      if (!isPositionVisible(snp.pos_in_region, visibleStart, visibleEnd)) {
-        continue;
-      }
-      const panelTop = computePanelTop(i);
-      const x = worldXToScreenX(snp.pos_in_region);
-      const y0 = getSnpY(panelTop);
-      results.push({ x, y0, y1: y0 + CONFIG.snpHeight - 2 });
+
+  const entries = state.featureGroups.get(featureId) || [];
+  for (const entry of entries) {
+    const info = entry.info;
+    if (!isPositionVisible(info.pos_in_region, visibleStart, visibleEnd)) {
+      continue;
     }
+
+    const panelIndex = viewerIndexes.sampleNameToPanelIndex.get(entry.sample);
+    const panelTop = computePanelTop(panelIndex);
+    const x = worldXToScreenX(info.pos_in_region);
+    const y0 = getSnpY(panelTop);
+    results.push({ x, y0, y1: y0 + CONFIG.snpHeight - 2 });
   }
+
   return results;
 }
 
