@@ -793,6 +793,60 @@ body {
   font-size: 15px;
 }
 
+.analysis-summary-section + .analysis-summary-section,
+.analysis-summary-section + .analysis-summary-reasons,
+.analysis-summary-reasons + .analysis-summary-reasons,
+.analysis-summary-section + .analysis-summary-mash,
+.analysis-summary-reasons + .analysis-summary-mash {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.analysis-summary-section h4 {
+  margin: 0 0 6px;
+  font-size: 13px;
+}
+
+.analysis-summary-section-emphasized {
+  padding: 8px;
+  border: 1px solid #dce5ef;
+  border-radius: 7px;
+  background: #f8fafc;
+}
+
+.analysis-summary-section-emphasized + .analysis-summary-reasons {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.analysis-summary-reasons {
+  font-size: 13px;
+}
+
+.analysis-summary-reasons summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.analysis-summary-reasons .kv {
+  margin-top: 8px;
+}
+
+.analysis-summary-mash {
+  font-size: 13px;
+}
+
+.analysis-summary-mash summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.analysis-summary-mash .distance-matrix-content {
+  margin-top: 8px;
+}
+
 .analysis-settings {
   width: 100%;
   padding: 10px;

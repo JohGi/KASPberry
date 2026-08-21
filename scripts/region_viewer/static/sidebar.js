@@ -129,10 +129,12 @@ function updateViewerModeInfoTooltip(mode) {
   infoTooltip.dataset.tooltip = VIEWER_MODE_INFO_TOOLTIPS[mode] || "";
 }
 
-function renderDistanceMatrix(matrix) {
+function renderDistanceMatrix(matrix, { embedded = false, showTitle = true } = {}) {
+  const containerClass = embedded ? "distance-matrix-content" : "distance-matrix-card";
+
   if (!matrix || !matrix.labels || !matrix.values) {
     return `
-      <div class="distance-matrix-card">
+      <div class="${containerClass}">
         <p class="hint">No distance matrix available.</p>
       </div>
     `;
@@ -145,11 +147,13 @@ function renderDistanceMatrix(matrix) {
     : getMatrixColorScaleBounds(matrix);
 
   let html = `
-    <div class="distance-matrix-card">
-      <p class="distance-matrix-title">
-        ${escapeHtml(matrix.title || "Distance matrix")}
-        ${renderInfoTooltip(tooltip)}
-      </p>
+    <div class="${containerClass}">
+      ${showTitle ? `
+        <p class="distance-matrix-title">
+          ${escapeHtml(matrix.title || "Distance matrix")}
+          ${renderInfoTooltip(tooltip)}
+        </p>
+      ` : ""}
       <div class="distance-matrix-scroll">
         <table class="distance-matrix-table">
           <thead>
@@ -200,42 +204,143 @@ function renderDistanceMatrix(matrix) {
   return html;
 }
 
-function renderGlobalSummaryStats() {
-  const globalStats = REGION_DATA.summary_stats?.global;
+function formatSummaryCount(value) {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? formatNumber(Math.round(numericValue)) : "NA";
+}
 
-  if (!globalStats) {
-    return `
-      <div class="summary-card">
-        <h3>Global statistics</h3>
-        <p class="hint">No summary statistics available.</p>
-      </div>
-    `;
-  }
+function formatSummaryBp(value) {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? `${formatNumber(numericValue, 2)} bp` : "NA";
+}
 
-  const entries = [
-    ["Kept blocks", globalStats.n_blocks_kept],
-    ["Smallest block (bp)", globalStats.min_block_len_bp],
-    ["Largest block (bp)", globalStats.max_block_len_bp],
-    ["Mean block length (bp)", globalStats.mean_block_len_bp],
-    ["Kept SNPs", globalStats.n_snps_kept]
-  ];
+function formatSummaryPercent(value) {
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue) ? `${formatNumber(numericValue, 2)}%` : "NA";
+}
 
-  let html = `
-    <div class="summary-card">
-      <h3>Global statistics</h3>
-      <div class="kv">
-  `;
+function renderSummaryRows(entries) {
+  let html = `<div class="kv">`;
 
   for (const [label, value] of entries) {
-    html += `<div class="key">${escapeHtml(label)}</div><div>${escapeHtml(value)}</div>`;
+    html += `<div class="key">${escapeHtml(label)}</div><div>${escapeHtml(String(value))}</div>`;
   }
 
-  html += `
-      </div>
+  return `${html}</div>`;
+}
+
+function renderSummarySection(title, entries, emphasized = false) {
+  return `
+    <section class="analysis-summary-section${emphasized ? " analysis-summary-section-emphasized" : ""}">
+      <h4>${escapeHtml(title)}</h4>
+      ${renderSummaryRows(entries)}
+    </section>
+  `;
+}
+
+function nonEmptyReasonEntries(reasons) {
+  return Object.entries(reasons || {}).filter(([, count]) => Number(count) > 0);
+}
+
+function renderReasonSummary(title, reasons) {
+  const entries = nonEmptyReasonEntries(reasons);
+
+  if (entries.length === 0) {
+    return "";
+  }
+
+  return `
+    <details class="analysis-summary-reasons">
+      <summary>${escapeHtml(title)}</summary>
+      ${renderSummaryRows(entries.map(([reason, count]) => [
+        humanizeSnpWorkflowValue(reason),
+        formatSummaryCount(count)
+      ]))}
+    </details>
+  `;
+}
+
+function renderMashSummary() {
+  return `
+    <details class="analysis-summary-mash">
+      <summary>Mash distances, whole region</summary>
+      ${renderDistanceMatrix(REGION_DATA.mash_matrix, { embedded: true, showTitle: false })}
+    </details>
+  `;
+}
+
+function renderAnalysisSummary() {
+  const summaryStats = REGION_DATA.summary_stats || {};
+  const sections = [];
+  const input = summaryStats.input;
+  const globalStats = summaryStats.global;
+  const snpDiscovery = summaryStats.snp_discovery;
+
+  if (input && Object.prototype.hasOwnProperty.call(input, "n_genotypes")) {
+    sections.push(renderSummarySection("Input", [
+      ["Genotypes", formatSummaryCount(input.n_genotypes)]
+    ]));
+  }
+
+  if (globalStats) {
+    sections.push(renderSummarySection("Collinear blocks", [
+      ["Retained blocks", formatSummaryCount(globalStats.n_blocks_kept)],
+      ["Shortest block", formatSummaryBp(globalStats.min_block_len_bp)],
+      ["Longest block", formatSummaryBp(globalStats.max_block_len_bp)],
+      ["Mean block length", formatSummaryBp(globalStats.mean_block_len_bp)]
+    ]));
+  }
+
+  if (snpDiscovery) {
+    sections.push(renderSummarySection("SNP discovery", [
+      ["Detected SNPs", formatSummaryCount(snpDiscovery.detected_snps)],
+      ["Diagnostic SNPs", formatSummaryCount(snpDiscovery.diagnostic_snps)],
+      ["Non-diagnostic SNPs", formatSummaryCount(snpDiscovery.non_diagnostic_snps)]
+    ]));
+  }
+
+  if (REGION_DATA.mode === "kasp") {
+    const assayDesign = summaryStats.kasp_assay_design;
+    const validation = summaryStats.in_silico_validation;
+    const finalCandidates = summaryStats.final_candidates;
+
+    if (assayDesign) {
+      sections.push(renderSummarySection("KASP assay design", [
+        ["SNPs with assay proposed", formatSummaryCount(assayDesign.snps_with_assay_proposed)],
+        ["Assays proposed", formatSummaryCount(assayDesign.assays_proposed)]
+      ]));
+    }
+
+    if (validation) {
+      sections.push(renderSummarySection("In-silico validation", [
+        ["Passing assays", formatSummaryCount(validation.assays_passing_validation)],
+        ["Failing assays", formatSummaryCount(validation.assays_failing_validation)]
+      ]));
+    }
+
+    if (finalCandidates) {
+      sections.push(renderSummarySection("Final candidates", [
+        ["Candidate SNPs", formatSummaryCount(finalCandidates.candidate_snps)],
+        ["Candidate assays", formatSummaryCount(finalCandidates.candidate_assays)]
+      ], true));
+    }
+  }
+
+  const failureReasons = summaryStats.failure_reasons || {};
+  sections.push(renderReasonSummary("Candidate rejection reasons", failureReasons.snps));
+
+  if (REGION_DATA.mode === "kasp") {
+    sections.push(renderReasonSummary("Assay validation failure reasons", failureReasons.assays));
+  }
+
+  sections.push(renderMashSummary());
+
+  const content = sections.filter(Boolean).join("");
+  return `
+    <div class="summary-card analysis-summary-card">
+      ${content || '<p class="hint">No summary statistics available.</p>'}
     </div>
   `;
-
-  return html;
 }
 
 function renderAnalysisSettingsRows(entries) {
@@ -318,12 +423,18 @@ function formatCustomRepeatLibrary(library) {
     return "None";
   }
 
-  const pathParts = String(library)
+  const configuredLibrary = String(library).trim();
+
+  if (/(^|\/)repeatmasker_placeholder\.fa$/.test(configuredLibrary.replaceAll("\\", "/"))) {
+    return "None";
+  }
+
+  const pathParts = configuredLibrary
     .replaceAll("\\", "/")
     .split("/")
     .filter(Boolean);
 
-  return pathParts[pathParts.length - 1] || String(library);
+  return pathParts[pathParts.length - 1] || configuredLibrary;
 }
 
 function renderAnalysisSettings() {
@@ -380,13 +491,13 @@ function renderSampleRegionStats() {
   if (!sampleStats || Object.keys(sampleStats).length === 0) {
     return `
       <div class="summary-card">
-        <h3>Sample region statistics</h3>
+        <h3>Per-genotype statistics</h3>
         <p class="hint">No per-sample region statistics available.</p>
       </div>
     `;
   }
 
-  let html = `<div class="summary-card"><h3>Sample region statistics</h3>`;
+  let html = `<div class="summary-card"><h3>Per-genotype statistics</h3>`;
 
   for (const sampleName of getSampleOrder()) {
     const stats = sampleStats[sampleName];
@@ -396,8 +507,9 @@ function renderSampleRegionStats() {
       html += `<p class="hint">No data.</p>`;
     } else {
       const entries = [
-        ["Region length (bp)", stats.region_length_bp],
-        ["Covered by blocks (%)", `${formatNumber(Number(stats.covered_pct_of_region), 2)}%`]
+        ["Region length", formatSummaryBp(stats.region_length_bp)],
+        ["Covered by collinear blocks", formatSummaryPercent(stats.covered_pct_of_region)],
+        ["Repeat-masked bases in collinear blocks", formatSummaryPercent(stats.repeat_masked_pct_of_collinear_blocks)]
       ];
 
       html += `<div class="kv">`;
@@ -509,13 +621,10 @@ function renderSidebarDefault() {
   const sidebar = document.getElementById("sidebar");
   sidebar.innerHTML = `
     <div class="sidebar-header">
-      <h2>Region overview</h2>
+      <h2>Analysis summary</h2>
     </div>
     <div class="sidebar-section">
-      ${renderDistanceMatrix(REGION_DATA.mash_matrix)}
-    </div>
-    <div class="sidebar-section">
-      ${renderGlobalSummaryStats()}
+      ${renderAnalysisSummary()}
     </div>
     <div class="sidebar-section">
       ${renderSampleRegionStats()}
