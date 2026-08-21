@@ -442,7 +442,7 @@ function renderSidebarDefault() {
 function renderSidebarHeader(title, isPinned) {
   return `
     <div class="sidebar-header">
-      <div>
+      <div class="sidebar-title-row">
         <h2>${escapeHtml(title)}</h2>
         ${isPinned ? '<div class="pin-badge">Pinned</div>' : ""}
       </div>
@@ -541,6 +541,228 @@ function renderBlockSidebar(featureId, isPinned) {
   attachSidebarUnpinHandler();
 }
 
+const SNP_WORKFLOW_DISPLAY_VALUES = {
+  non_diagnostic_allele_pattern: "Non-diagnostic allele pattern",
+  no_polymarker_assay: "No PolyMarker assay",
+  no_assay_passed_in_silico_validation: "No assay passed in-silico validation"
+};
+
+function humanizeSnpWorkflowValue(value) {
+  if (value === null || value === undefined || String(value).trim() === "") {
+    return "";
+  }
+
+  const rawValue = String(value).trim();
+  if (SNP_WORKFLOW_DISPLAY_VALUES[rawValue]) {
+    return SNP_WORKFLOW_DISPLAY_VALUES[rawValue];
+  }
+
+  const normalized = rawValue
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ");
+
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+}
+
+function getSnpWorkflowStatus(status, isFinalStage = false) {
+  const normalized = String(status || "NOT_RUN").trim().toUpperCase();
+
+  if (normalized === "PASS") {
+    return { label: "PASS", className: "pass" };
+  }
+
+  if (normalized === "FAIL") {
+    return {
+      label: isFinalStage ? "REJECTED" : "FAIL",
+      className: isFinalStage ? "rejected" : "fail"
+    };
+  }
+
+  return { label: "Not run", className: "not-run" };
+}
+
+function renderSnpWorkflowBadge(status, isFinalStage = false) {
+  const display = getSnpWorkflowStatus(status, isFinalStage);
+  return `<span class="snp-status-badge ${display.className}">${display.label}</span>`;
+}
+
+function renderSnpWorkflowReason(reason) {
+  const displayReason = humanizeSnpWorkflowValue(reason);
+  if (!displayReason) {
+    return "";
+  }
+
+  return `<p class="snp-workflow-reason">${escapeHtml(displayReason)}</p>`;
+}
+
+function renderSnpWorkflowStage(label, status, reason, isFinalStage = false) {
+  const display = getSnpWorkflowStatus(status, isFinalStage);
+  const renderedReason = display.className === "not-run"
+    ? ""
+    : renderSnpWorkflowReason(reason);
+
+  return `
+    <div class="snp-workflow-stage">
+      <div class="snp-workflow-stage-header">
+        <span>${escapeHtml(label)}</span>
+        ${renderSnpWorkflowBadge(status, isFinalStage)}
+      </div>
+      ${renderedReason}
+    </div>
+  `;
+}
+
+function renderSnpWorkflowPipeline(snpResult) {
+  const isKaspMode = REGION_DATA.mode === "kasp";
+  let stages = renderSnpWorkflowStage(
+    "Diagnostic selection",
+    snpResult?.diagnostic_status,
+    snpResult?.diagnostic_failure_reason
+  );
+
+  if (isKaspMode) {
+    stages += renderSnpWorkflowStage(
+      "PolyMarker design",
+      snpResult?.design_status,
+      snpResult?.design_failure_reason
+    );
+    stages += renderSnpWorkflowStage(
+      "In-silico validation",
+      snpResult?.validation_status,
+      snpResult?.validation_failure_reason
+    );
+  }
+
+  return `
+    <div class="sidebar-section snp-workflow-section">
+      <h3>Candidate processing</h3>
+      <div class="snp-workflow-list">${stages}</div>
+    </div>
+  `;
+}
+
+function renderAssayDetail(label, value, className = "") {
+  if (value === null || value === undefined || String(value).trim() === "") {
+    return "";
+  }
+
+  const valueTag = className === "primer-sequence" ? "code" : "div";
+  return `
+    <div class="assay-detail-row">
+      <div class="key">${escapeHtml(label)}</div>
+      <${valueTag} class="${className}">${escapeHtml(String(value))}</${valueTag}>
+    </div>
+  `;
+}
+
+function renderAssayFailureReason(status, reason) {
+  if (getSnpWorkflowStatus(status).className !== "fail") {
+    return "";
+  }
+
+  const displayReason = humanizeSnpWorkflowValue(reason);
+  if (!displayReason) {
+    return "";
+  }
+
+  return `<div class="assay-failure-reason"><span class="key">Failure reason:</span> ${escapeHtml(displayReason)}</div>`;
+}
+
+function renderAlleleSpecificPrimer(label, primer, primerWithTail, allele) {
+  const normalizedPrimer = String(primer || "").toUpperCase();
+  const normalizedWithTail = String(primerWithTail || "").toUpperCase();
+  const displayedSequence = normalizedWithTail || normalizedPrimer;
+
+  if (!displayedSequence) {
+    return "";
+  }
+
+  let renderedSequence = escapeHtml(displayedSequence);
+  if (normalizedPrimer && normalizedWithTail.endsWith(normalizedPrimer)) {
+    const tail = normalizedWithTail.slice(0, -normalizedPrimer.length);
+    const body = normalizedPrimer.slice(0, -1);
+    const terminalBase = normalizedPrimer.slice(-1);
+    const expectedAllele = String(allele || "").toUpperCase();
+    const renderedTerminalBase = terminalBase === expectedAllele
+      ? `<strong class="primer-terminal-base">${escapeHtml(terminalBase)}</strong>`
+      : escapeHtml(terminalBase);
+
+    renderedSequence = `<span class="primer-tail">${escapeHtml(tail)}</span>${escapeHtml(body)}${renderedTerminalBase}`;
+  }
+
+  return `
+    <div class="assay-detail-row">
+      <div class="key">${escapeHtml(label)}</div>
+      <code class="primer-sequence">${renderedSequence}</code>
+    </div>
+  `;
+}
+
+function renderKaspAssays(featureId) {
+  if (REGION_DATA.mode !== "kasp") {
+    return "";
+  }
+
+  const assays = REGION_DATA.assays_by_snp?.[featureId] || [];
+  let content = "<p class=\"hint\">No PolyMarker assay available for this SNP.</p>";
+
+  if (assays.length > 0) {
+    content = '<div class="snp-assay-list">';
+
+    for (const assay of assays) {
+      const assayId = assay.assay_id || "Assay";
+      const validationStatus = assay.validation_status;
+      content += `
+        <details class="snp-assay-card">
+          <summary>
+            <span>${escapeHtml(assayId)}</span>
+            ${renderSnpWorkflowBadge(validationStatus)}
+          </summary>
+          <div class="snp-assay-details">
+            ${renderAssayFailureReason(validationStatus, assay.validation_failure_reason)}
+            ${renderAlleleSpecificPrimer(`Allele ${String(assay.first_allele || "").toUpperCase()} primer`, assay.first_primer, assay.first_primer_with_tail, assay.first_allele)}
+            ${renderAlleleSpecificPrimer(`Allele ${String(assay.second_allele || "").toUpperCase()} primer`, assay.second_primer, assay.second_primer_with_tail, assay.second_allele)}
+            ${renderAssayDetail("Common primer", String(assay.common_primer || "").toUpperCase(), "primer-sequence")}
+          </div>
+        </details>
+      `;
+    }
+
+    content += "</div>";
+  }
+
+  return `
+    <div class="sidebar-section snp-assay-section">
+      <h3>KASP assays</h3>
+      ${content}
+    </div>
+  `;
+}
+
+function attachSnpSidebarHandlers(blockId) {
+  const blockLink = document.getElementById("snp-block-link");
+
+  if (!blockLink) {
+    return;
+  }
+
+  blockLink.addEventListener("click", () => {
+    const featureId = `block::${blockId}`;
+    const range = searchIndexes.featureIdToRegionRange.get(featureId);
+
+    if (!range) {
+      return;
+    }
+
+    state.hoveredFeatureType = null;
+    state.hoveredFeatureId = null;
+    _lastResolvedHoverKey = null;
+    _lastResolvedDotplotHoverKey = null;
+    setPinnedFeature("block", featureId);
+    centerRegionOnRange(range.start, range.end);
+  });
+}
+
 function renderSnpSidebar(featureId, isPinned) {
   const sidebar = document.getElementById("sidebar");
   const entries = state.featureGroups.get(featureId) || [];
@@ -552,8 +774,28 @@ function renderSnpSidebar(featureId, isPinned) {
 
   const firstInfo = entries[0].info;
   const title = `${firstInfo.block_id}:${firstInfo.aln_pos}`;
+  const snpResult = getSnpResult(featureId);
 
-  let html = `${renderSidebarHeader("SNP", isPinned)}<p class="hint"><b>ID:</b> ${escapeHtml(title)}</p>`;
+  let html = `
+    ${renderSidebarHeader("SNP", isPinned)}
+    <p class="hint"><b>ID:</b> ${escapeHtml(title)}</p>
+    <p class="hint snp-block-metadata"><b>Block:</b> <button id="snp-block-link" class="snp-block-link" type="button">${escapeHtml(firstInfo.block_id)}</button></p>
+    <div class="snp-candidate-summary">
+      <span>Candidate status</span>
+      ${renderSnpWorkflowBadge(snpResult?.final_status, true)}
+      ${renderSnpWorkflowReason(snpResult?.final_failure_reason)}
+    </div>
+    ${renderSnpWorkflowPipeline(snpResult)}
+    ${renderKaspAssays(featureId)}
+  `;
+
+  const observationsOpen = REGION_DATA.mode === "kasp" ? "" : " open";
+  html += `
+    <div class="sidebar-section snp-observations-section">
+      <details class="snp-observations"${observationsOpen}>
+        <summary>Alleles and positions</summary>
+        <div class="snp-observation-cards">
+  `;
 
   for (const sampleName of getSampleOrder()) {
     const entry = entries.find(item => item.sample === sampleName);
@@ -575,8 +817,15 @@ function renderSnpSidebar(featureId, isPinned) {
     html += "</div>";
   }
 
+  html += `
+        </div>
+      </details>
+    </div>
+  `;
+
   sidebar.innerHTML = html;
   attachSidebarUnpinHandler();
+  attachSnpSidebarHandlers(firstInfo.block_id);
 }
 
 function renderFeatureSidebar(featureType, featureId, isPinned) {

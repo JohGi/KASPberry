@@ -436,6 +436,13 @@ body {
   font-size: 18px;
 }
 
+.sidebar-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
 .sidebar-section {
   margin-top: 12px;
   padding-top: 12px;
@@ -455,7 +462,7 @@ body {
 
 .pin-badge {
   display: inline-block;
-  margin-top: 6px;
+  margin: 0;
   padding: 3px 8px;
   border-radius: 999px;
   font-size: 12px;
@@ -463,6 +470,179 @@ body {
   background: #e8f1fb;
   color: #2f5f95;
   border: 1px solid #c7dbf2;
+}
+
+.snp-block-metadata {
+  margin-top: 3px;
+}
+
+.snp-block-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #2f5f95;
+  cursor: pointer;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.snp-block-link:hover {
+  color: #1f4f82;
+}
+
+.snp-block-link:focus-visible {
+  outline: 2px solid #2f5f95;
+  outline-offset: 2px;
+}
+
+.snp-candidate-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  margin-top: 10px;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #f8fafc;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.snp-candidate-summary .snp-workflow-reason {
+  flex: 0 0 100%;
+}
+
+.snp-status-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 2px 7px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.snp-status-badge.pass {
+  color: #166534;
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.snp-status-badge.fail,
+.snp-status-badge.rejected {
+  color: #9f1239;
+  background: #fff1f2;
+  border-color: #fecdd3;
+}
+
+.snp-status-badge.not-run {
+  color: #4b5563;
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.snp-workflow-list {
+  display: grid;
+  gap: 7px;
+}
+
+.snp-workflow-stage {
+  padding: 7px 8px;
+  border: 1px solid #e5e7eb;
+  border-radius: 7px;
+  background: white;
+}
+
+.snp-workflow-stage-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.snp-workflow-reason {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.snp-assay-list {
+  display: grid;
+  gap: 7px;
+}
+
+.snp-assay-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 7px;
+  background: white;
+}
+
+.snp-assay-card summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.snp-assay-details {
+  display: grid;
+  gap: 6px;
+  padding: 0 8px 9px;
+  font-size: 12px;
+}
+
+.assay-detail-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+}
+
+.primer-sequence {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.35;
+  user-select: text;
+  white-space: pre-wrap;
+}
+
+.primer-tail {
+  color: var(--muted);
+}
+
+.primer-terminal-base {
+  font-weight: 700;
+}
+
+.assay-failure-reason {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.snp-observations > summary {
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.snp-observation-cards {
+  padding-top: 2px;
 }
 
 .sidebar-close {
