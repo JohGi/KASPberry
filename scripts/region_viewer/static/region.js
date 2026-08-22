@@ -108,27 +108,71 @@ function rebuildHoverSpatialIndex() {
     }
     blocks.sort((a, b) => a.x0 - b.x0);
 
-    const genes = [];
+    const gffTracks = [];
     if (gffHoverEligible) {
       getSampleGffTracks(sample).forEach((track, trackIndex) => {
+        const genes = [];
         for (const gene of track.features || []) {
           const geometry = getGffGeneGeometry(gene, panelTop, trackIndex);
           if (geometry) {
             genes.push({
               x0: geometry.x,
               x1eff: geometry.x + geometry.width,
-              y0: geometry.y,
-              y1: geometry.y + geometry.height,
               gene
             });
           }
         }
+        if (genes.length > 0) {
+          genes.sort((a, b) => a.x0 - b.x0);
+          const y = getGffTrackY(panelTop, trackIndex);
+          gffTracks.push({
+            y0: y,
+            y1: y + GFF_TRACK.height,
+            intervalIndex: buildGffGeneIntervalIndex(genes)
+          });
+        }
       });
-      genes.sort((a, b) => a.x0 - b.x0);
     }
 
-    return { trackTop, trackBottom, snps, blocks, genes };
+    return { trackTop, trackBottom, snps, blocks, gffTracks };
   });
+}
+
+function buildGffGeneIntervalIndex(genes, start = 0, end = genes.length) {
+  if (start >= end) {
+    return null;
+  }
+
+  const middle = start + ((end - start) >>> 1);
+  const left = buildGffGeneIntervalIndex(genes, start, middle);
+  const right = buildGffGeneIntervalIndex(genes, middle + 1, end);
+  const gene = genes[middle];
+
+  return {
+    gene,
+    left,
+    right,
+    maxX1eff: Math.max(gene.x1eff, left?.maxX1eff ?? -Infinity, right?.maxX1eff ?? -Infinity)
+  };
+}
+
+function findGffGeneAtX(intervalIndex, pointerX) {
+  if (!intervalIndex || intervalIndex.maxX1eff < pointerX) {
+    return null;
+  }
+
+  const leftMatch = findGffGeneAtX(intervalIndex.left, pointerX);
+  if (leftMatch) {
+    return leftMatch;
+  }
+
+  if (pointerX >= intervalIndex.gene.x0 && pointerX <= intervalIndex.gene.x1eff) {
+    return intervalIndex.gene.gene;
+  }
+
+  return pointerX >= intervalIndex.gene.x0
+    ? findGffGeneAtX(intervalIndex.right, pointerX)
+    : null;
 }
 
 function countVisibleGffGenes(sample, visibleStart, visibleEnd) {
@@ -192,17 +236,10 @@ function resolveHoveredGffGene(pointerX, pointerY) {
   ensureHoverSpatialIndex();
 
   for (const entry of _hoverIndex) {
-    const geneIndex = lowerBoundX0(entry.genes, pointerX) - 1;
-    if (geneIndex < 0) {
-      continue;
-    }
-
-    const gene = entry.genes[geneIndex];
-    if (
-      pointerX >= gene.x0 && pointerX <= gene.x1eff
-      && pointerY >= gene.y0 && pointerY <= gene.y1
-    ) {
-      return gene.gene;
+    for (const track of entry.gffTracks) {
+      if (pointerY >= track.y0 && pointerY <= track.y1) {
+        return findGffGeneAtX(track.intervalIndex, pointerX);
+      }
     }
   }
 
