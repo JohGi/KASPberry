@@ -49,6 +49,20 @@ const DOTPLOT_AXIS = {
   targetTickSpacingPx: 90
 };
 
+// Extra stage space for strokes and the centered X-axis labels. The right
+// margin covers half of the existing 68 px X-axis label box plus one pixel.
+const DOTPLOT_OUTER_PADDING = {
+  top: 1,
+  right: 10,
+  bottom: 1,
+  left: 1
+};
+
+// Geometry for the currently rendered dotplot stage. Projection overlays must
+// share this object with the image and tracks rather than sampling DOM width
+// again after the stage has changed the scroll layout.
+let _currentDotplotGeometry = null;
+
 function getDotplotPairs() {
   return (REGION_DATA.dotplots && REGION_DATA.dotplots.pairs) || [];
 }
@@ -165,11 +179,12 @@ function getDotplotXGffTotalHeight(xSampleData) {
 
 // Computes the full geometry for the dotplot Konva stage.
 // All coordinates are in stage space:
-//   y-track region:  x = [featureInset, yTrackWidth-featureInset],
+//   y-track region:  x = [outerPadding.left+featureInset, …],
 //                  y = [yMaxPixel, yZeroPixel].
-//   image occupies x = [yTrackWidth+DOTPLOT_TRACK_GAP, …],  y = [0, imageHeight].
+//   image occupies x = [outerPadding.left+yTrackWidth+DOTPLOT_TRACK_GAP, …],
+//                  y = [outerPadding.top, outerPadding.top+imageHeight].
 //   x-track region:  x = [xZero, xMax],
-//                  y = [imageHeight+DOTPLOT_TRACK_GAP+featureInset, …].
+//                  y = [imageY+imageHeight+DOTPLOT_TRACK_GAP+featureInset, …].
 // The axis-bounds ratios (DOTPLOT_AXIS_BOUNDS) are applied to imageWidth/Height so
 // coordinate mapping is always relative to the image, regardless of gap size.
 function computeDotplotGeometry() {
@@ -193,20 +208,23 @@ function computeDotplotGeometry() {
   const xAxisGap = getDotplotXAxisGap();
   const yAxisGap = getDotplotYAxisGap(ySampleData, imageHeight);
 
-  // Image is offset right by the y-track width + y-GFF gutter + side gap + gap.
-  const imageX = yGffWidth + yGffSideGap + yTrackWidth + yAxisGap;
-  const imageY = 0;
+  // Image is offset by the outer padding, Y-track width, and Y-axis/GFF gutters.
+  const imageX = DOTPLOT_OUTER_PADDING.left
+    + yGffWidth + yGffSideGap + yTrackWidth + yAxisGap;
+  const imageY = DOTPLOT_OUTER_PADDING.top;
 
   const xZero     = imageX + imageWidth  * DOTPLOT_AXIS_BOUNDS.xZeroRatio;
   const xMax      = imageX + imageWidth  * DOTPLOT_AXIS_BOUNDS.xMaxRatio;
   const yZeroPixel = imageY + imageHeight * (1 - DOTPLOT_AXIS_BOUNDS.yZeroRatio);
   const yMaxPixel  = imageY + imageHeight * (1 - DOTPLOT_AXIS_BOUNDS.yMaxRatio);
 
-  const stageStrokePadding = 1;
-
   return {
-    stageWidth:  yGffWidth + yGffSideGap + yTrackWidth + yAxisGap + imageWidth + stageStrokePadding,
-    stageHeight: imageHeight + xAxisGap + xTrackHeight + xGffHeight + stageStrokePadding,
+    stageWidth: DOTPLOT_OUTER_PADDING.left
+      + yGffWidth + yGffSideGap + yTrackWidth + yAxisGap + imageWidth
+      + DOTPLOT_OUTER_PADDING.right,
+    stageHeight: DOTPLOT_OUTER_PADDING.top
+      + imageHeight + xAxisGap + xTrackHeight + xGffHeight
+      + DOTPLOT_OUTER_PADDING.bottom,
     imageX,
     imageY,
     imageWidth,
@@ -219,6 +237,7 @@ function computeDotplotGeometry() {
     yMaxPixel,
     xAxisGap,
     yAxisGap,
+    outerPadding: DOTPLOT_OUTER_PADDING,
     // GFF layout helpers passed through for redrawDotplotStage.
     yGffWidth,
     yGffSideGap,
@@ -323,7 +342,7 @@ function drawDotplotXAxis(layer, geometry, sample) {
     return;
   }
 
-  const axisY = geometry.imageHeight + 1;
+  const axisY = geometry.imageY + geometry.imageHeight + 1;
   const visibleStart = 1;
   const visibleEnd = sample.region_length;
   const visibleSpan = Math.max(1, visibleEnd - visibleStart + 1);
@@ -664,14 +683,18 @@ function drawDotplotSnpLines(layer, entries, color, drawLine) {
 function redrawDotplotStage() {
   const img = document.getElementById("dotplot-svg-img");
   if (!img || !img.complete || img.naturalWidth === 0) {
+    _currentDotplotGeometry = null;
     return;
   }
   initDotplotStage();
 
   const geometry = computeDotplotGeometry();
   if (!geometry) {
+    _currentDotplotGeometry = null;
     return;
   }
+
+  _currentDotplotGeometry = geometry;
 
   dotplotStage.width(geometry.stageWidth);
   dotplotStage.height(geometry.stageHeight);
@@ -700,12 +723,14 @@ function redrawDotplotStage() {
   // The inner region matches the browser-mode white track rect.
   // DOTPLOT_TRACK_GAP separates the SVG image from each track region.
   const xRegionX = geometry.xZero;
-  const xRegionY = geometry.imageHeight + geometry.xAxisGap + TRACK_GEOMETRY.featureInset;
+  const xRegionY = geometry.imageY + geometry.imageHeight
+    + geometry.xAxisGap + TRACK_GEOMETRY.featureInset;
   const xRegionW = Math.max(1, geometry.xMax - geometry.xZero);
   const xRegionH = TRACK_GEOMETRY.trackHeight;
 
   // Y-track region is offset right by the Y-GFF gutter + side gap so GFF tracks fit to its left.
-  const yRegionX = geometry.yGffWidth + geometry.yGffSideGap + TRACK_GEOMETRY.featureInset;
+  const yRegionX = geometry.outerPadding.left
+    + geometry.yGffWidth + geometry.yGffSideGap + TRACK_GEOMETRY.featureInset;
   const yRegionY = geometry.yMaxPixel;
   const yRegionW = TRACK_GEOMETRY.trackHeight;
   const yRegionH = Math.max(1, geometry.yZeroPixel - geometry.yMaxPixel);
@@ -952,7 +977,8 @@ function redrawDotplotStage() {
     const yGffTracks = getSampleGffTracks(ySampleData);
     // X origin for track strips: they stack leftward from the y-region left edge, with a side gap.
     // yRegionX includes TRACK_GEOMETRY.featureInset; strips sit to its left.
-    const yGffRightEdge = geometry.yGffWidth + geometry.yGffSideGap; // left edge of y-track region (before inset)
+    const yGffRightEdge = geometry.outerPadding.left
+      + geometry.yGffWidth + geometry.yGffSideGap; // left edge of y-track region (before inset)
     const gffRectQueuesY = new Map();
 
     yGffTracks.forEach((track, trackIndex) => {
@@ -1014,7 +1040,8 @@ function redrawDotplotStage() {
     const trackNames = getAllGffTrackNames();
     if (trackNames.length > 0) {
       // Legend baseline Y: bottom of the x-GFF track area.
-      const legendY = geometry.stageHeight - GFF_LEGEND.height + GFF_LEGEND.topPadding;
+      const legendY = geometry.stageHeight - geometry.outerPadding.bottom
+        - GFF_LEGEND.height + GFF_LEGEND.topPadding;
       let legendX = geometry.xZero;
       for (const trackName of trackNames) {
         const color = getGffTrackColor(trackName);
@@ -1522,7 +1549,7 @@ function centerPinnedFeature() {
 }
 
 function _getDotplotMappedBlockBounds(featureId) {
-  const geometry = computeDotplotGeometry();
+  const geometry = _currentDotplotGeometry;
   if (!geometry) { return null; }
 
   const xSampleData = getSampleByName(_dotplotState.selectedX);
@@ -1593,7 +1620,7 @@ function _computeDotplotSnpProjection(featureId) {
     return null;
   }
 
-  const geometry = computeDotplotGeometry();
+  const geometry = _currentDotplotGeometry;
   if (!geometry) { return null; }
 
   const xSampleData = getSampleByName(_dotplotState.selectedX);
@@ -1681,6 +1708,8 @@ function renderDotplot() {
   if (!img) {
     return;
   }
+
+  _currentDotplotGeometry = null;
 
   const pair = findDotplotPair(_dotplotState.selectedY, _dotplotState.selectedX);
 
