@@ -216,6 +216,7 @@ class GffGeneFeature:
     end_in_source_seq: int
     start_in_region: int
     end_in_region: int
+    attributes: str
     strand: str | None = None
 
 

@@ -135,6 +135,7 @@ def build_region_payload(
                                     feature.start_in_region,
                                 "end_in_region":
                                     feature.end_in_region,
+                                "attributes": feature.attributes,
                                 "strand": feature.strand,
                             }
                             for feature in track.features

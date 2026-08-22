@@ -519,9 +519,9 @@ def read_projected_gff_gene_features(
 
     with path.open(encoding="utf-8") as handle:
         for line_number, line in enumerate(handle, start=1):
-            stripped = line.strip()
+            stripped = line.rstrip("\r\n")
 
-            if not stripped or stripped.startswith("#"):
+            if not stripped.strip() or stripped.lstrip().startswith("#"):
                 continue
 
             fields = stripped.split("\t")
@@ -585,6 +585,7 @@ def read_projected_gff_gene_features(
                     end_in_source_seq=end_in_source_seq,
                     start_in_region=start_in_region,
                     end_in_region=end_in_region,
+                    attributes=attributes,
                     strand=None if strand == "." else strand,
                 )
             )

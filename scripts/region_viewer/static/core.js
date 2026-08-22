@@ -61,6 +61,11 @@ const GFF_TRACK = {
   ]
 };
 
+const GFF_HOVER = {
+  maxVisibleBp: 1_000_000,
+  maxVisibleGenesPerSample: 100
+};
+
 const GFF_LEGEND = {
   height: 22,
   dotRadius: 4,

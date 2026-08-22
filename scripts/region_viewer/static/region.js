@@ -74,6 +74,12 @@ function lowerBoundX0(arr, target) {
 function rebuildHoverSpatialIndex() {
   const visibleStart = getVisibleStartBp();
   const visibleEnd = getVisibleEndBp();
+  const gffHoverEligible = getVisibleBpSpan() <= GFF_HOVER.maxVisibleBp
+    && REGION_DATA.samples.every(sample => countVisibleGffGenes(
+      sample,
+      visibleStart,
+      visibleEnd
+    ) <= GFF_HOVER.maxVisibleGenesPerSample);
 
   _hoverIndex = REGION_DATA.samples.map((sample, i) => {
     const panelTop = computePanelTop(i);
@@ -102,8 +108,39 @@ function rebuildHoverSpatialIndex() {
     }
     blocks.sort((a, b) => a.x0 - b.x0);
 
-    return { trackTop, trackBottom, snps, blocks };
+    const genes = [];
+    if (gffHoverEligible) {
+      getSampleGffTracks(sample).forEach((track, trackIndex) => {
+        for (const gene of track.features || []) {
+          const geometry = getGffGeneGeometry(gene, panelTop, trackIndex);
+          if (geometry) {
+            genes.push({
+              x0: geometry.x,
+              x1eff: geometry.x + geometry.width,
+              y0: geometry.y,
+              y1: geometry.y + geometry.height,
+              gene
+            });
+          }
+        }
+      });
+      genes.sort((a, b) => a.x0 - b.x0);
+    }
+
+    return { trackTop, trackBottom, snps, blocks, genes };
   });
+}
+
+function countVisibleGffGenes(sample, visibleStart, visibleEnd) {
+  let count = 0;
+  for (const track of getSampleGffTracks(sample)) {
+    for (const gene of track.features || []) {
+      if (intersectsRange(gene.start_in_region, gene.end_in_region, visibleStart, visibleEnd)) {
+        count += 1;
+      }
+    }
+  }
+  return count;
 }
 
 function resolveHoveredFeature(pointerX, pointerY) {
@@ -149,6 +186,66 @@ function resolveHoveredFeature(pointerX, pointerY) {
   }
 
   return null;
+}
+
+function resolveHoveredGffGene(pointerX, pointerY) {
+  ensureHoverSpatialIndex();
+
+  for (const entry of _hoverIndex) {
+    const geneIndex = lowerBoundX0(entry.genes, pointerX) - 1;
+    if (geneIndex < 0) {
+      continue;
+    }
+
+    const gene = entry.genes[geneIndex];
+    if (
+      pointerX >= gene.x0 && pointerX <= gene.x1eff
+      && pointerY >= gene.y0 && pointerY <= gene.y1
+    ) {
+      return gene.gene;
+    }
+  }
+
+  return null;
+}
+
+function formatGffGeneAttributes(attributes) {
+  if (!attributes || attributes === ".") {
+    return "No GFF attributes available.";
+  }
+
+  return attributes.split(";")
+    .map(attribute => attribute.trim())
+    .filter(Boolean)
+    .join("\n") || "No GFF attributes available.";
+}
+
+function hideGffGeneTooltip() {
+  const tooltip = document.getElementById("gff-gene-tooltip");
+  if (tooltip) {
+    tooltip.style.display = "none";
+  }
+}
+
+function showGffGeneTooltip(gene, pointerX, pointerY) {
+  const tooltip = document.getElementById("gff-gene-tooltip");
+  if (!tooltip) {
+    return;
+  }
+
+  tooltip.textContent = formatGffGeneAttributes(gene.attributes);
+  tooltip.style.display = "block";
+
+  const stageRect = stage.container().getBoundingClientRect();
+  const tooltipRect = tooltip.getBoundingClientRect();
+  const margin = 8;
+  let left = stageRect.left + pointerX + 12;
+  let top = stageRect.top + pointerY + 12;
+
+  left = Math.max(margin, Math.min(left, window.innerWidth - tooltipRect.width - margin));
+  top = Math.max(margin, Math.min(top, window.innerHeight - tooltipRect.height - margin));
+  tooltip.style.left = `${left}px`;
+  tooltip.style.top = `${top}px`;
 }
 
 function applyResolvedHover(resolved) {
@@ -660,34 +757,41 @@ function drawGffTrackBaseline(layer, sample, panelTop, trackIndex) {
   }));
 }
 
-function drawGffGeneFeature(gene, panelTop, trackIndex, color, gffRectQueues) {
+function getGffGeneGeometry(gene, panelTop, trackIndex) {
   const visibleStart = getVisibleStartBp();
   const visibleEnd = getVisibleEndBp();
 
   if (!intersectsRange(gene.start_in_region, gene.end_in_region, visibleStart, visibleEnd)) {
-    return;
+    return null;
   }
 
   const clippedStart = Math.max(gene.start_in_region, visibleStart);
   const clippedEnd = Math.min(gene.end_in_region, visibleEnd);
 
   if (clippedEnd < clippedStart) {
-    return;
+    return null;
   }
 
   const x0 = worldXToScreenX(clippedStart);
   const x1 = worldXToScreenX(clippedEnd);
-  const y = getGffTrackY(panelTop, trackIndex);
+  return {
+    x: x0,
+    y: getGffTrackY(panelTop, trackIndex),
+    width: Math.max(GFF_TRACK.minGeneWidthPx, x1 - x0),
+    height: GFF_TRACK.height
+  };
+}
+
+function drawGffGeneFeature(gene, panelTop, trackIndex, color, gffRectQueues) {
+  const geometry = getGffGeneGeometry(gene, panelTop, trackIndex);
+  if (!geometry) {
+    return;
+  }
 
   if (!gffRectQueues.has(color)) {
     gffRectQueues.set(color, []);
   }
-  gffRectQueues.get(color).push({
-    x: x0,
-    y,
-    width: Math.max(GFF_TRACK.minGeneWidthPx, x1 - x0),
-    height: GFF_TRACK.height
-  });
+  gffRectQueues.get(color).push(geometry);
 }
 
 function drawGffTracks(layer, sample, panelTop, gffRectQueues) {
@@ -1125,6 +1229,7 @@ stage.on("pointerdown", (event) => {
     return;
   }
 
+  hideGffGeneTooltip();
   startViewportDrag(pointer.x);
 });
 
@@ -1135,11 +1240,13 @@ stage.on("pointermove", () => {
   }
 
   if (state.isDraggingViewport) {
+    hideGffGeneTooltip();
     updateViewportDrag(pointer.x);
     return;
   }
 
   if (state.isDraggingScrollbar) {
+    hideGffGeneTooltip();
     updateScrollbarDrag(pointer.x);
     return;
   }
@@ -1147,6 +1254,7 @@ stage.on("pointermove", () => {
   const scrollbarY = getScrollbarY();
   if (pointer.y >= scrollbarY) {
     applyResolvedHover(null);
+    hideGffGeneTooltip();
     setViewerCursor("");
     return;
   }
@@ -1156,10 +1264,20 @@ stage.on("pointermove", () => {
     applyResolvedHover(resolved);
 
     if (resolved) {
+      hideGffGeneTooltip();
+      setViewerCursor("pointer");
+      return;
+    }
+
+    const gene = resolveHoveredGffGene(pointer.x, pointer.y);
+    if (gene) {
+      showGffGeneTooltip(gene, pointer.x, pointer.y);
       setViewerCursor("pointer");
       return;
     }
   }
+
+  hideGffGeneTooltip();
 
   if (isPointerOverSampleTrack(pointer.y)) {
     setViewerCursor("");
@@ -1174,6 +1292,7 @@ stage.on("pointerup", stopDrag);
 stage.on("pointerleave", () => {
   _lastResolvedHoverKey = null;
   stopDrag();
+  hideGffGeneTooltip();
   setViewerCursor("");
 });
 
@@ -1327,6 +1446,7 @@ function drawRoundedRect(ctx, x, y, width, height, radius) {
 }
 
 function redrawStage() {
+  hideGffGeneTooltip();
   stage.width(getStageWidth());
   stage.height(getMainViewerContentHeight());
 
