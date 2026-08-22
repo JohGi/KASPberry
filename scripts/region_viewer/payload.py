@@ -37,6 +37,7 @@ def build_sample_data(
             SampleData(
                 sample=sample,
                 region_length=fasta_lengths[sample],
+                source_seq=record.source_seq,
                 region_start_in_source_seq=record.region_start_in_source_seq,
                 blocks=sorted(
                     blocks_by_sample.get(sample, []),

@@ -14,6 +14,7 @@ class SampleRecord:
 
     fasta_path: Path
     sample: str
+    source_seq: str | None = None
     region_start_in_source_seq: int = 1
 
 
@@ -145,6 +146,7 @@ class SampleData:
 
     sample: str
     region_length: int
+    source_seq: str | None = None
     region_start_in_source_seq: int = 1
     blocks: list[BlockFeature] = field(factory=list)
     snps: list[SnpFeature] = field(factory=list)

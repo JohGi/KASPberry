@@ -173,6 +173,66 @@ def _validate_shared_files(
     return region_sequences
 
 
+def _read_gff_seqids(path: Path) -> set[str]:
+    """Return seqids from non-comment GFF records."""
+    seqids: set[str] = set()
+
+    try:
+        handle = path.open("r", encoding="utf-8")
+    except OSError as error:
+        raise ValueError(f"GFF file is not readable: {path}: {error}") from error
+
+    try:
+        for line_number, line in enumerate(handle, start=1):
+            stripped = line.rstrip("\r\n")
+            if stripped.strip() == "##FASTA":
+                break
+            if not stripped.strip() or stripped.lstrip().startswith("#"):
+                continue
+
+            fields = stripped.split("\t")
+            if len(fields) != 9:
+                raise ValueError(
+                    f"Invalid GFF line in {path} at line {line_number}: "
+                    f"expected 9 columns, got {len(fields)}."
+                )
+            seqids.add(fields[0])
+    finally:
+        handle.close()
+
+    return seqids
+
+
+def check_annotation_source_sequences(
+    genotypes: pl.DataFrame,
+    annotations: pl.DataFrame,
+) -> None:
+    """Require GFF-backed genotypes to declare a matching source sequence."""
+    source_seq_by_genotype = dict(
+        genotypes.select("genotype", "source_seq").iter_rows()
+    )
+    gff_seqids_cache: dict[Path, set[str]] = {}
+
+    for row in annotations.iter_rows(named=True):
+        genotype = row["genotype"]
+        source_seq = source_seq_by_genotype[genotype]
+        if source_seq is None:
+            raise ValueError(
+                f"Genotype '{genotype}' has a GFF configured but is missing "
+                "source_seq and region_start."
+            )
+
+        gff_path = Path(row["gff"])
+        if gff_path not in gff_seqids_cache:
+            gff_seqids_cache[gff_path] = _read_gff_seqids(gff_path)
+
+        if source_seq not in gff_seqids_cache[gff_path]:
+            raise ValueError(
+                f"GFF '{gff_path}' for genotype '{genotype}' does not contain "
+                f"source_seq '{source_seq}'."
+            )
+
+
 def _validate_kasp_genomes(
     genotypes: pl.DataFrame,
     region_sequences: dict[str, str],
@@ -274,17 +334,23 @@ def check_genotypes_table(df: pl.DataFrame) -> None:
     has_source = pl.col("source_seq").is_not_null()
     has_start = pl.col("region_start").is_not_null()
 
-    has_any = has_genome | has_source | has_start
-    has_all = has_genome & has_source & has_start
-
-    incomplete_metadata = df.filter(
-        has_any & ~has_all
-    )
-    if incomplete_metadata.height:
-        names = incomplete_metadata.get_column("genotype").to_list()
+    incomplete_source_coordinates = df.filter(has_source != has_start)
+    if incomplete_source_coordinates.height:
+        names = incomplete_source_coordinates.get_column("genotype").to_list()
         raise ValueError(
-            "genome_fasta, source_seq, and region_start must be provided "
-            "together in genotypes.tsv for: "
+            "source_seq and region_start must be provided together in "
+            "genotypes.tsv for: "
+            + ", ".join(names)
+        )
+
+    incomplete_genome_coordinates = df.filter(
+        has_genome & ~(has_source & has_start)
+    )
+    if incomplete_genome_coordinates.height:
+        names = incomplete_genome_coordinates.get_column("genotype").to_list()
+        raise ValueError(
+            "genome_fasta requires source_seq and region_start in "
+            "genotypes.tsv for: "
             + ", ".join(names)
         )
 
@@ -535,6 +601,9 @@ def validate_inputs(
         config,
         genotype_names,
     )
+
+    if annotations_df is not None:
+        check_annotation_source_sequences(genotypes_df, annotations_df)
 
     # Nothing below is required for SNP discovery alone.
     if mode == "snps":

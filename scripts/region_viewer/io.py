@@ -30,7 +30,12 @@ def read_samples(path: Path) -> list[SampleRecord]:
         if reader.fieldnames is None:
             raise ValueError(f"Genotype table has no header: {path}")
 
-        required_columns = {"genotype", "region_fasta", "region_start"}
+        required_columns = {
+            "genotype",
+            "region_fasta",
+            "region_start",
+            "source_seq",
+        }
         missing_columns = required_columns - set(reader.fieldnames)
 
         if missing_columns:
@@ -44,6 +49,7 @@ def read_samples(path: Path) -> list[SampleRecord]:
                 SampleRecord(
                     fasta_path=Path(row["region_fasta"]),
                     sample=row["genotype"],
+                    source_seq=(row.get("source_seq") or "").strip() or None,
                     region_start_in_source_seq=(
                         int(row["region_start"])
                         if (row.get("region_start") or "").strip()
@@ -506,21 +512,26 @@ def read_projected_gff_gene_features(
     path: Path,
     sample: str,
     track_name: str,
+    source_seq: str | None,
     region_start_in_source_seq: int,
     region_length: int,
 ) -> GffTrack:
     """Read one GFF file and project gene features into region coordinates."""
     if not path.is_file():
         raise FileNotFoundError(f"GFF file not found: {path}")
+    if source_seq is None:
+        raise ValueError(
+            f"GFF track '{track_name}' for sample '{sample}' requires source_seq."
+        )
 
     region_end_in_source_seq = region_start_in_source_seq + region_length - 1
-    source_seq_ids: set[str] = set()
     features: list[GffGeneFeature] = []
 
     with path.open(encoding="utf-8") as handle:
         for line_number, line in enumerate(handle, start=1):
             stripped = line.rstrip("\r\n")
-
+            if stripped.strip() == "##FASTA":
+                break
             if not stripped.strip() or stripped.lstrip().startswith("#"):
                 continue
 
@@ -543,7 +554,8 @@ def read_projected_gff_gene_features(
                 attributes,
             ) = fields
 
-            source_seq_ids.add(source_seq_id)
+            if source_seq_id != source_seq:
+                continue
 
             if feature_type != "gene":
                 continue
@@ -590,12 +602,6 @@ def read_projected_gff_gene_features(
                 )
             )
 
-    if len(source_seq_ids) > 1:
-        raise ValueError(
-            f"GFF file must contain a single sequence ID, but {path} contains: "
-            + ", ".join(sorted(source_seq_ids))
-        )
-
     return GffTrack(
         sample=sample,
         track_name=track_name,
@@ -626,6 +632,7 @@ def read_gff_gene_tracks(
                     path=gff_path,
                     sample=sample_name,
                     track_name=track_name,
+                    source_seq=sample.source_seq,
                     region_start_in_source_seq=sample.region_start_in_source_seq,
                     region_length=sample.region_length,
                 )
