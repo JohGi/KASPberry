@@ -998,8 +998,6 @@ function drawScrollbar(layer) {
     state.scrollbarDragOffsetX = pointer.x - metrics.thumbX;
   });
 
-  layer.add(thumb);
-
   const clickArea = new Konva.Rect({
     x: metrics.trackX,
     y: metrics.trackY,
@@ -1021,6 +1019,7 @@ function drawScrollbar(layer) {
   });
 
   layer.add(clickArea);
+  layer.add(thumb);
 }
 
 function setScrollFromThumbX(thumbX) {
@@ -1201,8 +1200,7 @@ function startViewportDrag(pointerX) {
 
 function updateViewportDrag(pointerX) {
   const deltaX = pointerX - state.dragStartPointerX;
-  const worldDelta = deltaX * (getContentWidth() / getDrawableTrackWidth());
-  state.scrollX = clampScrollX(state.dragStartScrollX - worldDelta);
+  state.scrollX = clampScrollX(state.dragStartScrollX - deltaX);
   requestStageRedraw();
 }
 

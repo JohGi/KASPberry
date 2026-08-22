@@ -577,8 +577,6 @@ function drawAlignmentScrollbar(layer, alignmentLength, sampleCount) {
     state.alignmentScrollbarDragOffsetX = pointer.x - metrics.thumbX;
   });
 
-  layer.add(thumb);
-
   const clickArea = new Konva.Rect({
     x: metrics.trackX,
     y: metrics.trackY,
@@ -600,6 +598,7 @@ function drawAlignmentScrollbar(layer, alignmentLength, sampleCount) {
   });
 
   layer.add(clickArea);
+  layer.add(thumb);
 }
 
 function renderAlignmentEmpty(message) {

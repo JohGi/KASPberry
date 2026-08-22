@@ -176,6 +176,10 @@ function getViewerToolbarHeight() {
 }
 
 function setSearchMode(mode) {
+  if (isDotplotModeActive() && mode !== "id") {
+    mode = "id";
+  }
+
   _searchState.mode = mode;
 
   const chips = document.querySelectorAll(".search-mode-chip");
@@ -198,11 +202,28 @@ function setSearchMode(mode) {
   }
 
   if (sampleSelect) {
-    sampleSelect.classList.toggle("hidden", mode !== "source");
+    sampleSelect.classList.toggle("hidden", mode !== "source" || isDotplotModeActive());
   }
 
   if (statusEl) {
     statusEl.textContent = "";
+  }
+}
+
+function updateSearchModeAvailability(isBrowser) {
+  const chips = document.querySelectorAll(".search-mode-chip");
+  for (const chip of chips) {
+    chip.classList.toggle("hidden", !isBrowser && chip.dataset.mode !== "id");
+  }
+
+  if (!isBrowser && _searchState.mode !== "id") {
+    setSearchMode("id");
+    return;
+  }
+
+  const sampleSelect = document.getElementById("search-sample-select");
+  if (sampleSelect) {
+    sampleSelect.classList.toggle("hidden", !isBrowser || _searchState.mode !== "source");
   }
 }
 

@@ -1388,22 +1388,7 @@ function resetActiveViewerZoom() {
       const container = document.querySelector(".dotplot-content");
       if (container) {
         container.scrollLeft = 0;
-      }
-
-      const stageEl = document.getElementById("dotplot-viewer");
-      if (stageEl) {
-        const stageRect = stageEl.getBoundingClientRect();
-        const dotplotCenterY = window.scrollY + stageRect.top + stageRect.height / 2;
-        const targetWindowScrollY = dotplotCenterY - window.innerHeight / 2;
-
-        window.scrollTo({
-          top: clampValue(
-            targetWindowScrollY,
-            0,
-            document.documentElement.scrollHeight - window.innerHeight
-          ),
-          behavior: "smooth"
-        });
+        container.scrollTop = 0;
       }
     });
 
@@ -1945,6 +1930,8 @@ function setViewerMode(mode) {
   if (dotplotBtn) {
     dotplotBtn.classList.toggle("active", !isBrowser);
   }
+
+  updateSearchModeAvailability(isBrowser);
 
   if (isBrowser) {
     requestStageRedraw();
