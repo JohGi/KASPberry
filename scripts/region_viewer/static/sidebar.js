@@ -490,6 +490,7 @@ function renderAnalysisSettings() {
     const kasp = settings.kasp_assay_design || {};
     html += renderAnalysisSettingsSection("KASP assay design", renderAnalysisSettingsRows([
       ["PolyMarker subgenomes", kasp.polymarker_subgenomes ?? "NA"],
+      ["PolyMarker / specificity genotypes", (kasp.genotypes || []).join(", ") || "NA"],
       ["MFEprimer minimum binding Tm", kasp.mfeprimer_min_tm ?? "NA"],
       ["MFEprimer dimer ΔG cutoff", kasp.mfeprimer_dimer_max_dg ?? "NA"]
     ]));

@@ -7,6 +7,7 @@ import copy
 import importlib.metadata
 import platform
 import shlex
+import shutil
 import socket
 import subprocess
 from dataclasses import dataclass
@@ -123,6 +124,39 @@ def _write_yaml(path: Path, data: dict) -> None:
     temporary_path.replace(path)
 
 
+def _snapshot_run_inputs(
+    *,
+    config: dict,
+    config_path: Path,
+    snapshot_dir: Path,
+) -> dict[str, str]:
+    """Copy small configuration/input files used for one run."""
+
+    snapshot_dir.mkdir(parents=True, exist_ok=True)
+
+    snapshots: dict[str, str] = {}
+
+    config_snapshot = snapshot_dir / "config.yaml"
+    shutil.copy2(config_path, config_snapshot)
+    snapshots["config_file"] = str(config_snapshot)
+
+    inputs = config.get("inputs", {})
+
+    for key in ("genotypes", "chromosomes", "annotations"):
+        configured_path = inputs.get(key)
+
+        if not configured_path:
+            continue
+
+        source = Path(configured_path).expanduser().resolve()
+        destination = snapshot_dir / f"{key}.tsv"
+
+        shutil.copy2(source, destination)
+        snapshots[key] = str(destination)
+
+    return snapshots
+
+
 def start_run_record(
     *,
     config: dict,
@@ -150,9 +184,21 @@ def start_run_record(
         / f"{run_id}_{mode}.yaml"
     )
 
+    snapshot_dir = (
+        output_dir
+        / "run_history"
+        / f"{run_id}_{mode}"
+    )
+
     latest_path = output_dir / "run_info.yaml"
 
     git_commit, git_dirty = _get_git_info(repo_root)
+
+    input_snapshots = _snapshot_run_inputs(
+        config=config,
+        config_path=config_path,
+        snapshot_dir=snapshot_dir,
+    )
 
     data = {
         "run": {
@@ -180,6 +226,7 @@ def start_run_record(
         },
         "inputs": {
             "config_file": str(config_path),
+            "snapshots": input_snapshots,
         },
         "resolved_config": copy.deepcopy(config),
     }

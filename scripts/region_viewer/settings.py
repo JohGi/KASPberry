@@ -66,6 +66,7 @@ def read_analysis_settings(
 
         settings["kasp_assay_design"] = {
             "polymarker_subgenomes": kasp.get("polymarker_genomes"),
+            "genotypes": read_kasp_genotypes(inputs.get("genotypes")),
             "mfeprimer_min_tm": specificity.get(
                 "min_tm", MFEPRIMER_DEFAULT_MIN_TM
             ),
@@ -138,3 +139,32 @@ def read_genotype_groups(
         LOGGER.warning("Could not read genotype TSV: %s", genotype_path)
 
     return groups
+
+
+def read_kasp_genotypes(
+    genotype_path: str | Path | None,
+) -> list[str]:
+    """Read genotypes with a whole-genome FASTA available for KASP design/QC."""
+    genotypes: list[str] = []
+
+    if not genotype_path:
+        return genotypes
+
+    try:
+        with Path(genotype_path).open(
+            newline="",
+            encoding="utf-8",
+        ) as handle:
+            reader = csv.DictReader(handle, delimiter="\t")
+
+            for row in reader:
+                genotype = (row.get("genotype") or "").strip()
+                genome_fasta = (row.get("genome_fasta") or "").strip()
+
+                if genotype and genome_fasta:
+                    genotypes.append(genotype)
+
+    except (OSError, csv.Error):
+        LOGGER.warning("Could not read genotype TSV: %s", genotype_path)
+
+    return genotypes

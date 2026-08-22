@@ -725,7 +725,8 @@ body {
 .kv {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 4px 8px;
+  align-items: center;
+  gap: 6px 8px;
   font-size: 13px;
 }
 

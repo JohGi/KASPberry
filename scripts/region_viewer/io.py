@@ -44,7 +44,11 @@ def read_samples(path: Path) -> list[SampleRecord]:
                 SampleRecord(
                     fasta_path=Path(row["region_fasta"]),
                     sample=row["genotype"],
-                    region_start_in_source_seq=int(row["region_start"]),
+                    region_start_in_source_seq=(
+                        int(row["region_start"])
+                        if (row.get("region_start") or "").strip()
+                        else 1
+                    ),
                 )
             )
 

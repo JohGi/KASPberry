@@ -119,10 +119,18 @@ def interval_union_length(
 
 
 def build_summary(args) -> dict:
-    genotypes = pl.read_csv(
+    genotype_table = pl.read_csv(
         args.genotypes,
         separator="\t",
-    )["genotype"].to_list()
+    )
+
+    genotypes = genotype_table["genotype"].to_list()
+
+    kasp_genotypes = [
+        str(row["genotype"])
+        for row in genotype_table.iter_rows(named=True)
+        if row.get("genome_fasta")
+    ]
 
     fasta_lengths = {
         path.stem: fasta_length(path)
@@ -288,6 +296,7 @@ def build_summary(args) -> dict:
         ).height
 
         summary["kasp_assay_design"] = {
+            "genotypes": kasp_genotypes,
             "snps_with_assay_proposed": (
                 assays["snp_id"].n_unique()
                 if assays.height
@@ -423,6 +432,10 @@ def build_text(summary: dict) -> str:
         )
 
         lines.extend([
+            (
+                "PolyMarker / specificity genotypes: "
+                + ", ".join(stats["genotypes"])
+            ),
             (
                 "SNPs with at least one assay proposed: "
                 f"{stats['snps_with_assay_proposed']}"
