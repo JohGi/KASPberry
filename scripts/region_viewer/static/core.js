@@ -1,6 +1,6 @@
 const REGION_DATA = {{ REGION_DATA }};
 
-Konva.pixelRatio = 1;
+// Konva.pixelRatio = 1;
 
 const FEATURE_COLORS = {
   block: "#d9d9d9",

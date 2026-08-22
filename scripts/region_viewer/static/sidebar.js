@@ -84,9 +84,8 @@ function matrixCellColor(value, minValue, maxValue, isDiagonal) {
 
 function getDistanceMatrixTooltip(matrix) {
   if (matrix.source === "kimura2p") {
-    return `Values are substitutions per base (Kimura 2-parameter).\nComputed from unmasked block alignments using EMBOSS distmat (-nucmethod 2), scaled from per 100 bases.`;
+    return `Kimura 2-parameter distances are computed from unmasked MAFFT block alignments with EMBOSS \`distmat\` using \`-nucmethod 2\`.\n\nEMBOSS reports distances per 100 sites. KASPberry converts these values to substitutions per site.\n\nReferences: Kimura 1980; Rice, Longden & Bleasby 2000.`;
   }
-
   return "";
 }
 
@@ -99,20 +98,35 @@ function renderInfoTooltip(text) {
 }
 
 const VIEWER_MODE_INFO_TOOLTIPS = {
-  browser: [
-    "This view shows locally collinear blocks retained across samples in gray, and SNPs retained after filtering in red.",
-    "",
-    "Locally collinear blocks were first identified across the input samples with SibeliaZ, then filtered to retain blocks that were present exactly once in each sample, had consistent strand orientation, and passed the configured minimum block length.",
-    "",
-    "For each retained block, sequences were extracted, hard-masked with RepeatMasker, and aligned with MAFFT. Biallelic SNPs were then called from the masked block alignments with SeqTUI, using the configured minimum flank length, i.e., the minimum number of perfectly aligned bases required on both sides of each SNP, with no indel, additional SNP, or N.",
-    "",
-    "References: SibeliaZ, Minkin & Medvedev 2020; RepeatMasker, Tarailo-Graovac & Chen 2009; MAFFT, Katoh & Standley 2013; SeqTUI, Ranwez 2026."
-  ].join("\n"),
+  browser: {
+    snps: [
+      "This view shows locally collinear blocks shared by all input genotypes and SNPs detected within these blocks. Diagnostic SNP candidates are shown in red. Rejected candidates are shown in gray.",
+      "",
+      "Locally collinear blocks are identified with SibeliaZ. Blocks are retained if they occur once in each genotype, have the same strand orientation, and pass the configured minimum block length.",
+      "",
+      "Simple repeats and low-complexity regions are hard-masked with RepeatMasker. If a custom repeat library is provided, matching sequences are also masked. Masked block sequences are aligned with MAFFT. Biallelic SNPs are detected with SeqTUI using the configured minimum SNP flank, i.e. the minimum number of perfectly aligned bases required on both sides of each SNP, with no indel, additional SNP, or N.",
+      "",
+      "Diagnostic SNPs are retained if all genotypes in each group have the same allele and the two groups have different alleles.",
+      "",
+      "References: SibeliaZ, Minkin & Medvedev 2020; RepeatMasker, Tarailo-Graovac & Chen 2009; MAFFT, Katoh & Standley 2013; SeqTUI, Ranwez 2026."
+    ].join("\n"),
+    kasp: [
+      "This view shows locally collinear blocks shared by all input genotypes and SNPs detected within these blocks. Final KASP SNP candidates are shown in red. Rejected candidates are shown in gray.",
+      "",
+      "Locally collinear blocks are identified with SibeliaZ. Blocks are retained if they occur once in each genotype, have the same strand orientation, and pass the configured minimum block length.",
+      "",
+      "Simple repeats and low-complexity regions are hard-masked with RepeatMasker. If a custom repeat library is provided, matching sequences are also masked. Masked block sequences are aligned with MAFFT. Biallelic SNPs are detected with SeqTUI using the configured minimum SNP flank, i.e. the minimum number of perfectly aligned bases required on both sides of each SNP, with no indel, additional SNP, or N.",
+      "",
+      "Diagnostic SNPs are selected from the configured genotype groups. KASP assays are designed with PolyMarker. Assays are tested with MFEprimer for in-silico amplification specificity, dimers, and hairpins. SNPs with at least one assay that passes in-silico validation are retained as final candidates.",
+      "",
+      "References: SibeliaZ, Minkin & Medvedev 2020; RepeatMasker, Tarailo-Graovac & Chen 2009; MAFFT, Katoh & Standley 2013; SeqTUI, Ranwez 2026; PolyMarker, Ramirez-Gonzalez et al. 2015; MFEprimer, Wang et al. 2019."
+    ].join("\n")
+  },
 
   dotplot: [
-    "This view shows pairwise dotplots between available sample pairs.",
+    "This view shows pairwise dotplots between input regional sequences.",
     "",
-    "For each selected pair, the corresponding sequences were first aligned with Minimap2 (-x asm5), then visualized as a pairwise dotplot with blastn2dotplots.",
+    "For each selected genotype pair, sequences are aligned with Minimap2 using the `asm5` preset. The alignment is displayed as a dotplot with blastn2dotplots.",
     "",
     "References: Minimap2, Li 2018; blastn2dotplots, Okuno et al. 2025."
   ].join("\n")
@@ -126,7 +140,9 @@ function updateViewerModeInfoTooltip(mode) {
     return;
   }
 
-  infoTooltip.dataset.tooltip = VIEWER_MODE_INFO_TOOLTIPS[mode] || "";
+  infoTooltip.dataset.tooltip = mode === "browser"
+    ? VIEWER_MODE_INFO_TOOLTIPS.browser[REGION_DATA.mode] || ""
+    : VIEWER_MODE_INFO_TOOLTIPS[mode] || "";
 }
 
 function renderDistanceMatrix(matrix, { embedded = false, showTitle = true } = {}) {

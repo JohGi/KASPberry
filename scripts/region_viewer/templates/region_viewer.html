@@ -23,10 +23,10 @@
         <section id="info-panel" class="info-panel">
           <h2>{{ TITLE }}</h2>
           <p class="hint">
-            Overview of locally collinear blocks identified across samples in the selected region, with SNPs retained after filtering.
+            Overview of locally collinear blocks shared across input genotypes, with detected SNPs and their candidate status.
           </p>
           <p class="hint">
-            Hover a feature to highlight it across samples.
+            Hover a feature to highlight it across genotypes.
           </p>
         </section>
 
@@ -114,8 +114,7 @@
             <div>
               <h2>
                 Block alignment
-                <span class="info-tooltip" data-tooltip="Alignments are hard-masked (repeats/TEs replaced by Ns prior to alignment using RepeatMasker).
-                Asterisks mark SNPs kept after filtering.">Info</span>
+                <span class="info-tooltip" data-tooltip="Block sequences are hard-masked with RepeatMasker and aligned with MAFFT. Simple repeats and low-complexity regions are masked. If a custom repeat library is provided, matching sequences are also masked.&#10;&#10;Masked positions are shown as Ns. Asterisks mark SNP positions reported by SeqTUI after applying the minimum SNP flank.">Info</span>
               </h2>
               <p id="alignment-subtitle" class="hint">Hover or pin a block to display its alignment.</p>
             </div>
