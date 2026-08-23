@@ -49,14 +49,19 @@ const DOTPLOT_AXIS = {
   targetTickSpacingPx: 90
 };
 
-// Extra stage space for strokes and the centered X-axis labels. The right
-// margin covers half of the existing 68 px X-axis label box plus one pixel.
+// The shared matrix/X/Y genomic origin lives at local (0, 0), so the context
+// axes meet the matrix boundary without a corner gap.  Only the right margin
+// remains for X-axis label rendering near the image end.
 const DOTPLOT_OUTER_PADDING = {
-  top: 1,
+  top: 0,
   right: 10,
-  bottom: 1,
-  left: 1
+  bottom: 0,
+  left: 0
 };
+
+// This is frame-only space between the outer dotplot border and the scrollport.
+// It deliberately does not participate in any Konva coordinate system.
+const DOTPLOT_FRAME_TOP_BREATHING_SPACE = 5;
 
 // Geometry for the currently rendered dotplot stage. Projection overlays must
 // share this object with the image and tracks rather than sampling DOM width
@@ -109,139 +114,142 @@ function getSampleByName(sampleName) {
   return searchIndexes.sampleByName.get(sampleName) || null;
 }
 
-// Returns the displayed image size, computed from naturalWidth/Height.
-// Applies zoom, then clamps to available container space to avoid overflow at zoom=1.
-// At zoom > 1 the image may exceed the container and the panel will scroll.
-function getDotplotImageDisplaySize() {
+// Returns the fixed footprint of the GFF strips only.  The categorical legend
+// is viewport DOM UI, deliberately outside the genomic X stage.
+function getDotplotYGffTotalWidth(ySampleData) {
+  const trackCount = ySampleData ? getSampleGffTracks(ySampleData).length : 0;
+  return trackCount * (GFF_TRACK.height + GFF_TRACK.gap);
+}
+
+function getDotplotXGffTotalHeight(xSampleData) {
+  const trackCount = xSampleData ? getSampleGffTracks(xSampleData).length : 0;
+  return trackCount > 0
+    ? GFF_TRACK.topGap + trackCount * (GFF_TRACK.height + GFF_TRACK.gap)
+    : 0;
+}
+
+function getDotplotLayoutViewport() {
+  const container = document.querySelector(".dotplot-content");
+  const viewportWidth = Math.max(1, container ? container.clientWidth : 800);
+  // The frame has a 1px border plus a fixed non-scrollable top breathing gap.
+  const maxScrollportHeight = Math.max(
+    100,
+    Math.floor(window.innerHeight * 0.95) - 2 - DOTPLOT_FRAME_TOP_BREATHING_SPACE
+  );
+  return { viewportWidth, maxScrollportHeight };
+}
+
+function getDotplotImageDisplaySize(img, maxWidth, maxHeight) {
+  let imageWidth = img.naturalWidth;
+  let imageHeight = img.naturalHeight;
+
+  if (imageWidth > maxWidth) {
+    imageHeight = Math.round(imageHeight * maxWidth / imageWidth);
+    imageWidth = maxWidth;
+  }
+  if (imageHeight > maxHeight) {
+    imageWidth = Math.round(imageWidth * maxHeight / imageHeight);
+    imageHeight = maxHeight;
+  }
+
+  return {
+    imageWidth: Math.max(1, Math.round(imageWidth * _dotplotState.zoom)),
+    imageHeight: Math.max(1, Math.round(imageHeight * _dotplotState.zoom))
+  };
+}
+
+// Computes every local coordinate system from one logical layout calculation.
+// Matrix and X context share the same X genomic pixels; matrix and Y context
+// share the same Y genomic pixels.  Only the stage-local origins differ.
+function computeDotplotGeometry(horizontalScrollbarHeight = 0) {
   const img = document.getElementById("dotplot-svg-img");
   if (!img || !img.complete || img.naturalWidth === 0) {
     return null;
   }
-  const container = document.querySelector(".dotplot-content");
-  const containerPadding = 24; // 12 px each side
-  // Use full available container width minus the y-track gutter and track gap.
-  const availContainerW = container ? container.clientWidth - containerPadding : 800;
-  
-  const reservedAxisSpace = 80;
-
-  const maxW = Math.max(
-    100,
-    availContainerW - DOTPLOT_TRACK.yTrackWidth - reservedAxisSpace
-  );
-
-  const maxH = Math.max(
-    100,
-    Math.floor(window.innerHeight * 0.9) - DOTPLOT_TRACK.xTrackHeight - reservedAxisSpace
-  );
-
-  // Base size: image scaled to fit inside maxW × maxH while preserving aspect ratio.
-  let w = img.naturalWidth;
-  let h = img.naturalHeight;
-
-  if (w > maxW) {
-    h = Math.round(h * maxW / w);
-    w = maxW;
-  }
-  if (h > maxH) {
-    w = Math.round(w * maxH / h);
-    h = maxH;
-  }
-
-  // Apply zoom on top of the fitted base size.
-  w = Math.round(w * _dotplotState.zoom);
-  h = Math.round(h * _dotplotState.zoom);
-
-  return { imageWidth: Math.max(1, w), imageHeight: Math.max(1, h) };
-}
-
-// Returns the total pixel width that Y-sample GFF tracks occupy to the left of the Y region,
-// including the topGap used as a side-gap between GFF tracks and the Y region border.
-function getDotplotYGffTotalWidth(ySampleData) {
-  // Returns the total width for Y-sample GFF tracks, not including the side gap.
-  if (!ySampleData) { return 0; }
-  const n = getSampleGffTracks(ySampleData).length;
-  if (n === 0) { return 0; }
-  return n * (GFF_TRACK.height + GFF_TRACK.gap);
-}
-
-// Returns the total pixel height that X-sample GFF tracks occupy below the X region,
-// including topGap and an optional legend row.
-function getDotplotXGffTotalHeight(xSampleData) {
-  const trackCount = xSampleData ? getSampleGffTracks(xSampleData).length : 0;
-  const legendTopGap = getAllGffTrackNames().length > 0 ? 20 : 0;
-  const legendH = getAllGffTrackNames().length > 0
-    ? legendTopGap + GFF_LEGEND.height
-    : 0;
-  if (trackCount === 0 && legendH === 0) { return 0; }
-  return (trackCount > 0 ? GFF_TRACK.topGap + trackCount * (GFF_TRACK.height + GFF_TRACK.gap) : 0)
-    + legendH;
-}
-
-// Computes the full geometry for the dotplot Konva stage.
-// All coordinates are in stage space:
-//   y-track region:  x = [outerPadding.left+featureInset, …],
-//                  y = [yMaxPixel, yZeroPixel].
-//   image occupies x = [outerPadding.left+yTrackWidth+DOTPLOT_TRACK_GAP, …],
-//                  y = [outerPadding.top, outerPadding.top+imageHeight].
-//   x-track region:  x = [xZero, xMax],
-//                  y = [imageY+imageHeight+DOTPLOT_TRACK_GAP+featureInset, …].
-// The axis-bounds ratios (DOTPLOT_AXIS_BOUNDS) are applied to imageWidth/Height so
-// coordinate mapping is always relative to the image, regardless of gap size.
-function computeDotplotGeometry() {
-  const size = getDotplotImageDisplaySize();
-  if (!size) {
-    return null;
-  }
-  const { imageWidth, imageHeight } = size;
-  const { yTrackWidth, xTrackHeight } = DOTPLOT_TRACK;
 
   const xSampleData = getSampleByName(_dotplotState.selectedX);
   const ySampleData = getSampleByName(_dotplotState.selectedY);
-
-  // Extra horizontal space on the left for Y-sample GFF tracks (not including side gap).
+  const viewport = getDotplotLayoutViewport();
   const yGffWidth = getDotplotYGffTotalWidth(ySampleData);
-  // Side gap between Y region and GFF tracks (same as GFF_TRACK.topGap for symmetry).
   const yGffSideGap = yGffWidth > 0 ? GFF_TRACK.topGap : 0;
-  // Extra vertical space below the X region for X-sample GFF tracks + legend.
   const xGffHeight = getDotplotXGffTotalHeight(xSampleData);
-
   const xAxisGap = getDotplotXAxisGap();
-  const yAxisGap = getDotplotYAxisGap(ySampleData, imageHeight);
 
-  // Image is offset by the outer padding, Y-track width, and Y-axis/GFF gutters.
-  const imageX = DOTPLOT_OUTER_PADDING.left
-    + yGffWidth + yGffSideGap + yTrackWidth + yAxisGap;
+  // Estimate the Y label gutter before fitting; its displayed units are based
+  // on the fixed genomic span, so the result is stable for this redraw.
+  const yAxisGap = getDotplotYAxisGap(ySampleData, Math.max(1, img.naturalHeight));
+  const yContextWidth = DOTPLOT_OUTER_PADDING.left
+    + yGffWidth + yGffSideGap + DOTPLOT_TRACK.yTrackWidth + yAxisGap;
+  const xContextHeight = xAxisGap + DOTPLOT_TRACK.xTrackHeight + xGffHeight;
+
+  const size = getDotplotImageDisplaySize(
+    img,
+    Math.max(100, viewport.viewportWidth - yContextWidth),
+    Math.max(100, viewport.maxScrollportHeight - xContextHeight)
+  );
+  const { imageWidth, imageHeight } = size;
+  const matrixWidth = DOTPLOT_OUTER_PADDING.left + imageWidth + DOTPLOT_OUTER_PADDING.right;
+  const matrixHeight = DOTPLOT_OUTER_PADDING.top + imageHeight + DOTPLOT_OUTER_PADDING.bottom;
+  const imageX = DOTPLOT_OUTER_PADDING.left;
   const imageY = DOTPLOT_OUTER_PADDING.top;
-
-  const xZero     = imageX + imageWidth  * DOTPLOT_AXIS_BOUNDS.xZeroRatio;
-  const xMax      = imageX + imageWidth  * DOTPLOT_AXIS_BOUNDS.xMaxRatio;
+  const xZero = imageX + imageWidth * DOTPLOT_AXIS_BOUNDS.xZeroRatio;
+  const xMax = imageX + imageWidth * DOTPLOT_AXIS_BOUNDS.xMaxRatio;
   const yZeroPixel = imageY + imageHeight * (1 - DOTPLOT_AXIS_BOUNDS.yZeroRatio);
-  const yMaxPixel  = imageY + imageHeight * (1 - DOTPLOT_AXIS_BOUNDS.yMaxRatio);
+  const yMaxPixel = imageY + imageHeight * (1 - DOTPLOT_AXIS_BOUNDS.yMaxRatio);
+  const matrixViewportHeight = Math.min(
+    matrixHeight,
+    Math.max(1, viewport.maxScrollportHeight - xContextHeight - horizontalScrollbarHeight)
+  );
+  // The scrollport itself must be tall enough to contain the native horizontal
+  // scrollbar. Its client height is therefore matrixViewportHeight + x context.
+  const scrollportHeight = matrixViewportHeight + xContextHeight + horizontalScrollbarHeight;
+
+  const xContext = {
+    width: matrixWidth,
+    height: xContextHeight,
+    xZero,
+    xMax,
+    axisY: 0.5,
+    trackBoxY: xAxisGap,
+    outerPadding: DOTPLOT_OUTER_PADDING,
+    xGffHeight
+  };
+  const yContext = {
+    width: yContextWidth,
+    height: matrixHeight,
+    yZeroPixel,
+    yMaxPixel,
+    axisX: yContextWidth - 0.5,
+    trackBoxX: DOTPLOT_OUTER_PADDING.left + yGffWidth + yGffSideGap,
+    outerPadding: DOTPLOT_OUTER_PADDING,
+    yGffWidth,
+    yGffSideGap
+  };
 
   return {
-    stageWidth: DOTPLOT_OUTER_PADDING.left
-      + yGffWidth + yGffSideGap + yTrackWidth + yAxisGap + imageWidth
-      + DOTPLOT_OUTER_PADDING.right,
-    stageHeight: DOTPLOT_OUTER_PADDING.top
-      + imageHeight + xAxisGap + xTrackHeight + xGffHeight
-      + DOTPLOT_OUTER_PADDING.bottom,
+    matrixWidth,
+    matrixHeight,
     imageX,
     imageY,
     imageWidth,
     imageHeight,
-    yTrackWidth,
-    xTrackHeight,
     xZero,
     xMax,
     yZeroPixel,
     yMaxPixel,
+    outerPadding: DOTPLOT_OUTER_PADDING,
     xAxisGap,
     yAxisGap,
-    outerPadding: DOTPLOT_OUTER_PADDING,
-    // GFF layout helpers passed through for redrawDotplotStage.
-    yGffWidth,
-    yGffSideGap,
-    xGffHeight
+    xContext,
+    yContext,
+    matrixViewportWidth: Math.min(matrixWidth, Math.max(1, viewport.viewportWidth - yContextWidth)),
+    matrixViewportHeight,
+    horizontalScrollbarHeight,
+    viewportWidth: viewport.viewportWidth,
+    scrollportWidth: Math.min(viewport.viewportWidth, yContextWidth + matrixWidth),
+    scrollportHeight,
+    surfaceWidth: yContextWidth + matrixWidth,
+    surfaceHeight: matrixHeight + xContextHeight
   };
 }
 
@@ -342,7 +350,7 @@ function drawDotplotXAxis(layer, geometry, sample) {
     return;
   }
 
-  const axisY = geometry.imageY + geometry.imageHeight + 1;
+  const axisY = geometry.axisY;
   const visibleStart = 1;
   const visibleEnd = sample.region_length;
   const visibleSpan = Math.max(1, visibleEnd - visibleStart + 1);
@@ -387,7 +395,7 @@ function drawDotplotYAxis(layer, geometry, sample) {
     return;
   }
 
-  const axisX = geometry.imageX - 1;
+  const axisX = geometry.axisX;
   const visibleStart = 1;
   const visibleEnd = sample.region_length;
   const visibleSpan = Math.max(1, visibleEnd - visibleStart + 1);
@@ -428,11 +436,6 @@ function drawDotplotYAxis(layer, geometry, sample) {
   }
 }
 
-function drawDotplotCoordinateAxes(layer, geometry, xSampleData, ySampleData) {
-  drawDotplotXAxis(layer, geometry, xSampleData);
-  drawDotplotYAxis(layer, geometry, ySampleData);
-}
-
 // Returns true when dotplot mode is the active viewer mode.
 function isDotplotModeActive() {
   const panel = document.getElementById("dotplot-panel");
@@ -452,37 +455,17 @@ function requestDotplotRedraw() {
   });
 }
 
-// Creates the dotplot Konva stage and its layers the first time dotplot mode is used.
-// Also creates the persistent highlight Konva.Shape nodes and wires up all
-// pointer event handlers (pointermove, pointerleave, click) for hover/pin.
-// Subsequent calls are no-ops.
-function initDotplotStage() {
-  if (dotplotStage) {
-    return;
-  }
-  dotplotStage = new Konva.Stage({ container: "dotplot-viewer", width: 1, height: 1 });
-
-  dotplotImageLayer       = new Konva.Layer({ listening: false });
-  dotplotTrackLayer       = new Konva.Layer({ listening: false });
-  dotplotDebugLayer       = new Konva.Layer({ listening: false });
-  dotplotHighlightLayer   = new Konva.Layer({ listening: false });
-  dotplotInteractionLayer = new Konva.Layer();
-
-  dotplotStage.add(dotplotImageLayer);
-  dotplotStage.add(dotplotTrackLayer);
-  dotplotStage.add(dotplotDebugLayer);
-  dotplotStage.add(dotplotHighlightLayer);
-  dotplotStage.add(dotplotInteractionLayer);
-
-  // Persistent highlight shapes — created once, re-added to highlight layer each redraw.
-  _dotplotBlockHighlightShape = new Konva.Shape({
+function createDotplotBlockHighlightShape(axis) {
+  return new Konva.Shape({
     sceneFunc(ctx) {
-      if (_dotplotBlockHighlightGeoms.length === 0) { return; }
+      const geoms = axis === "x" ? _dotplotXBlockHighlightGeoms : _dotplotYBlockHighlightGeoms;
+      const color = axis === "x" ? _dotplotXBlockHighlightColor : _dotplotYBlockHighlightColor;
+      if (geoms.length === 0) { return; }
       ctx.save();
-      ctx.fillStyle = _dotplotBlockHighlightColor;
+      ctx.fillStyle = color;
       ctx.beginPath();
-      for (const r of _dotplotBlockHighlightGeoms) {
-        ctx.rect(r.x, r.y, r.width, r.height);
+      for (const rect of geoms) {
+        ctx.rect(rect.x, rect.y, rect.width, rect.height);
       }
       ctx.fill();
       ctx.restore();
@@ -490,21 +473,25 @@ function initDotplotStage() {
     visible: false,
     listening: false
   });
+}
 
-  _dotplotSnpHighlightShape = new Konva.Shape({
+function createDotplotSnpHighlightShape(axis) {
+  return new Konva.Shape({
     sceneFunc(ctx) {
-      if (_dotplotSnpHighlightGeoms.length === 0) { return; }
+      const geoms = axis === "x" ? _dotplotXSnpHighlightGeoms : _dotplotYSnpHighlightGeoms;
+      const color = axis === "x" ? _dotplotXSnpHighlightColor : _dotplotYSnpHighlightColor;
+      if (geoms.length === 0) { return; }
       ctx.save();
-      ctx.strokeStyle = _dotplotSnpHighlightColor;
+      ctx.strokeStyle = color;
       ctx.lineWidth = FEATURE_RENDERING.snpHighlightMinWidthPx;
       ctx.beginPath();
-      for (const s of _dotplotSnpHighlightGeoms) {
-        if (s.axis === "x") {
-          ctx.moveTo(s.cx, s.y0);
-          ctx.lineTo(s.cx, s.y1);
+      for (const line of geoms) {
+        if (axis === "x") {
+          ctx.moveTo(line.cx, line.y0);
+          ctx.lineTo(line.cx, line.y1);
         } else {
-          ctx.moveTo(s.x0, s.cy);
-          ctx.lineTo(s.x1, s.cy);
+          ctx.moveTo(line.x0, line.cy);
+          ctx.lineTo(line.x1, line.cy);
         }
       }
       ctx.stroke();
@@ -513,92 +500,38 @@ function initDotplotStage() {
     visible: false,
     listening: false
   });
+}
 
-  // Translucent blue projection bands shown on the SVG image for the
-  // highlighted block's X-sample and Y-sample coordinate intervals.
-  // The vertical band spans the full Y axis; the horizontal band spans the full X axis.
-  _dotplotBlockIntersectionShape = new Konva.Shape({
-    sceneFunc(ctx) {
-      if (!_dotplotBlockIntersectionGeom) { return; }
-
-      ctx.save();
-      ctx.fillStyle = "rgba(59, 130, 246, 0.18)";
-
-      const { vertical, horizontal } = _dotplotBlockIntersectionGeom;
-      ctx.fillRect(vertical.x, vertical.y, vertical.width, vertical.height);
-      ctx.fillRect(horizontal.x, horizontal.y, horizontal.width, horizontal.height);
-
-      ctx.restore();
-    },
-    visible: false,
-    listening: false
-  });
-
-  _dotplotSnpProjectionShape = new Konva.Shape({
-    sceneFunc(ctx) {
-      if (!_dotplotSnpProjectionGeom) { return; }
-
-      const { x, y, xZero, yZeroPixel } = _dotplotSnpProjectionGeom;
-
-      ctx.save();
-      ctx.strokeStyle = "rgba(59, 130, 246, 0.45)";
-      ctx.lineWidth = FEATURE_RENDERING.snpHighlightMinWidthPx;
-      ctx.beginPath();
-
-      ctx.moveTo(x, y);
-      ctx.lineTo(x, yZeroPixel);
-
-      ctx.moveTo(xZero, y);
-      ctx.lineTo(x, y);
-
-      ctx.stroke();
-      ctx.restore();
-    },
-    visible: false,
-    listening: false
-  });
-
-  // ── Pointer event handlers ─────────────────────────────────────────────────
-
-  dotplotStage.on("pointermove", () => {
-    const pointer = dotplotStage.getPointerPosition();
-    if (!pointer || state.isApplyingPin) {
-      return;
-    }
-    const resolved = resolveDotplotHoveredFeature(pointer.x, pointer.y);
+function wireDotplotTrackInteraction(stage, axis) {
+  stage.on("pointermove", () => {
+    const pointer = stage.getPointerPosition();
+    if (!pointer || state.isApplyingPin) { return; }
+    const resolved = resolveDotplotHoveredFeature(axis, pointer.x, pointer.y);
     applyDotplotResolvedHover(resolved);
-    // Cursor: pointer when over a feature, default otherwise.
-    const container = dotplotStage.container();
-    if (resolved) {
-      container.style.cursor = "pointer";
+
+    const gene = resolved ? null : resolveDotplotGffGene(axis, pointer.x, pointer.y);
+    if (gene) {
+      showDotplotGffGeneTooltip(gene, stage, pointer.x, pointer.y);
     } else {
-      container.style.cursor = "default";
+      hideGffGeneTooltip();
+    }
+    stage.container().style.cursor = resolved || gene ? "pointer" : "default";
+  });
+
+  stage.on("pointerleave", () => {
+    stage.container().style.cursor = "default";
+    hideGffGeneTooltip();
+    if (!state.isApplyingPin) {
+      applyDotplotResolvedHover(null);
     }
   });
 
-  dotplotStage.on("pointerleave", () => {
-    const container = dotplotStage.container();
-    if (container) {
-      container.style.cursor = "default";
-    }
-    if (state.isApplyingPin) {
-      return;
-    }
-    applyDotplotResolvedHover(null);
-  });
-
-  dotplotStage.on("click", () => {
-    if (state.isApplyingPin) {
-      return;
-    }
-    const pointer = dotplotStage.getPointerPosition();
-    if (!pointer) {
-      return;
-    }
-    const resolved = resolveDotplotHoveredFeature(pointer.x, pointer.y);
-    if (!resolved) {
-      return;
-    }
+  stage.on("click", () => {
+    if (state.isApplyingPin) { return; }
+    const pointer = stage.getPointerPosition();
+    if (!pointer) { return; }
+    const resolved = resolveDotplotHoveredFeature(axis, pointer.x, pointer.y);
+    if (!resolved) { return; }
     state.isApplyingPin = true;
     state.hoveredFeatureType = null;
     state.hoveredFeatureId = null;
@@ -609,6 +542,66 @@ function initDotplotStage() {
       state.isApplyingPin = false;
     });
   });
+}
+
+// Creates the three deliberately separate Dotplot surfaces.  Only the matrix
+// stage contains the SVG; X and Y are lightweight annotation strips.
+function initDotplotStage() {
+  if (dotplotStage) { return; }
+
+  dotplotStage = new Konva.Stage({ container: "dotplot-viewer", width: 1, height: 1 });
+  dotplotImageLayer = new Konva.Layer({ listening: false });
+  dotplotDebugLayer = new Konva.Layer({ listening: false });
+  dotplotHighlightLayer = new Konva.Layer({ listening: false });
+  dotplotStage.add(dotplotImageLayer, dotplotDebugLayer, dotplotHighlightLayer);
+
+  dotplotXStage = new Konva.Stage({ container: "dotplot-x-viewer", width: 1, height: 1 });
+  dotplotXTrackLayer = new Konva.Layer({ listening: false });
+  dotplotXHighlightLayer = new Konva.Layer({ listening: false });
+  dotplotXStage.add(dotplotXTrackLayer, dotplotXHighlightLayer);
+
+  dotplotYStage = new Konva.Stage({ container: "dotplot-y-viewer", width: 1, height: 1 });
+  dotplotYTrackLayer = new Konva.Layer({ listening: false });
+  dotplotYHighlightLayer = new Konva.Layer({ listening: false });
+  dotplotYStage.add(dotplotYTrackLayer, dotplotYHighlightLayer);
+
+  _dotplotXBlockHighlightShape = createDotplotBlockHighlightShape("x");
+  _dotplotXSnpHighlightShape = createDotplotSnpHighlightShape("x");
+  _dotplotYBlockHighlightShape = createDotplotBlockHighlightShape("y");
+  _dotplotYSnpHighlightShape = createDotplotSnpHighlightShape("y");
+
+  _dotplotBlockIntersectionShape = new Konva.Shape({
+    sceneFunc(ctx) {
+      if (!_dotplotBlockIntersectionGeom) { return; }
+      const { vertical, horizontal } = _dotplotBlockIntersectionGeom;
+      ctx.save();
+      ctx.fillStyle = "rgba(59, 130, 246, 0.18)";
+      ctx.fillRect(vertical.x, vertical.y, vertical.width, vertical.height);
+      ctx.fillRect(horizontal.x, horizontal.y, horizontal.width, horizontal.height);
+      ctx.restore();
+    },
+    visible: false,
+    listening: false
+  });
+  _dotplotSnpProjectionShape = new Konva.Shape({
+    sceneFunc(ctx) {
+      if (!_dotplotSnpProjectionGeom) { return; }
+      const { x, y, xZero, yZeroPixel } = _dotplotSnpProjectionGeom;
+      ctx.save();
+      ctx.strokeStyle = "rgba(59, 130, 246, 0.45)";
+      ctx.lineWidth = FEATURE_RENDERING.snpHighlightMinWidthPx;
+      ctx.beginPath();
+      ctx.moveTo(x, y); ctx.lineTo(x, yZeroPixel);
+      ctx.moveTo(xZero, y); ctx.lineTo(x, y);
+      ctx.stroke();
+      ctx.restore();
+    },
+    visible: false,
+    listening: false
+  });
+
+  wireDotplotTrackInteraction(dotplotXStage, "x");
+  wireDotplotTrackInteraction(dotplotYStage, "y");
 }
 
 // Full batched redraw of the dotplot Konva stage.
@@ -680,6 +673,206 @@ function drawDotplotSnpLines(layer, entries, color, drawLine) {
   }));
 }
 
+function drawDotplotFeatureTrack(layer, axis, localGeometry, sample) {
+  const isX = axis === "x";
+  const mapper = isX
+    ? position => mapXCoordinateToStagePx(position, sample, localGeometry)
+    : position => mapYCoordinateToStagePx(position, sample, localGeometry);
+  const regionX = isX
+    ? localGeometry.xZero
+    : localGeometry.trackBoxX + TRACK_GEOMETRY.featureInset;
+  const regionY = isX
+    ? localGeometry.trackBoxY + TRACK_GEOMETRY.featureInset
+    : localGeometry.yMaxPixel;
+  const regionW = isX
+    ? Math.max(1, localGeometry.xMax - localGeometry.xZero)
+    : TRACK_GEOMETRY.trackHeight;
+  const regionH = isX
+    ? TRACK_GEOMETRY.trackHeight
+    : Math.max(1, localGeometry.yZeroPixel - localGeometry.yMaxPixel);
+  const geoms = sample
+    ? buildTrackAlongAxisGeoms(sample.blocks, sample.snps, mapper)
+    : { fillRects: [], snpPositions: [] };
+  const blocks = geoms.fillRects.map(rect => isX
+    ? { x: rect.along0, y: regionY + TRACK_GEOMETRY.featureInset, width: rect.len, height: getFeatureHeight(), featureId: rect.featureId }
+    : { x: regionX + TRACK_GEOMETRY.featureInset, y: rect.along0, width: getFeatureHeight(), height: rect.len, featureId: rect.featureId }
+  );
+  const snps = geoms.snpPositions.map(entry => isX
+    ? { cx: entry.along, y0: regionY + TRACK_GEOMETRY.featureInset, y1: regionY + regionH - TRACK_GEOMETRY.featureInset, featureId: entry.featureId }
+    : { cy: entry.along, x0: regionX + TRACK_GEOMETRY.featureInset, x1: regionX + regionW - TRACK_GEOMETRY.featureInset, featureId: entry.featureId }
+  );
+
+  layer.add(new Konva.Rect({ x: regionX, y: regionY, width: regionW, height: regionH, fill: "#ffffff", listening: false }));
+  if (blocks.length > 0) {
+    layer.add(new Konva.Shape({
+      sceneFunc(ctx, shape) {
+        ctx.beginPath();
+        for (const rect of blocks) { ctx.rect(rect.x, rect.y, rect.width, rect.height); }
+        ctx.fillStrokeShape(shape);
+      },
+      fill: FEATURE_COLORS.block,
+      strokeWidth: 0,
+      listening: false
+    }));
+  }
+  const byStatus = splitDotplotSnpEntriesByStatus(snps);
+  drawDotplotSnpLines(layer, byStatus.rejected, FEATURE_COLORS.rejectedSnp, (ctx, snp) => {
+    if (isX) { ctx.moveTo(snp.cx, snp.y0); ctx.lineTo(snp.cx, snp.y1); }
+    else { ctx.moveTo(snp.x0, snp.cy); ctx.lineTo(snp.x1, snp.cy); }
+  });
+  drawDotplotSnpLines(layer, byStatus.pass, FEATURE_COLORS.snp, (ctx, snp) => {
+    if (isX) { ctx.moveTo(snp.cx, snp.y0); ctx.lineTo(snp.cx, snp.y1); }
+    else { ctx.moveTo(snp.x0, snp.cy); ctx.lineTo(snp.x1, snp.cy); }
+  });
+  layer.add(new Konva.Shape({
+    sceneFunc(ctx, shape) {
+      ctx.beginPath();
+      drawRoundedRect(ctx, regionX, regionY, regionW, regionH, 2);
+      ctx.fillStrokeShape(shape);
+    },
+    fillEnabled: false,
+    stroke: "#000000",
+    strokeWidth: 1,
+    listening: false
+  }));
+
+  const hoverBlocks = blocks.map(rect => isX
+    ? { x0: rect.x, x1: rect.x + rect.width, featureId: rect.featureId }
+    : { y0: rect.y, y1: rect.y + rect.height, featureId: rect.featureId }
+  );
+  const hoverSnps = snps.map(entry => isX
+    ? { cx: entry.cx, featureId: entry.featureId }
+    : { cy: entry.cy, featureId: entry.featureId }
+  );
+  hoverBlocks.sort((a, b) => isX ? a.x0 - b.x0 : a.y0 - b.y0);
+  hoverSnps.sort((a, b) => isX ? a.cx - b.cx : a.cy - b.cy);
+  return { blocks: hoverBlocks, snps: hoverSnps, regionX, regionY, regionW, regionH, gffTracks: [] };
+}
+
+function drawDotplotGffTracks(layer, axis, localGeometry, sample, hoverIndex) {
+  if (!sample) { return; }
+  const tracks = getSampleGffTracks(sample);
+  const isX = axis === "x";
+  const queues = new Map();
+
+  tracks.forEach((track, trackIndex) => {
+    const color = getGffTrackColor(track.track_name);
+    const trackOrigin = isX
+      ? hoverIndex.regionY + hoverIndex.regionH + GFF_TRACK.topGap + trackIndex * (GFF_TRACK.height + GFF_TRACK.gap)
+      : localGeometry.trackBoxX - localGeometry.yGffSideGap - trackIndex * (GFF_TRACK.height + GFF_TRACK.gap) - GFF_TRACK.height;
+    const baseline = trackOrigin + GFF_TRACK.height / 2;
+    const genes = [];
+
+    layer.add(new Konva.Shape({
+      sceneFunc(ctx) {
+        ctx.save();
+        ctx.strokeStyle = "#e5e7eb";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        if (isX) {
+          ctx.moveTo(localGeometry.xZero, baseline);
+          ctx.lineTo(localGeometry.xMax, baseline);
+        } else {
+          ctx.moveTo(baseline, localGeometry.yMaxPixel);
+          ctx.lineTo(baseline, localGeometry.yZeroPixel);
+        }
+        ctx.stroke();
+        ctx.restore();
+      },
+      listening: false
+    }));
+
+    for (const gene of track.features || []) {
+      const p0 = isX
+        ? mapXCoordinateToStagePx(gene.start_in_region, sample, localGeometry)
+        : mapYCoordinateToStagePx(gene.start_in_region, sample, localGeometry);
+      const p1 = isX
+        ? mapXCoordinateToStagePx(gene.end_in_region, sample, localGeometry)
+        : mapYCoordinateToStagePx(gene.end_in_region, sample, localGeometry);
+      const along0 = Math.min(p0, p1);
+      const length = Math.max(GFF_TRACK.minGeneWidthPx, Math.abs(p1 - p0));
+      const rect = isX
+        ? { x: along0, y: trackOrigin, width: length, height: GFF_TRACK.height }
+        : { x: trackOrigin, y: along0, width: GFF_TRACK.height, height: length };
+      if (!queues.has(color)) { queues.set(color, []); }
+      queues.get(color).push(rect);
+      genes.push({ x0: along0, x1eff: along0 + length, gene });
+    }
+    if (genes.length > 0) {
+      genes.sort((a, b) => a.x0 - b.x0);
+      hoverIndex.gffTracks.push(isX
+        ? { y0: trackOrigin, y1: trackOrigin + GFF_TRACK.height, intervalIndex: buildGffGeneIntervalIndex(genes) }
+        : { x0: trackOrigin, x1: trackOrigin + GFF_TRACK.height, intervalIndex: buildGffGeneIntervalIndex(genes) }
+      );
+    }
+  });
+
+  for (const [color, rects] of queues) {
+    layer.add(new Konva.Shape({
+      sceneFunc(ctx, shape) {
+        ctx.globalAlpha = 0.85;
+        ctx.beginPath();
+        for (const rect of rects) { drawRoundedRect(ctx, rect.x, rect.y, rect.width, rect.height, 2); }
+        ctx.globalAlpha = 1;
+        ctx.fillStrokeShape(shape);
+      },
+      fill: color,
+      strokeWidth: 0,
+      listening: false
+    }));
+  }
+}
+
+function applyDotplotPaneLayout(geometry) {
+  const container = document.querySelector(".dotplot-content");
+  const surface = document.getElementById("dotplot-scroll-surface");
+  const frame = document.querySelector(".dotplot-frame");
+  const layout = document.getElementById("dotplot-ui-layout");
+  if (!container || !surface || !frame || !layout) { return; }
+  const values = {
+    "--dotplot-surface-width": `${geometry.surfaceWidth}px`,
+    "--dotplot-surface-height": `${geometry.surfaceHeight}px`,
+    "--dotplot-y-pane-width": `${geometry.yContext.width}px`,
+    "--dotplot-x-pane-height": `${geometry.xContext.height}px`,
+    "--dotplot-matrix-width": `${geometry.matrixWidth}px`,
+    "--dotplot-matrix-height": `${geometry.matrixHeight}px`,
+    "--dotplot-matrix-viewport-height": `${geometry.matrixViewportHeight}px`,
+    "--dotplot-viewport-width": `${geometry.scrollportWidth}px`,
+    "--dotplot-top-breathing-space": `${DOTPLOT_FRAME_TOP_BREATHING_SPACE}px`,
+    "--dotplot-gff-legend-height": `${GFF_LEGEND.height}px`
+  };
+  for (const [name, value] of Object.entries(values)) {
+    layout.style.setProperty(name, value);
+  }
+  frame.style.height = `${geometry.scrollportHeight + DOTPLOT_FRAME_TOP_BREATHING_SPACE + 2}px`;
+  surface.style.marginLeft = `${Math.max(0, (geometry.viewportWidth - geometry.scrollportWidth) / 2)}px`;
+}
+
+function getDotplotHorizontalScrollbarHeight(container) {
+  // The scrollport has no border, so this difference is only the native
+  // horizontal scrollbar. This runs on full redraws, never while scrolling.
+  return Math.max(0, container.offsetHeight - container.clientHeight);
+}
+
+function renderDotplotGffLegend(xSampleData, ySampleData) {
+  const legend = document.getElementById("dotplot-gff-legend");
+  if (!legend) { return; }
+  const hasSelectedGff = getSampleGffTracks(xSampleData).length > 0 || getSampleGffTracks(ySampleData).length > 0;
+  const trackNames = getAllGffTrackNames();
+  legend.innerHTML = "";
+  legend.classList.toggle("hidden", !hasSelectedGff || trackNames.length === 0);
+  if (!hasSelectedGff) { return; }
+  for (const trackName of trackNames) {
+    const item = document.createElement("span");
+    item.className = "dotplot-gff-legend-item";
+    const dot = document.createElement("span");
+    dot.className = "dotplot-gff-legend-dot";
+    dot.style.background = getGffTrackColor(trackName);
+    item.append(dot, document.createTextNode(trackName));
+    legend.appendChild(item);
+  }
+}
+
 function redrawDotplotStage() {
   const img = document.getElementById("dotplot-svg-img");
   if (!img || !img.complete || img.naturalWidth === 0) {
@@ -687,392 +880,48 @@ function redrawDotplotStage() {
     return;
   }
   initDotplotStage();
+  const provisionalGeometry = computeDotplotGeometry();
+  if (!provisionalGeometry) { _currentDotplotGeometry = null; return; }
 
-  const geometry = computeDotplotGeometry();
-  if (!geometry) {
-    _currentDotplotGeometry = null;
-    return;
-  }
-
+  // First establish the frame dimensions, then measure the browser-owned
+  // scrollbar once and recompute every dependent layout value coherently.
+  applyDotplotPaneLayout(provisionalGeometry);
+  const container = document.querySelector(".dotplot-content");
+  const horizontalScrollbarHeight = container
+    ? getDotplotHorizontalScrollbarHeight(container)
+    : 0;
+  const geometry = computeDotplotGeometry(horizontalScrollbarHeight);
+  if (!geometry) { _currentDotplotGeometry = null; return; }
   _currentDotplotGeometry = geometry;
-
-  dotplotStage.width(geometry.stageWidth);
-  dotplotStage.height(geometry.stageHeight);
 
   const xSampleData = getSampleByName(_dotplotState.selectedX);
   const ySampleData = getSampleByName(_dotplotState.selectedY);
+  applyDotplotPaneLayout(geometry);
+  dotplotStage.size({ width: geometry.matrixWidth, height: geometry.matrixHeight });
+  dotplotXStage.size({ width: geometry.xContext.width, height: geometry.xContext.height });
+  dotplotYStage.size({ width: geometry.yContext.width, height: geometry.yContext.height });
 
-
-  // ── Image layer ────────────────────────────────────────────────────────────
   dotplotImageLayer.destroyChildren();
   dotplotImageLayer.add(new Konva.Image({
-    x: geometry.imageX,
-    y: geometry.imageY,
-    image: img,
-    width: geometry.imageWidth,
-    height: geometry.imageHeight,
-    listening: false
+    x: geometry.imageX, y: geometry.imageY, image: img,
+    width: geometry.imageWidth, height: geometry.imageHeight, listening: false
   }));
 
-  // ── Track layer ────────────────────────────────────────────────────────────
-  dotplotTrackLayer.destroyChildren();
+  dotplotXTrackLayer.destroyChildren();
+  drawDotplotXAxis(dotplotXTrackLayer, geometry.xContext, xSampleData);
+  const xHover = drawDotplotFeatureTrack(dotplotXTrackLayer, "x", geometry.xContext, xSampleData);
+  drawDotplotGffTracks(dotplotXTrackLayer, "x", geometry.xContext, xSampleData, xHover);
 
-  drawDotplotCoordinateAxes(dotplotTrackLayer, geometry, xSampleData, ySampleData);
-
-  // Region bounds include one feature inset on each side of the visible track.
-  // The inner region matches the browser-mode white track rect.
-  // DOTPLOT_TRACK_GAP separates the SVG image from each track region.
-  const xRegionX = geometry.xZero;
-  const xRegionY = geometry.imageY + geometry.imageHeight
-    + geometry.xAxisGap + TRACK_GEOMETRY.featureInset;
-  const xRegionW = Math.max(1, geometry.xMax - geometry.xZero);
-  const xRegionH = TRACK_GEOMETRY.trackHeight;
-
-  // Y-track region is offset right by the Y-GFF gutter + side gap so GFF tracks fit to its left.
-  const yRegionX = geometry.outerPadding.left
-    + geometry.yGffWidth + geometry.yGffSideGap + TRACK_GEOMETRY.featureInset;
-  const yRegionY = geometry.yMaxPixel;
-  const yRegionW = TRACK_GEOMETRY.trackHeight;
-  const yRegionH = Math.max(1, geometry.yZeroPixel - geometry.yMaxPixel);
-
-  // Build normalised along-axis geometry for each track using the shared helper.
-  // fillRects: [{along0, len, featureId}]   — block fill positions along primary axis
-  // snpPositions: [{along, featureId}]      — SNP pixel positions along primary axis
-  const xGeoms = xSampleData
-    ? buildTrackAlongAxisGeoms(
-        xSampleData.blocks, xSampleData.snps,
-        pos => mapXCoordinateToStagePx(pos, xSampleData, geometry)
-      )
-    : { fillRects: [], snpPositions: [] };
-
-  const yGeoms = ySampleData
-    ? buildTrackAlongAxisGeoms(
-        ySampleData.blocks, ySampleData.snps,
-        pos => mapYCoordinateToStagePx(pos, ySampleData, geometry)
-      )
-    : { fillRects: [], snpPositions: [] };
-
-  // Stage-absolute fill/line geometry for rendering.
-  // TRACK_GEOMETRY.featureInset mirrors getFeatureY / getSnpY.
-  // X-track: horizontal — along = x, across = y.  Y-track: vertical — along = y, across = x.
-  const featureH = getFeatureHeight();
-  const featureW = getFeatureHeight();
-
-  const xBlockRects = xGeoms.fillRects.map(r => ({
-    x: r.along0, y: xRegionY + TRACK_GEOMETRY.featureInset, width: r.len, height: featureH, featureId: r.featureId
-  }));
-  const xSnpEntries = xGeoms.snpPositions.map(s => ({
-    cx: s.along, y0: xRegionY + TRACK_GEOMETRY.featureInset, y1: xRegionY + xRegionH - TRACK_GEOMETRY.featureInset, featureId: s.featureId
-  }));
-
-  const yBlockRects = yGeoms.fillRects.map(r => ({
-    x: yRegionX + TRACK_GEOMETRY.featureInset, y: r.along0, width: featureW, height: r.len, featureId: r.featureId
-  }));
-  const ySnpEntries = yGeoms.snpPositions.map(s => ({
-    cy: s.along, x0: yRegionX + TRACK_GEOMETRY.featureInset, x1: yRegionX + yRegionW - TRACK_GEOMETRY.featureInset, featureId: s.featureId
-  }));
-  const xSnpEntriesByStatus = splitDotplotSnpEntriesByStatus(xSnpEntries);
-  const ySnpEntriesByStatus = splitDotplotSnpEntriesByStatus(ySnpEntries);
-
-  // ── Build hover spatial index ───────────────────────────────────────────────
-  // Store only the along-axis positions needed by resolveDotplotHoveredFeature.
-  // getDotplotHighlightGeometries derives cross-axis highlight bounds from region bounds
-  // + TRACK_GEOMETRY.featureInset / TRACK_HIGHLIGHT_INSET, so they never drift from browser mode.
-  const xBlocks = xBlockRects.map(r => ({ x0: r.x, x1: r.x + r.width, featureId: r.featureId }));
-  xBlocks.sort((a, b) => a.x0 - b.x0);
-  const xSnps = xSnpEntries.map(s => ({ cx: s.cx, featureId: s.featureId }));
-  xSnps.sort((a, b) => a.cx - b.cx);
-
-  const yBlocks = yBlockRects.map(r => ({ y0: r.y, y1: r.y + r.height, featureId: r.featureId }));
-  yBlocks.sort((a, b) => a.y0 - b.y0);
-  const ySnps = ySnpEntries.map(s => ({ cy: s.cy, featureId: s.featureId }));
-  ySnps.sort((a, b) => a.cy - b.cy);
-
-  _dotplotHoverIndex.xTrack = { blocks: xBlocks, snps: xSnps, regionX: xRegionX, regionY: xRegionY, regionW: xRegionW, regionH: xRegionH };
-  _dotplotHoverIndex.yTrack = { blocks: yBlocks, snps: ySnps, regionX: yRegionX, regionY: yRegionY, regionW: yRegionW, regionH: yRegionH };
+  dotplotYTrackLayer.destroyChildren();
+  drawDotplotYAxis(dotplotYTrackLayer, geometry.yContext, ySampleData);
+  const yHover = drawDotplotFeatureTrack(dotplotYTrackLayer, "y", geometry.yContext, ySampleData);
+  drawDotplotGffTracks(dotplotYTrackLayer, "y", geometry.yContext, ySampleData, yHover);
+  _dotplotHoverIndex.xTrack = xHover;
+  _dotplotHoverIndex.yTrack = yHover;
   _dotplotHoverIndexDirty = false;
 
-  // ── X-track rendering ──────────────────────────────────────────────────────
-  if (xSampleData) {
-    // White background.
-    dotplotTrackLayer.add(new Konva.Shape({
-      sceneFunc(ctx) {
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(xRegionX, xRegionY, xRegionW, xRegionH);
-      },
-      listening: false
-    }));
-
-    // Gray block fills (batched).
-    if (xBlockRects.length > 0) {
-      dotplotTrackLayer.add(new Konva.Shape({
-        sceneFunc(ctx, shape) {
-          ctx.beginPath();
-          for (const r of xBlockRects) {
-            ctx.rect(r.x, r.y, r.width, r.height);
-          }
-          ctx.fillStrokeShape(shape);
-        },
-        fill: FEATURE_COLORS.block,
-        strokeWidth: 0,
-        listening: false
-      }));
-    }
-
-    drawDotplotSnpLines(
-      dotplotTrackLayer,
-      xSnpEntriesByStatus.rejected,
-      FEATURE_COLORS.rejectedSnp,
-      (ctx, snp) => {
-        ctx.moveTo(snp.cx, snp.y0);
-        ctx.lineTo(snp.cx, snp.y1);
-      }
-    );
-    drawDotplotSnpLines(
-      dotplotTrackLayer,
-      xSnpEntriesByStatus.pass,
-      FEATURE_COLORS.snp,
-      (ctx, snp) => {
-        ctx.moveTo(snp.cx, snp.y0);
-        ctx.lineTo(snp.cx, snp.y1);
-      }
-    );
-
-    // Black rounded outline.
-    dotplotTrackLayer.add(new Konva.Shape({
-      sceneFunc(ctx, shape) {
-        ctx.beginPath();
-        drawRoundedRect(ctx, xRegionX, xRegionY, xRegionW, xRegionH, 2);
-        ctx.fillStrokeShape(shape);
-      },
-      fillEnabled: false,
-      stroke: "#000000",
-      strokeWidth: 1,
-      listening: false
-    }));
-  }
-
-  // ── Y-track rendering ──────────────────────────────────────────────────────
-  if (ySampleData) {
-    // White background.
-    dotplotTrackLayer.add(new Konva.Shape({
-      sceneFunc(ctx) {
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(yRegionX, yRegionY, yRegionW, yRegionH);
-      },
-      listening: false
-    }));
-
-    // Gray block fills (batched).
-    if (yBlockRects.length > 0) {
-      dotplotTrackLayer.add(new Konva.Shape({
-        sceneFunc(ctx, shape) {
-          ctx.beginPath();
-          for (const r of yBlockRects) {
-            ctx.rect(r.x, r.y, r.width, r.height);
-          }
-          ctx.fillStrokeShape(shape);
-        },
-        fill: FEATURE_COLORS.block,
-        strokeWidth: 0,
-        listening: false
-      }));
-    }
-
-    drawDotplotSnpLines(
-      dotplotTrackLayer,
-      ySnpEntriesByStatus.rejected,
-      FEATURE_COLORS.rejectedSnp,
-      (ctx, snp) => {
-        ctx.moveTo(snp.x0, snp.cy);
-        ctx.lineTo(snp.x1, snp.cy);
-      }
-    );
-    drawDotplotSnpLines(
-      dotplotTrackLayer,
-      ySnpEntriesByStatus.pass,
-      FEATURE_COLORS.snp,
-      (ctx, snp) => {
-        ctx.moveTo(snp.x0, snp.cy);
-        ctx.lineTo(snp.x1, snp.cy);
-      }
-    );
-
-    // Black rounded outline.
-    dotplotTrackLayer.add(new Konva.Shape({
-      sceneFunc(ctx, shape) {
-        ctx.beginPath();
-        drawRoundedRect(ctx, yRegionX, yRegionY, yRegionW, yRegionH, 2);
-        ctx.fillStrokeShape(shape);
-      },
-      fillEnabled: false,
-      stroke: "#000000",
-      strokeWidth: 1,
-      listening: false
-    }));
-  }
-
-  // ── X-sample GFF tracks (horizontal, below X region) ────────────────────────
-  if (xSampleData && geometry.xGffHeight > 0) {
-    const xGffTracks = getSampleGffTracks(xSampleData);
-    // Baseline Y: centre of each track strip, same formula as browser getGffTrackY.
-    // Here panelTop equivalent = xRegionY (top of the x-track region, region height = xRegionH).
-    // We place GFF tracks starting after xRegionH + GFF_TRACK.topGap below xRegionY.
-    const xGffOriginY = xRegionY + xRegionH; // bottom of x-sample region (feature inset already counted)
-    const gffRectQueuesX = new Map();
-
-    xGffTracks.forEach((track, trackIndex) => {
-      const color = getGffTrackColor(track.track_name);
-      const trackY = xGffOriginY + GFF_TRACK.topGap + trackIndex * (GFF_TRACK.height + GFF_TRACK.gap);
-      const baselineY = trackY + GFF_TRACK.height / 2;
-
-      // Baseline (grey horizontal line across the full genomic range).
-      dotplotTrackLayer.add(new Konva.Shape({
-        sceneFunc(ctx) {
-          ctx.save();
-          ctx.strokeStyle = "#e5e7eb";
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(geometry.xZero, baselineY);
-          ctx.lineTo(geometry.xMax,  baselineY);
-          ctx.stroke();
-          ctx.restore();
-        },
-        listening: false
-      }));
-
-      // Gene feature rectangles, batched by colour.
-      for (const gene of track.features || []) {
-        const px0 = mapXCoordinateToStagePx(gene.start_in_region, xSampleData, geometry);
-        const px1 = mapXCoordinateToStagePx(gene.end_in_region,   xSampleData, geometry);
-        const gx0 = Math.min(px0, px1);
-        const gw  = Math.max(GFF_TRACK.minGeneWidthPx, Math.abs(px1 - px0));
-        if (!gffRectQueuesX.has(color)) { gffRectQueuesX.set(color, []); }
-        gffRectQueuesX.get(color).push({ x: gx0, y: trackY, width: gw, height: GFF_TRACK.height });
-      }
-    });
-
-    // Flush one Konva.Shape per colour.
-    for (const [color, rects] of gffRectQueuesX) {
-      const rectsSnapshot = rects;
-      dotplotTrackLayer.add(new Konva.Shape({
-        sceneFunc(ctx, shape) {
-          ctx.globalAlpha = 0.85;
-          ctx.beginPath();
-          for (const r of rectsSnapshot) {
-            drawRoundedRect(ctx, r.x, r.y, r.width, r.height, 2);
-          }
-          ctx.globalAlpha = 1;
-          ctx.fillStrokeShape(shape);
-        },
-        fill: color,
-        strokeWidth: 0,
-        listening: false
-      }));
-    }
-  }
-
-  // ── Y-sample GFF tracks (vertical, left of Y region) ────────────────────────
-  if (ySampleData && geometry.yGffWidth > 0) {
-    const yGffTracks = getSampleGffTracks(ySampleData);
-    // X origin for track strips: they stack leftward from the y-region left edge, with a side gap.
-    // yRegionX includes TRACK_GEOMETRY.featureInset; strips sit to its left.
-    const yGffRightEdge = geometry.outerPadding.left
-      + geometry.yGffWidth + geometry.yGffSideGap; // left edge of y-track region (before inset)
-    const gffRectQueuesY = new Map();
-
-    yGffTracks.forEach((track, trackIndex) => {
-      const color = getGffTrackColor(track.track_name);
-      // Stack strips rightward from the far-left edge toward the y-region, leaving a side gap.
-      // Strip 0 is nearest to the y-region.
-      const stripRightX = yGffRightEdge - geometry.yGffSideGap - trackIndex * (GFF_TRACK.height + GFF_TRACK.gap);
-      const trackX  = stripRightX - GFF_TRACK.height; // left edge of this strip
-      const baselineX = trackX + GFF_TRACK.height / 2;
-
-      // Baseline (grey vertical line across the genomic range).
-      dotplotTrackLayer.add(new Konva.Shape({
-        sceneFunc(ctx) {
-          ctx.save();
-          ctx.strokeStyle = "#e5e7eb";
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(baselineX, geometry.yMaxPixel);
-          ctx.lineTo(baselineX, geometry.yZeroPixel);
-          ctx.stroke();
-          ctx.restore();
-        },
-        listening: false
-      }));
-
-      // Gene feature rectangles — rotated 90°: height=trackWidth, width=gene length.
-      for (const gene of track.features || []) {
-        const py0 = mapYCoordinateToStagePx(gene.start_in_region, ySampleData, geometry);
-        const py1 = mapYCoordinateToStagePx(gene.end_in_region,   ySampleData, geometry);
-        const gy0 = Math.min(py0, py1);
-        const gh  = Math.max(GFF_TRACK.minGeneWidthPx, Math.abs(py1 - py0));
-        if (!gffRectQueuesY.has(color)) { gffRectQueuesY.set(color, []); }
-        gffRectQueuesY.get(color).push({ x: trackX, y: gy0, width: GFF_TRACK.height, height: gh });
-      }
-    });
-
-    // Flush one Konva.Shape per colour.
-    for (const [color, rects] of gffRectQueuesY) {
-      const rectsSnapshot = rects;
-      dotplotTrackLayer.add(new Konva.Shape({
-        sceneFunc(ctx, shape) {
-          ctx.globalAlpha = 0.85;
-          ctx.beginPath();
-          for (const r of rectsSnapshot) {
-            drawRoundedRect(ctx, r.x, r.y, r.width, r.height, 2);
-          }
-          ctx.globalAlpha = 1;
-          ctx.fillStrokeShape(shape);
-        },
-        fill: color,
-        strokeWidth: 0,
-        listening: false
-      }));
-    }
-  }
-
-  // ── GFF legend (bottom of stage) ───────────────────────────────────────────
-  if (geometry.xGffHeight > 0) {
-    const trackNames = getAllGffTrackNames();
-    if (trackNames.length > 0) {
-      // Legend baseline Y: bottom of the x-GFF track area.
-      const legendY = geometry.stageHeight - geometry.outerPadding.bottom
-        - GFF_LEGEND.height + GFF_LEGEND.topPadding;
-      let legendX = geometry.xZero;
-      for (const trackName of trackNames) {
-        const color = getGffTrackColor(trackName);
-        const textWidth = estimateTextWidth(trackName, GFF_LEGEND.fontSize);
-        dotplotTrackLayer.add(new Konva.Circle({
-          x: legendX + GFF_LEGEND.dotRadius,
-          y: legendY + GFF_LEGEND.fontSize / 2,
-          radius: GFF_LEGEND.dotRadius,
-          fill: color,
-          listening: false
-        }));
-        dotplotTrackLayer.add(new Konva.Text({
-          x: legendX + GFF_LEGEND.dotRadius * 2 + GFF_LEGEND.dotTextGap,
-          y: legendY,
-          text: trackName,
-          fontSize: GFF_LEGEND.fontSize,
-          fill: "#4b5563",
-          listening: false
-        }));
-        legendX += GFF_LEGEND.dotRadius * 2 + GFF_LEGEND.dotTextGap + textWidth + GFF_LEGEND.itemGap;
-      }
-    }
-  }
-
-  // ── Debug layer ────────────────────────────────────────────────────────────
   dotplotDebugLayer.destroyChildren();
-
   if (DOTPLOT_DEBUG_LAYOUT) {
-    const { xZero, xMax, yZeroPixel, yMaxPixel, imageX, imageY, imageWidth, imageHeight } = geometry;
-
-    // Axis boundary calibration lines — dash [10, 4], full opacity, span image area.
     dotplotDebugLayer.add(new Konva.Shape({
       sceneFunc(ctx) {
         ctx.save();
@@ -1080,112 +929,32 @@ function redrawDotplotStage() {
         ctx.lineWidth = DOTPLOT_TRACK.debugLineWidth;
         ctx.setLineDash([10, 4]);
         ctx.beginPath();
-        ctx.moveTo(xZero, imageY);                ctx.lineTo(xZero, imageY + imageHeight);
-        ctx.moveTo(xMax,  imageY);                ctx.lineTo(xMax,  imageY + imageHeight);
-        ctx.moveTo(imageX, yZeroPixel);           ctx.lineTo(imageX + imageWidth, yZeroPixel);
-        ctx.moveTo(imageX, yMaxPixel);            ctx.lineTo(imageX + imageWidth, yMaxPixel);
+        ctx.moveTo(geometry.xZero, geometry.imageY); ctx.lineTo(geometry.xZero, geometry.imageY + geometry.imageHeight);
+        ctx.moveTo(geometry.xMax, geometry.imageY); ctx.lineTo(geometry.xMax, geometry.imageY + geometry.imageHeight);
+        ctx.moveTo(geometry.imageX, geometry.yZeroPixel); ctx.lineTo(geometry.imageX + geometry.imageWidth, geometry.yZeroPixel);
+        ctx.moveTo(geometry.imageX, geometry.yMaxPixel); ctx.lineTo(geometry.imageX + geometry.imageWidth, geometry.yMaxPixel);
         ctx.stroke();
         ctx.restore();
       },
       listening: false
     }));
-
-    // Block boundary guide lines — dash [5, 5], half opacity, span image area.
-    if (xSampleData || ySampleData) {
-      const xBlockGuideXs = [];
-      const yBlockGuideYs = [];
-
-      if (xSampleData) {
-        for (const block of xSampleData.blocks) {
-          xBlockGuideXs.push(mapXCoordinateToStagePx(block.block_start_in_region, xSampleData, geometry));
-          xBlockGuideXs.push(mapXCoordinateToStagePx(block.block_end_in_region,   xSampleData, geometry));
-        }
-      }
-      if (ySampleData) {
-        for (const block of ySampleData.blocks) {
-          yBlockGuideYs.push(mapYCoordinateToStagePx(block.block_start_in_region, ySampleData, geometry));
-          yBlockGuideYs.push(mapYCoordinateToStagePx(block.block_end_in_region,   ySampleData, geometry));
-        }
-      }
-
-      dotplotDebugLayer.add(new Konva.Shape({
-        sceneFunc(ctx) {
-          ctx.save();
-          ctx.strokeStyle = DOTPLOT_TRACK.debugColor;
-          ctx.lineWidth = 0.8;
-          ctx.globalAlpha = 0.5;
-          ctx.setLineDash([5, 5]);
-          ctx.beginPath();
-          for (const x of xBlockGuideXs) {
-            ctx.moveTo(x, imageY);
-            ctx.lineTo(x, imageY + imageHeight);
-          }
-          for (const y of yBlockGuideYs) {
-            ctx.moveTo(imageX, y);
-            ctx.lineTo(imageX + imageWidth, y);
-          }
-          ctx.stroke();
-          ctx.restore();
-        },
-        listening: false
-      }));
-    }
   }
 
-  // ── Highlight layer ────────────────────────────────────────────────────────
-  // Re-add the persistent highlight shapes and refresh their content.
   dotplotHighlightLayer.destroyChildren();
-  // Intersection overlay is added first so it renders behind the track highlights.
-  if (_dotplotBlockIntersectionShape) {
-    dotplotHighlightLayer.add(_dotplotBlockIntersectionShape);
-  }
-  if (_dotplotSnpProjectionShape) {
-    dotplotHighlightLayer.add(_dotplotSnpProjectionShape);
-  }
-  if (_dotplotBlockHighlightShape) {
-    dotplotHighlightLayer.add(_dotplotBlockHighlightShape);
-  }
-  if (_dotplotSnpHighlightShape) {
-    dotplotHighlightLayer.add(_dotplotSnpHighlightShape);
-  }
+  dotplotHighlightLayer.add(_dotplotBlockIntersectionShape, _dotplotSnpProjectionShape);
+  dotplotXHighlightLayer.destroyChildren();
+  dotplotXHighlightLayer.add(_dotplotXBlockHighlightShape, _dotplotXSnpHighlightShape);
+  dotplotYHighlightLayer.destroyChildren();
+  dotplotYHighlightLayer.add(_dotplotYBlockHighlightShape, _dotplotYSnpHighlightShape);
   updateDotplotHighlightShapes();
+  renderDotplotGffLegend(xSampleData, ySampleData);
 
-  // Show the stage container now that content has been drawn.
-  const viewer = document.getElementById("dotplot-viewer");
-  if (viewer) {
-    viewer.classList.remove("hidden");
+  for (const viewerId of ["dotplot-viewer", "dotplot-x-viewer", "dotplot-y-viewer"]) {
+    document.getElementById(viewerId)?.classList.remove("hidden");
   }
   dotplotStage.draw();
-
-  updateDotplotAxisLabelLayout(geometry);
-  // Toggle centering based on whether the stage fits the scroll container.
-  // Must run after draw() so the container has its final dimensions.
-  _updateDotplotScrollAlignment(geometry);
-}
-
-function updateDotplotAxisLabelLayout(geometry) {
-  const xLabels = document.getElementById("dotplot-x-labels");
-  const yLabels = document.getElementById("dotplot-y-labels");
-
-  if (xLabels) {
-    xLabels.style.width = `${geometry.imageWidth}px`;
-    xLabels.style.marginLeft = `${geometry.imageX}px`;
-  }
-
-  if (yLabels) {
-    yLabels.style.height = `${geometry.imageHeight}px`;
-    yLabels.style.marginTop = `${geometry.imageY}px`;
-  }
-}
-
-// Centers the dotplot stage when it fits the scroll container; left-aligns
-// it when it overflows so that scrollLeft = 0 exposes the true left edge.
-function _updateDotplotScrollAlignment(geometry) {
-  const container = document.querySelector(".dotplot-content");
-  if (!container) { return; }
-  const padding = 24; // 2 × 12 px padding declared in .dotplot-content
-  const available = container.clientWidth - padding;
-  container.classList.toggle("dotplot-content--centered", geometry.stageWidth <= available);
+  dotplotXStage.draw();
+  dotplotYStage.draw();
 }
 
 // Binary search: returns index of first element where arr[i].cx >= target.
@@ -1232,29 +1001,30 @@ function lowerBoundDotplotY0(arr, target) {
   return lo;
 }
 
-// Resolves which feature (if any) the pointer is hovering over in dotplot mode.
-// Checks x-track (horizontal strip) then y-track (vertical strip).
+// Resolves which feature (if any) the pointer is hovering over in one local
+// context stage.  The caller supplies the stage axis, so no sticky-offset
+// compensation is needed.
 // SNPs are prioritized over blocks (closer distance wins; tolerance = SNP_POINTER_TOLERANCE_PX).
 // Returns { featureType: "block"|"snp", featureId } or null.
-function resolveDotplotHoveredFeature(pointerX, pointerY) {
+function resolveDotplotHoveredFeature(axis, pointerX, pointerY) {
   if (_dotplotHoverIndexDirty) {
     return null;
   }
 
-  const { xTrack, yTrack } = _dotplotHoverIndex;
+  const track = axis === "x" ? _dotplotHoverIndex.xTrack : _dotplotHoverIndex.yTrack;
 
-  // ── X-track (horizontal strip) ─────────────────────────────────────────────
   if (
-    xTrack.regionH > 0 &&
-    pointerX >= xTrack.regionX && pointerX <= xTrack.regionX + xTrack.regionW &&
-    pointerY >= xTrack.regionY && pointerY <= xTrack.regionY + xTrack.regionH
+    track.regionH > 0 &&
+    pointerX >= track.regionX && pointerX <= track.regionX + track.regionW &&
+    pointerY >= track.regionY && pointerY <= track.regionY + track.regionH
   ) {
+    if (axis === "x") {
     // SNPs: tolerance scan around pointerX.
-    const lo = lowerBoundDotplotCx(xTrack.snps, pointerX - SNP_POINTER_TOLERANCE_PX);
+    const lo = lowerBoundDotplotCx(track.snps, pointerX - SNP_POINTER_TOLERANCE_PX);
     let closestSnpId = null;
     let closestDist  = SNP_POINTER_TOLERANCE_PX + 1;
-    for (let j = lo; j < xTrack.snps.length; j++) {
-      const s = xTrack.snps[j];
+    for (let j = lo; j < track.snps.length; j++) {
+      const s = track.snps[j];
       if (s.cx > pointerX + SNP_POINTER_TOLERANCE_PX) { break; }
       const d = Math.abs(pointerX - s.cx);
       if (d < closestDist) { closestDist = d; closestSnpId = s.featureId; }
@@ -1263,25 +1033,18 @@ function resolveDotplotHoveredFeature(pointerX, pointerY) {
       return { featureType: "snp", featureId: closestSnpId };
     }
     // Blocks: last block whose x0 <= pointerX, check x1.
-    const bi = lowerBoundDotplotX0(xTrack.blocks, pointerX) - 1;
-    if (bi >= 0 && pointerX <= xTrack.blocks[bi].x1) {
-      return { featureType: "block", featureId: xTrack.blocks[bi].featureId };
+    const bi = lowerBoundDotplotX0(track.blocks, pointerX) - 1;
+    if (bi >= 0 && pointerX <= track.blocks[bi].x1) {
+      return { featureType: "block", featureId: track.blocks[bi].featureId };
     }
     return null;
-  }
-
-  // ── Y-track (vertical strip) ───────────────────────────────────────────────
-  if (
-    yTrack.regionH > 0 &&
-    pointerX >= yTrack.regionX && pointerX <= yTrack.regionX + yTrack.regionW &&
-    pointerY >= yTrack.regionY && pointerY <= yTrack.regionY + yTrack.regionH
-  ) {
+    }
     // SNPs: tolerance scan around pointerY.
-    const lo = lowerBoundDotplotCy(yTrack.snps, pointerY - SNP_POINTER_TOLERANCE_PX);
+    const lo = lowerBoundDotplotCy(track.snps, pointerY - SNP_POINTER_TOLERANCE_PX);
     let closestSnpId = null;
     let closestDist  = SNP_POINTER_TOLERANCE_PX + 1;
-    for (let j = lo; j < yTrack.snps.length; j++) {
-      const s = yTrack.snps[j];
+    for (let j = lo; j < track.snps.length; j++) {
+      const s = track.snps[j];
       if (s.cy > pointerY + SNP_POINTER_TOLERANCE_PX) { break; }
       const d = Math.abs(pointerY - s.cy);
       if (d < closestDist) { closestDist = d; closestSnpId = s.featureId; }
@@ -1290,14 +1053,42 @@ function resolveDotplotHoveredFeature(pointerX, pointerY) {
       return { featureType: "snp", featureId: closestSnpId };
     }
     // Blocks: last block whose y0 <= pointerY, check y1.
-    const bi = lowerBoundDotplotY0(yTrack.blocks, pointerY) - 1;
-    if (bi >= 0 && pointerY <= yTrack.blocks[bi].y1) {
-      return { featureType: "block", featureId: yTrack.blocks[bi].featureId };
+    const bi = lowerBoundDotplotY0(track.blocks, pointerY) - 1;
+    if (bi >= 0 && pointerY <= track.blocks[bi].y1) {
+      return { featureType: "block", featureId: track.blocks[bi].featureId };
     }
     return null;
   }
 
   return null;
+}
+
+function resolveDotplotGffGene(axis, pointerX, pointerY) {
+  if (_dotplotHoverIndexDirty) { return null; }
+  const tracks = (axis === "x" ? _dotplotHoverIndex.xTrack : _dotplotHoverIndex.yTrack).gffTracks || [];
+  for (const track of tracks) {
+    const isWithinTrack = axis === "x"
+      ? pointerY >= track.y0 && pointerY <= track.y1
+      : pointerX >= track.x0 && pointerX <= track.x1;
+    if (isWithinTrack) {
+      return findGffGeneAtX(track.intervalIndex, axis === "x" ? pointerX : pointerY);
+    }
+  }
+  return null;
+}
+
+function showDotplotGffGeneTooltip(gene, stage, pointerX, pointerY) {
+  const tooltip = document.getElementById("gff-gene-tooltip");
+  if (!tooltip) { return; }
+  tooltip.textContent = formatGffGeneAttributes(gene.attributes);
+  tooltip.style.display = "block";
+  const stageRect = stage.container().getBoundingClientRect();
+  const tooltipRect = tooltip.getBoundingClientRect();
+  const margin = 8;
+  const left = clampValue(stageRect.left + pointerX + 12, margin, window.innerWidth - tooltipRect.width - margin);
+  const top = clampValue(stageRect.top + pointerY + 12, margin, window.innerHeight - tooltipRect.height - margin);
+  tooltip.style.left = `${left}px`;
+  tooltip.style.top = `${top}px`;
 }
 
 // Applies a resolved dotplot hover, guarded by a key to avoid redundant sidebar updates.
@@ -1316,16 +1107,13 @@ function applyDotplotResolvedHover(resolved) {
   setHoveredFeature(resolved.featureType, resolved.featureId);
 }
 
-// Computes the stage-space highlight geometry for a given feature on both dotplot tracks.
-// Returns { blockGeoms: [], snpGeoms: [] } suitable for the highlight Konva.Shape nodes.
-// block geoms: { x, y, width, height }
-// snp geoms:   { cx, y0, y1, axis:"x" } | { cy, x0, x1, axis:"y" }
+// Computes independent local-stage highlight geometry for both genomic panes.
 function getDotplotHighlightGeometries(featureType, featureId) {
-  const blockGeoms = [];
-  const snpGeoms   = [];
+  const x = { blockGeoms: [], snpGeoms: [] };
+  const y = { blockGeoms: [], snpGeoms: [] };
 
   if (!featureId || _dotplotHoverIndexDirty) {
-    return { blockGeoms, snpGeoms };
+    return { x, y };
   }
 
   const { xTrack, yTrack } = _dotplotHoverIndex;
@@ -1335,7 +1123,7 @@ function getDotplotHighlightGeometries(featureType, featureId) {
     // matching browser-mode getBlockHighlightGeometries (0.5 px inset from region border).
     for (const b of xTrack.blocks) {
       if (b.featureId === featureId) {
-        blockGeoms.push({
+        x.blockGeoms.push({
           x:      b.x0,
           y:      xTrack.regionY + TRACK_HIGHLIGHT_INSET,
           width:  b.x1 - b.x0,
@@ -1345,7 +1133,7 @@ function getDotplotHighlightGeometries(featureType, featureId) {
     }
     for (const b of yTrack.blocks) {
       if (b.featureId === featureId) {
-        blockGeoms.push({
+        y.blockGeoms.push({
           x:      yTrack.regionX + TRACK_HIGHLIGHT_INSET,
           y:      b.y0,
           width:  yTrack.regionW - 2 * TRACK_HIGHLIGHT_INSET,
@@ -1357,27 +1145,25 @@ function getDotplotHighlightGeometries(featureType, featureId) {
     // SNP highlights span the same inset as feature lines.
     for (const s of xTrack.snps) {
       if (s.featureId === featureId) {
-        snpGeoms.push({
+        x.snpGeoms.push({
           cx: s.cx,
           y0: xTrack.regionY + TRACK_GEOMETRY.featureInset,
-          y1: xTrack.regionY + xTrack.regionH - TRACK_GEOMETRY.featureInset,
-          axis: "x"
+          y1: xTrack.regionY + xTrack.regionH - TRACK_GEOMETRY.featureInset
         });
       }
     }
     for (const s of yTrack.snps) {
       if (s.featureId === featureId) {
-        snpGeoms.push({
+        y.snpGeoms.push({
           cy: s.cy,
           x0: yTrack.regionX + TRACK_GEOMETRY.featureInset,
-          x1: yTrack.regionX + yTrack.regionW - TRACK_GEOMETRY.featureInset,
-          axis: "y"
+          x1: yTrack.regionX + yTrack.regionW - TRACK_GEOMETRY.featureInset
         });
       }
     }
   }
 
-  return { blockGeoms, snpGeoms };
+  return { x, y };
 }
 
 // Generic value clamp helper.
@@ -1434,7 +1220,7 @@ function moveDotplotByViewportFraction(direction, fraction = 0.1) {
     return;
   }
 
-  const stepPx = container.clientWidth * fraction;
+  const stepPx = (_currentDotplotGeometry?.matrixViewportWidth || container.clientWidth) * fraction;
   container.scrollLeft = clampValue(
     container.scrollLeft + direction * stepPx,
     0,
@@ -1466,12 +1252,11 @@ function centerDotplotOnPinnedFeature() {
   const container = document.querySelector(".dotplot-content");
   if (!container) { return; }
 
-  // Step 2 — adaptive zoom: choose the zoom that makes the rectangle occupy
-  // ~50 % of the viewport on whichever axis is the binding constraint.
-  // Use window dimensions for Y since we scroll the window for vertical centering.
+  // Step 2 — adaptive zoom: use only the usable matrix viewport; frozen
+  // context panes are excluded from the target coverage calculation.
   const TARGET_COVERAGE = 0.50;
-  const viewW = container.clientWidth - 24; // subtract 2×12 px padding
-  const viewH = window.innerHeight;
+  const viewW = _currentDotplotGeometry?.matrixViewportWidth || container.clientWidth;
+  const viewH = _currentDotplotGeometry?.matrixViewportHeight || container.clientHeight;
   const currentRectW = rectAtCurrentZoom.width;
   const currentRectH = rectAtCurrentZoom.height;
 
@@ -1501,14 +1286,16 @@ function centerDotplotOnPinnedFeature() {
     const rectCenterX = rect.x + rect.width / 2;
     const rectCenterY = rect.y + rect.height / 2;
 
+    const matrixViewportWidth = _currentDotplotGeometry?.matrixViewportWidth || container.clientWidth;
+    const matrixViewportHeight = _currentDotplotGeometry?.matrixViewportHeight || container.clientHeight;
     container.scrollLeft = clampValue(
-      rectCenterX - container.clientWidth / 2,
+      rectCenterX - matrixViewportWidth / 2,
       0,
       container.scrollWidth - container.clientWidth
     );
 
     container.scrollTop = clampValue(
-      rectCenterY - container.clientHeight / 2,
+      rectCenterY - matrixViewportHeight / 2,
       0,
       container.scrollHeight - container.clientHeight
     );
@@ -1642,12 +1429,14 @@ function _computeDotplotSnpProjection(featureId) {
   };
 }
 
-// Updates the dotplot highlight layer to reflect the currently displayed feature
-// (hover or pin), using the same color logic as browser mode.
-// Must be called after updateHighlightShapes() in applyActiveDisplay(),
-// and also after every full redrawDotplotStage().
+// Updates matrix projections and both local context highlight layers.  This is
+// triggered by feature interaction or a full redraw, never by native scrolling.
 function updateDotplotHighlightShapes() {
-  if (!dotplotHighlightLayer || !_dotplotBlockHighlightShape || !_dotplotSnpHighlightShape) {
+  if (
+    !dotplotHighlightLayer || !dotplotXHighlightLayer || !dotplotYHighlightLayer ||
+    !_dotplotXBlockHighlightShape || !_dotplotXSnpHighlightShape ||
+    !_dotplotYBlockHighlightShape || !_dotplotYSnpHighlightShape
+  ) {
     return;
   }
 
@@ -1656,25 +1445,30 @@ function updateDotplotHighlightShapes() {
     ? FEATURE_COLORS.highlightPinned
     : FEATURE_COLORS.highlightHover;
 
-  let blockGeoms = [];
-  let snpGeoms   = [];
+  let xGeoms = { blockGeoms: [], snpGeoms: [] };
+  let yGeoms = { blockGeoms: [], snpGeoms: [] };
 
   if (
     displayed &&
     !(displayed.featureType === "snp" && !shouldDisplaySnp(displayed.featureId))
   ) {
     const result = getDotplotHighlightGeometries(displayed.featureType, displayed.featureId);
-    blockGeoms = result.blockGeoms;
-    snpGeoms   = result.snpGeoms;
+    xGeoms = result.x;
+    yGeoms = result.y;
   }
 
-  _dotplotBlockHighlightColor = color;
-  _dotplotBlockHighlightGeoms = blockGeoms;
-  _dotplotBlockHighlightShape.visible(blockGeoms.length > 0);
-
-  _dotplotSnpHighlightColor = color;
-  _dotplotSnpHighlightGeoms = snpGeoms;
-  _dotplotSnpHighlightShape.visible(snpGeoms.length > 0);
+  _dotplotXBlockHighlightColor = color;
+  _dotplotXBlockHighlightGeoms = xGeoms.blockGeoms;
+  _dotplotXBlockHighlightShape.visible(xGeoms.blockGeoms.length > 0);
+  _dotplotXSnpHighlightColor = color;
+  _dotplotXSnpHighlightGeoms = xGeoms.snpGeoms;
+  _dotplotXSnpHighlightShape.visible(xGeoms.snpGeoms.length > 0);
+  _dotplotYBlockHighlightColor = color;
+  _dotplotYBlockHighlightGeoms = yGeoms.blockGeoms;
+  _dotplotYBlockHighlightShape.visible(yGeoms.blockGeoms.length > 0);
+  _dotplotYSnpHighlightColor = color;
+  _dotplotYSnpHighlightGeoms = yGeoms.snpGeoms;
+  _dotplotYSnpHighlightShape.visible(yGeoms.snpGeoms.length > 0);
 
   // Block intersection overlay: shown only for block features in dotplot mode.
   if (_dotplotBlockIntersectionShape) {
@@ -1700,6 +1494,8 @@ function updateDotplotHighlightShapes() {
   }
 
   dotplotHighlightLayer.batchDraw();
+  dotplotXHighlightLayer.batchDraw();
+  dotplotYHighlightLayer.batchDraw();
 }
 
 function renderDotplot() {

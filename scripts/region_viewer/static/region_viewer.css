@@ -1045,6 +1045,20 @@ body {
   min-width: 0;
 }
 
+.dotplot-ui-layout {
+  display: grid;
+  grid-template-areas:
+    "x-labels ."
+    "frame y-labels"
+    "legend ."
+    "status status";
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  column-gap: 8px;
+  row-gap: 6px;
+  width: 100%;
+}
+
 .dotplot-main-area {
   display: flex;
   flex-direction: column;
@@ -1053,17 +1067,25 @@ body {
 }
 
 .dotplot-x-axis-labels {
+  grid-area: x-labels;
   display: flex;
   justify-content: center;
   gap: 6px;
+  min-height: 30px;
+  padding-left: var(--dotplot-y-pane-width, 0px);
+  pointer-events: auto;
 }
 
 .dotplot-y-axis-labels {
+  grid-area: y-labels;
   display: flex;
   flex-direction: column;
   justify-content: center;
   gap: 6px;
-  align-self: stretch;
+  align-self: start;
+  width: 30px;
+  height: var(--dotplot-matrix-viewport-height, 1px);
+  pointer-events: auto;
 }
 
 .dotplot-sample-label {
@@ -1127,35 +1149,109 @@ body {
   border-color: var(--border);
 }
 
-.dotplot-content {
-  padding: 12px;
+.dotplot-frame {
+  grid-area: frame;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: white;
   min-height: 60px;
   max-height: 95vh;
+  overflow: hidden;
+  position: relative;
+}
+
+.dotplot-content {
+  position: absolute;
+  inset: var(--dotplot-top-breathing-space, 5px) 0 0;
   overflow: auto;
-  display: flex;
-  align-items: flex-start;
+  scrollbar-gutter: stable both-edges;
 }
 
+/* The scroll surface contains a matrix-sized spacer plus two sticky context
+   panes.  Sticky positioning is entirely browser-owned: no scroll listener or
+   canvas redraw is needed to keep either pane frozen. */
+.dotplot-scroll-surface {
+  position: relative;
+  width: var(--dotplot-surface-width, 1px);
+  height: var(--dotplot-surface-height, 1px);
+  min-width: 1px;
+  min-height: 1px;
+}
 
-.dotplot-content--centered {
+.dotplot-scroll-spacer {
+  width: var(--dotplot-surface-width, 1px);
+  height: var(--dotplot-surface-height, 1px);
+}
+
+.dotplot-matrix-pane {
+  position: absolute;
+  z-index: 1;
+  left: var(--dotplot-y-pane-width, 0px);
+  top: 0;
+  width: var(--dotplot-matrix-width, 1px);
+  height: var(--dotplot-matrix-height, 1px);
+  background: #ffffff;
+}
+
+.dotplot-pane {
+  position: sticky;
+  z-index: 4;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.dotplot-x-pane {
+  top: var(--dotplot-matrix-viewport-height, 0px);
+  width: var(--dotplot-matrix-width, 1px);
+  height: var(--dotplot-x-pane-height, 1px);
+  margin-left: var(--dotplot-y-pane-width, 0px);
+  margin-bottom: calc(-1 * var(--dotplot-x-pane-height, 1px));
+}
+
+.dotplot-y-pane {
+  left: 0;
+  width: var(--dotplot-y-pane-width, 1px);
+  height: var(--dotplot-matrix-height, 1px);
+  margin-bottom: calc(-1 * var(--dotplot-matrix-height, 1px));
+}
+
+.dotplot-pane-corner {
+  position: sticky;
+  z-index: 5;
+  left: 0;
+  top: var(--dotplot-matrix-viewport-height, 0px);
+  width: var(--dotplot-y-pane-width, 1px);
+  height: var(--dotplot-x-pane-height, 1px);
+  margin-bottom: calc(-1 * var(--dotplot-x-pane-height, 1px));
+  background: #ffffff;
+}
+
+.dotplot-gff-legend {
+  grid-area: legend;
+  display: flex;
   justify-content: center;
-}
-
-.dotplot-stage-layout {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  width: max-content;
-  max-width: none;
-}
-
-.dotplot-stage-row {
-  display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 16px;
+  min-width: 0;
+  min-height: var(--dotplot-gff-legend-height, 0px);
+  padding: 2px 6px 2px calc(var(--dotplot-y-pane-width, 0px) + 6px);
+  color: #4b5563;
+  font-size: 11px;
+  pointer-events: auto;
+}
+
+.dotplot-gff-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.dotplot-gff-legend-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
 }
 
 /* Hidden img element used only to load the SVG file.
@@ -1171,6 +1267,7 @@ body {
 }
 
 .dotplot-status-msg {
+  grid-area: status;
   text-align: center;
   padding: 24px;
 }
@@ -1224,7 +1321,7 @@ body {
   border-color: #a0b4cc;
 }
 
-.dotplot-content.is-pending-pair #dotplot-viewer {
+.dotplot-content.is-pending-pair .dotplot-matrix-pane {
   opacity: 0.45;
   filter: grayscale(1);
 }

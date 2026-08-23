@@ -93,18 +93,29 @@
           </div>
 
           <div id="dotplot-panel" class="dotplot-layout hidden">
-            <div class="dotplot-content">
-              <div class="dotplot-stage-layout">
-                <div id="dotplot-x-labels" class="dotplot-x-axis-labels"></div>
-
-                <div class="dotplot-stage-row">
-                  <div id="dotplot-viewer" class="dotplot-viewer hidden"></div>
-                  <div id="dotplot-y-labels" class="dotplot-y-axis-labels"></div>
+            <div id="dotplot-ui-layout" class="dotplot-ui-layout">
+              <div id="dotplot-x-labels" class="dotplot-x-axis-labels"></div>
+              <div class="dotplot-frame">
+                <div class="dotplot-content">
+                  <div id="dotplot-scroll-surface" class="dotplot-scroll-surface">
+                    <div id="dotplot-x-pane" class="dotplot-pane dotplot-x-pane">
+                      <div id="dotplot-x-viewer" class="dotplot-viewer hidden"></div>
+                    </div>
+                    <div id="dotplot-y-pane" class="dotplot-pane dotplot-y-pane">
+                      <div id="dotplot-y-viewer" class="dotplot-viewer hidden"></div>
+                    </div>
+                    <div id="dotplot-pane-corner" class="dotplot-pane-corner" aria-hidden="true"></div>
+                    <div id="dotplot-matrix-pane" class="dotplot-matrix-pane">
+                      <div id="dotplot-viewer" class="dotplot-viewer hidden"></div>
+                    </div>
+                    <div id="dotplot-scroll-spacer" class="dotplot-scroll-spacer" aria-hidden="true"></div>
+                  </div>
                 </div>
-
-                <p id="dotplot-status-msg" class="hint dotplot-status-msg hidden"></p>
-                <img id="dotplot-svg-img" class="dotplot-svg-loader" src="" alt="" aria-hidden="true" />
               </div>
+              <div id="dotplot-y-labels" class="dotplot-y-axis-labels"></div>
+              <div id="dotplot-gff-legend" class="dotplot-gff-legend hidden"></div>
+              <p id="dotplot-status-msg" class="hint dotplot-status-msg hidden"></p>
+              <img id="dotplot-svg-img" class="dotplot-svg-loader" src="" alt="" aria-hidden="true" />
             </div>
           </div>
         </div>

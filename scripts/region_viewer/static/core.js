@@ -235,13 +235,19 @@ const dotplotPairIndexes = {
   samples: []
 };
 
-// Dotplot Konva stage and layers — initialized lazily on first dotplot activation.
-let dotplotStage            = null;
-let dotplotImageLayer       = null;
-let dotplotTrackLayer       = null;
-let dotplotDebugLayer       = null;
-let dotplotHighlightLayer   = null;
-let dotplotInteractionLayer = null;
+// Dotplot rendering surfaces — initialized lazily on first dotplot activation.
+// The matrix and both genomic context panes deliberately use separate stages so
+// browser-native scrolling can keep the context panes frozen without Konva work.
+let dotplotStage             = null;
+let dotplotImageLayer        = null;
+let dotplotDebugLayer        = null;
+let dotplotHighlightLayer    = null;
+let dotplotXStage            = null;
+let dotplotXTrackLayer       = null;
+let dotplotXHighlightLayer   = null;
+let dotplotYStage            = null;
+let dotplotYTrackLayer       = null;
+let dotplotYHighlightLayer   = null;
 let _dotplotRedrawPending   = false;
 
 // Dotplot hover/highlight state.
@@ -261,15 +267,21 @@ const _dotplotHoverIndex = {
 let _dotplotHoverIndexDirty = true;
 let _lastResolvedDotplotHoverKey = null;
 
-// Dotplot highlight layer backing data — updated by updateDotplotHighlightShapes().
-let _dotplotBlockHighlightGeoms = [];
-let _dotplotBlockHighlightColor = FEATURE_COLORS.highlightHover;
-let _dotplotSnpHighlightGeoms   = [];
-let _dotplotSnpHighlightColor   = FEATURE_COLORS.highlightHover;
-// These Konva.Shape nodes are created once during initDotplotStage() and
-// re-added to dotplotHighlightLayer on every full redraw.
-let _dotplotBlockHighlightShape    = null;
-let _dotplotSnpHighlightShape      = null;
+// Dotplot context highlight backing data — updated by updateDotplotHighlightShapes().
+let _dotplotXBlockHighlightGeoms = [];
+let _dotplotXBlockHighlightColor = FEATURE_COLORS.highlightHover;
+let _dotplotXSnpHighlightGeoms   = [];
+let _dotplotXSnpHighlightColor   = FEATURE_COLORS.highlightHover;
+let _dotplotYBlockHighlightGeoms = [];
+let _dotplotYBlockHighlightColor = FEATURE_COLORS.highlightHover;
+let _dotplotYSnpHighlightGeoms   = [];
+let _dotplotYSnpHighlightColor   = FEATURE_COLORS.highlightHover;
+// These Konva.Shape nodes are created once and re-added to their corresponding
+// context highlight layer on every full redraw.
+let _dotplotXBlockHighlightShape = null;
+let _dotplotXSnpHighlightShape   = null;
+let _dotplotYBlockHighlightShape = null;
+let _dotplotYSnpHighlightShape   = null;
 // Block intersection overlay: a single translucent blue rectangle drawn on
 // the SVG image area at the intersection of the highlighted block's X- and
 // Y-sample intervals.  Geometry stored as { x, y, width, height } or null.
