@@ -72,7 +72,7 @@ def run_snakemake(
         [
             "snakemake",
             "-s",
-            str(repo_root / "Snakefile"),
+            str(repo_root / "workflow" / "Snakefile"),
             "--directory",
             str(workdir),
             "--configfile",

@@ -42,7 +42,7 @@ minimap2 = "*"
 mash = ">=2.3,<3"
 
 [feature.workflow.tasks]
-kaspberry = "python scripts/kaspberry.py"
+kaspberry = "python workflow/scripts/kaspberry.py"
 
 [environments]
 default = { features = ["workflow"], no-default-feature = true }

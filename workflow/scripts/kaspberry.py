@@ -23,8 +23,8 @@ from run_info import (
 from validate_inputs import validate_inputs
 
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-SNAKEFILE = REPO_ROOT / "Snakefile"
+REPO_ROOT = Path(__file__).resolve().parents[2]
+SNAKEFILE = REPO_ROOT / "workflow" / "Snakefile"
 SCHEMA_DIR = REPO_ROOT / "workflow" / "schemas"
 
 
