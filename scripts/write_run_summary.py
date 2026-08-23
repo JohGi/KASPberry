@@ -13,6 +13,40 @@ from pathlib import Path
 import polars as pl
 
 
+FAILURE_REASON_LABELS = {
+    # SNP diagnostic filtering
+    "non_diagnostic_allele_pattern": (
+        "Non-diagnostic allele pattern"
+    ),
+
+    # PolyMarker design
+    "no_polymarker_assay": (
+        "No PolyMarker assay"
+    ),
+
+    # In-silico screening, SNP level
+    "no_assay_passed_in_silico_validation": (
+        "No assay passed in-silico screening"
+    ),
+
+    # In-silico screening, assay level
+    "missing_target_amplicon": (
+        "Missing target amplicon"
+    ),
+    "multiple_expected_amplicons": (
+        "Multiple expected amplicons"
+    ),
+    "unexpected_allele_amplicon": (
+        "Unexpected allele amplicon"
+    ),
+    "noncanonical_amplicon": (
+        "Noncanonical amplicon"
+    ),
+    "dimer": "Dimer",
+    "hairpin": "Hairpin",
+}
+
+
 def parse_args():
     parser = argparse.ArgumentParser()
 
@@ -88,13 +122,43 @@ def count_reasons(
     status_col: str,
     reason_col: str,
 ) -> dict[str, int]:
-    reasons = Counter(
-        row[reason_col]
-        for row in df.iter_rows(named=True)
-        if row[status_col] == "FAIL" and row[reason_col]
-    )
+    """Count individual failure reasons among failed rows.
+
+    Failure-reason fields may contain several semicolon-separated reasons.
+    Each reason is therefore counted independently.
+    """
+    reasons: Counter[str] = Counter()
+
+    for row in df.iter_rows(named=True):
+        if row[status_col] != "FAIL":
+            continue
+
+        raw_reasons = row[reason_col]
+
+        if not raw_reasons:
+            continue
+
+        for reason in str(raw_reasons).split(";"):
+            reason = reason.strip()
+
+            if reason:
+                reasons[reason] += 1
 
     return dict(sorted(reasons.items()))
+
+
+def format_failure_reason(reason: str) -> str:
+    """Convert an internal failure-reason identifier to a display label."""
+    if reason in FAILURE_REASON_LABELS:
+        return FAILURE_REASON_LABELS[reason]
+
+    return (
+        reason
+        .replace("_", " ")
+        .replace("-", " ")
+        .strip()
+        .capitalize()
+    )
 
 
 def interval_union_length(
@@ -305,6 +369,7 @@ def build_summary(args) -> dict:
             "assays_proposed": assays.height,
         }
 
+        # Internal JSON keys retain "validation" for compatibility.
         summary["in_silico_validation"] = {
             "assays_passing_validation": (
                 passing_assays
@@ -452,16 +517,16 @@ def build_text(summary: dict) -> str:
 
         add_section(
             lines,
-            "In silico validation",
+            "In-silico screening",
         )
 
         lines.extend([
             (
-                "Assays passing validation: "
+                "Passing assays: "
                 f"{stats['assays_passing_validation']}"
             ),
             (
-                "Assays failing validation: "
+                "Failing assays: "
                 f"{stats['assays_failing_validation']}"
             ),
         ])
@@ -496,7 +561,10 @@ def build_text(summary: dict) -> str:
             lines.append("SNPs:")
 
             lines.extend(
-                f"  {reason}: {count}"
+                (
+                    f"  {format_failure_reason(reason)}: "
+                    f"{count}"
+                )
                 for reason, count
                 in reasons["snps"].items()
             )
@@ -505,7 +573,10 @@ def build_text(summary: dict) -> str:
             lines.append("Assays:")
 
             lines.extend(
-                f"  {reason}: {count}"
+                (
+                    f"  {format_failure_reason(reason)}: "
+                    f"{count}"
+                )
                 for reason, count
                 in reasons["assays"].items()
             )

@@ -62,6 +62,7 @@ const DOTPLOT_OUTER_PADDING = {
 // This is frame-only space between the outer dotplot border and the scrollport.
 // It deliberately does not participate in any Konva coordinate system.
 const DOTPLOT_FRAME_TOP_BREATHING_SPACE = 5;
+const DOTPLOT_FRAME_BOTTOM_BREATHING_SPACE = 5;
 
 // Geometry for the currently rendered dotplot stage. Projection overlays must
 // share this object with the image and tracks rather than sampling DOM width
@@ -925,12 +926,13 @@ function applyDotplotPaneLayout(geometry) {
     "--dotplot-matrix-viewport-height": `${geometry.matrixViewportHeight}px`,
     "--dotplot-viewport-width": `${geometry.scrollportWidth}px`,
     "--dotplot-top-breathing-space": `${DOTPLOT_FRAME_TOP_BREATHING_SPACE}px`,
+    "--dotplot-bottom-breathing-space": `${DOTPLOT_FRAME_BOTTOM_BREATHING_SPACE}px`,
     "--dotplot-gff-legend-height": `${GFF_LEGEND.height}px`
   };
   for (const [name, value] of Object.entries(values)) {
     layout.style.setProperty(name, value);
   }
-  frame.style.height = `${geometry.scrollportHeight + DOTPLOT_FRAME_TOP_BREATHING_SPACE + 2}px`;
+  frame.style.height = `${geometry.scrollportHeight + DOTPLOT_FRAME_TOP_BREATHING_SPACE + DOTPLOT_FRAME_BOTTOM_BREATHING_SPACE + 2}px`;
   surface.style.marginLeft = `${Math.max(0, (geometry.viewportWidth - geometry.scrollportWidth) / 2)}px`;
 }
 

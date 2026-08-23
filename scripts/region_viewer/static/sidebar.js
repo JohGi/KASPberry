@@ -117,7 +117,7 @@ const VIEWER_MODE_INFO_TOOLTIPS = {
       "",
       "Simple repeats and low-complexity regions are hard-masked with RepeatMasker. If a custom repeat library is provided, matching sequences are also masked. Masked block sequences are aligned with MAFFT. Biallelic SNPs are detected with SeqTUI using the configured minimum SNP flank, i.e. the minimum number of perfectly aligned bases required on both sides of each SNP, with no indel, additional SNP, or N.",
       "",
-      "Diagnostic SNPs are selected from the configured genotype groups. KASP assays are designed with PolyMarker. Assays are tested with MFEprimer for in-silico amplification specificity, dimers, and hairpins. SNPs with at least one assay that passes in-silico validation are retained as final candidates.",
+      "Diagnostic SNPs are selected from the configured genotype groups. KASP assays are designed with PolyMarker. Assays are tested with MFEprimer for in-silico amplification specificity, dimers, and hairpins. SNPs with at least one assay that passes in-silico screening are retained as final candidates.",
       "",
       "References: SibeliaZ, Minkin & Medvedev 2020; RepeatMasker, Tarailo-Graovac & Chen 2009; MAFFT, Katoh & Standley 2013; SeqTUI, Ranwez 2026; PolyMarker, Ramirez-Gonzalez et al. 2015; MFEprimer, Wang et al. 2019."
     ].join("\n")
@@ -254,6 +254,158 @@ function renderSummarySection(title, entries, emphasized = false) {
   `;
 }
 
+function subtractSummaryCounts(total, retained) {
+  const totalCount = Number(total);
+  const retainedCount = Number(retained);
+
+  if (!Number.isFinite(totalCount) || !Number.isFinite(retainedCount)) {
+    return "NA";
+  }
+
+  return formatSummaryCount(totalCount - retainedCount);
+}
+
+function renderTreeResult(label, value, children = "") {
+  return `
+    <li class="analysis-summary-tree-result${children ? " analysis-summary-tree-result-with-children" : ""}">
+      <div class="analysis-summary-tree-row">
+        <span class="analysis-summary-tree-label">${escapeHtml(label)}</span>
+        <span class="analysis-summary-tree-value">${escapeHtml(String(value))}</span>
+      </div>
+      ${children ? `
+        <ul class="analysis-summary-tree-children">
+          ${children}
+        </ul>
+      ` : ""}
+    </li>
+  `;
+}
+
+function renderTreeStage(label, children) {
+  return `
+    <li class="analysis-summary-tree-stage">
+      <span class="analysis-summary-tree-stage-label">${escapeHtml(label)}</span>
+      <ul class="analysis-summary-tree-children">
+        ${children}
+      </ul>
+    </li>
+  `;
+}
+
+const ASSAY_FAILURE_REASON_ENTRIES = [
+  ["missing_target_amplicon", "Missing target amplicon"],
+  ["multiple_expected_amplicons", "Multiple expected amplicons"],
+  ["unexpected_allele_amplicon", "Unexpected allele amplicon"],
+  ["noncanonical_amplicon", "Noncanonical amplicon"],
+  ["dimer", "Dimer"],
+  ["hairpin", "Hairpin"]
+];
+
+function renderAssayFailureReasonSummary(reasons) {
+  return `
+    <details class="analysis-summary-reasons">
+      <summary>Failure reasons</summary>
+      ${renderSummaryRows(ASSAY_FAILURE_REASON_ENTRIES.map(([reason, label]) => [
+        label,
+        formatSummaryCount(reasons?.[reason] ?? 0)
+      ]))}
+    </details>
+  `;
+}
+
+function renderSnpSummary(snpDiscovery, assayDesign, finalCandidates) {
+  if (!snpDiscovery) {
+    return "";
+  }
+
+  const diagnosticSnps = snpDiscovery.diagnostic_snps;
+  let diagnosticSnpResult = renderTreeResult(
+    "Diagnostic SNPs",
+    formatSummaryCount(diagnosticSnps)
+  );
+
+  if (REGION_DATA.mode === "kasp" && assayDesign && finalCandidates) {
+    const snpsWithAssay = assayDesign.snps_with_assay_proposed;
+    const snpsWithPassingAssay = finalCandidates.candidate_snps;
+    const assayDesignTree = renderTreeStage("KASP assay design", [
+      renderTreeResult(
+        "SNPs with no assay proposed",
+        subtractSummaryCounts(diagnosticSnps, snpsWithAssay)
+      ),
+      renderTreeResult(
+        "SNPs with assay proposed",
+        formatSummaryCount(snpsWithAssay),
+        renderTreeStage("In-silico screening", [
+          renderTreeResult(
+            "SNPs with no passing assay",
+            subtractSummaryCounts(snpsWithAssay, snpsWithPassingAssay)
+          ),
+          renderTreeResult(
+            "SNPs with \u22651 passing assay",
+            formatSummaryCount(snpsWithPassingAssay)
+          )
+        ].join(""))
+      )
+    ].join(""));
+
+    diagnosticSnpResult = renderTreeResult(
+      "Diagnostic SNPs",
+      formatSummaryCount(diagnosticSnps),
+      assayDesignTree
+    );
+  }
+
+  const diagnosticFilteringTree = renderTreeStage("Diagnostic filtering", [
+      renderTreeResult(
+        "Non-diagnostic SNPs",
+        formatSummaryCount(snpDiscovery.non_diagnostic_snps)
+      ),
+      diagnosticSnpResult
+    ].join(""));
+
+  return `
+    <section class="analysis-summary-section analysis-summary-tree-section">
+      <h4>SNPs</h4>
+      <ul class="analysis-summary-tree">
+        ${renderTreeResult(
+          "Detected SNPs",
+          formatSummaryCount(snpDiscovery.detected_snps),
+          diagnosticFilteringTree
+        )}
+      </ul>
+    </section>
+  `;
+}
+
+function renderAssaySummary(assayDesign, validation, failureReasons) {
+  if (!assayDesign || !validation) {
+    return "";
+  }
+
+  return `
+    <section class="analysis-summary-section analysis-summary-tree-section">
+      <h4>KASP assays</h4>
+      <ul class="analysis-summary-tree">
+        ${renderTreeResult(
+          "Proposed assays",
+          formatSummaryCount(assayDesign.assays_proposed),
+          renderTreeStage("In-silico screening", [
+            renderTreeResult(
+              "Passing assays",
+              formatSummaryCount(validation.assays_passing_validation)
+            ),
+            renderTreeResult(
+              "Failing assays",
+              formatSummaryCount(validation.assays_failing_validation)
+            )
+          ].join(""))
+        )}
+      </ul>
+      ${renderAssayFailureReasonSummary(failureReasons)}
+    </section>
+  `;
+}
+
 function nonEmptyReasonEntries(reasons) {
   return Object.entries(reasons || {}).filter(([, count]) => Number(count) > 0);
 }
@@ -308,45 +460,18 @@ function renderAnalysisSummary() {
   }
 
   if (snpDiscovery) {
-    sections.push(renderSummarySection("SNP discovery", [
-      ["Detected SNPs", formatSummaryCount(snpDiscovery.detected_snps)],
-      ["Diagnostic SNPs", formatSummaryCount(snpDiscovery.diagnostic_snps)],
-      ["Non-diagnostic SNPs", formatSummaryCount(snpDiscovery.non_diagnostic_snps)]
-    ]));
+    sections.push(renderSnpSummary(
+      snpDiscovery,
+      summaryStats.kasp_assay_design,
+      summaryStats.final_candidates
+    ));
   }
 
   if (REGION_DATA.mode === "kasp") {
     const assayDesign = summaryStats.kasp_assay_design;
     const validation = summaryStats.in_silico_validation;
-    const finalCandidates = summaryStats.final_candidates;
-
-    if (assayDesign) {
-      sections.push(renderSummarySection("KASP assay design", [
-        ["SNPs with assay proposed", formatSummaryCount(assayDesign.snps_with_assay_proposed)],
-        ["Assays proposed", formatSummaryCount(assayDesign.assays_proposed)]
-      ]));
-    }
-
-    if (validation) {
-      sections.push(renderSummarySection("In-silico validation", [
-        ["Passing assays", formatSummaryCount(validation.assays_passing_validation)],
-        ["Failing assays", formatSummaryCount(validation.assays_failing_validation)]
-      ]));
-    }
-
-    if (finalCandidates) {
-      sections.push(renderSummarySection("Final candidates", [
-        ["Candidate SNPs", formatSummaryCount(finalCandidates.candidate_snps)],
-        ["Candidate assays", formatSummaryCount(finalCandidates.candidate_assays)]
-      ], true));
-    }
-  }
-
-  const failureReasons = summaryStats.failure_reasons || {};
-  sections.push(renderReasonSummary("Candidate rejection reasons", failureReasons.snps));
-
-  if (REGION_DATA.mode === "kasp") {
-    sections.push(renderReasonSummary("Assay validation failure reasons", failureReasons.assays));
+    const failureReasons = summaryStats.failure_reasons || {};
+    sections.push(renderAssaySummary(assayDesign, validation, failureReasons.assays));
   }
 
   sections.push(renderMashSummary());
@@ -754,7 +879,7 @@ function renderBlockSidebar(featureId, isPinned) {
 const SNP_WORKFLOW_DISPLAY_VALUES = {
   non_diagnostic_allele_pattern: "Non-diagnostic allele pattern",
   no_polymarker_assay: "No PolyMarker assay",
-  no_assay_passed_in_silico_validation: "No assay passed in-silico validation"
+  no_assay_passed_in_silico_validation: "No assay passed in-silico screening"
 };
 
 function humanizeSnpWorkflowValue(value) {
@@ -837,7 +962,7 @@ function renderSnpWorkflowPipeline(snpResult) {
       snpResult?.design_failure_reason
     );
     stages += renderSnpWorkflowStage(
-      "In-silico validation",
+      "In-silico screening",
       snpResult?.validation_status,
       snpResult?.validation_failure_reason
     );

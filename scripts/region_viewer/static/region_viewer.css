@@ -366,8 +366,8 @@ body {
 }
 
 .right-column {
-  flex: 0 0 320px;
-  width: 320px;
+  flex: 0 0 330px;
+  width: 330px;
   min-width: 260px;
   display: flex;
   flex-direction: column;
@@ -388,7 +388,10 @@ body {
 }
 
 .sidebar {
-  flex: 1 1 auto;
+  /* Keep the right column's synchronized height reserved while letting short
+     feature summaries end at their content.  Flex shrinking still caps long
+     summaries to the space below Analysis settings, where they scroll. */
+  flex: 0 1 auto;
   min-height: 0;
   overflow: auto;
   scrollbar-gutter: stable;
@@ -809,6 +812,56 @@ body {
   font-size: 13px;
 }
 
+.analysis-summary-tree {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+}
+
+.analysis-summary-tree-children {
+  margin: 2px 0 0;
+  padding: 0 0 0 12px;
+  list-style: none;
+}
+
+.analysis-summary-tree-children > li {
+  margin-top: 2px;
+}
+
+.analysis-summary-tree-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  min-height: 18px;
+  column-gap: 24px;
+  line-height: 18px;
+  min-width: 0;
+}
+
+.analysis-summary-tree-label {
+  min-width: 0;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.analysis-summary-tree-value {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.analysis-summary-tree-stage-label {
+  display: block;
+  min-height: 18px;
+  color: #374151;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+}
+
 .analysis-summary-section-emphasized {
   padding: 8px;
   border: 1px solid #dce5ef;
@@ -833,6 +886,21 @@ body {
 
 .analysis-summary-reasons .kv {
   margin-top: 8px;
+}
+
+.analysis-summary-reasons .kv .key {
+  color: var(--text);
+}
+
+.analysis-summary-tree + .analysis-summary-reasons {
+  margin-top: 6px;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.analysis-summary-tree + .analysis-summary-reasons summary {
+  color: var(--text);
+  font-weight: 400;
 }
 
 .analysis-summary-mash {
@@ -1161,7 +1229,7 @@ body {
 
 .dotplot-content {
   position: absolute;
-  inset: var(--dotplot-top-breathing-space, 5px) 0 0;
+  inset: var(--dotplot-top-breathing-space, 5px) 0 var(--dotplot-bottom-breathing-space, 5px);
   overflow: auto;
   scrollbar-gutter: stable both-edges;
 }
