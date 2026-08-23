@@ -620,7 +620,7 @@ def func_plot_alignments( blastn, table_row, table_column, heatmap, ax, line_wid
         j = table_column.index[ table_column['scaffold'] == b_out.qseqid ][0]
 
         # Plot the alignment line
-        ax[ i ][ j ].plot( [ b_out.qstart, b_out.qend ], [ b_out.sstart, b_out.send ],color=c_value, lw=line_width )
+        ax[ i ][ j ].plot( [ b_out.qstart, b_out.qend ], [ b_out.sstart, b_out.send ],color=c_value, lw=line_width, solid_capstyle='butt')
 
 
 def func_input_blastn6( fn, min_identity, min_alignlength ):

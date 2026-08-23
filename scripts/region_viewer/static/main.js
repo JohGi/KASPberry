@@ -34,6 +34,7 @@ window.addEventListener("resize", () => {
   requestStageRedraw();
   requestAlignmentRedraw();
   syncSidebarHeightToViewerColumn();
+  preserveDotplotViewportForNextRedraw();
   requestDotplotRedraw();
 });
 

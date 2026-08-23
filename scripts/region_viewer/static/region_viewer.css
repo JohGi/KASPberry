@@ -1155,7 +1155,6 @@ body {
   border-radius: 8px;
   background: white;
   min-height: 60px;
-  max-height: 95vh;
   overflow: hidden;
   position: relative;
 }

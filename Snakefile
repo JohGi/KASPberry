@@ -28,6 +28,8 @@ SNP_TARGET_OUTPUTS = [
     *SNP_DATA_OUTPUTS,
     *get_region_viewer_outputs("snps"),
     DOTPLOT_GALLERY_HTML,
+    *DOTPLOT_GALLERY_SVGS,
+    *DOTPLOT_VIEWER_SVGS,
     RUN_SUMMARY_TXT,
 ]
 
@@ -41,6 +43,8 @@ KASP_TARGET_OUTPUTS = [
     PRIMERS_TO_ORDER_TSV,
     *get_region_viewer_outputs("kasp"),
     DOTPLOT_GALLERY_HTML,
+    *DOTPLOT_GALLERY_SVGS,
+    *DOTPLOT_VIEWER_SVGS,
     RUN_SUMMARY_TXT,
 ]
 

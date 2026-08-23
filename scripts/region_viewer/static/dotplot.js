@@ -68,6 +68,13 @@ const DOTPLOT_FRAME_TOP_BREATHING_SPACE = 5;
 // again after the stage has changed the scroll layout.
 let _currentDotplotGeometry = null;
 
+// Pair changes may replace the SVG with one that has a slightly different
+// fitted geometry. Keep a one-shot genomic viewport center so the new pair can
+// restore that center after its three panes have been laid out.
+let _pendingDotplotViewportRestore = null;
+let _dotplotViewportRestoreEpoch = 0;
+let _renderedDotplotPairKey = null;
+
 function getDotplotPairs() {
   return (REGION_DATA.dotplots && REGION_DATA.dotplots.pairs) || [];
 }
@@ -131,30 +138,23 @@ function getDotplotXGffTotalHeight(xSampleData) {
 function getDotplotLayoutViewport() {
   const container = document.querySelector(".dotplot-content");
   const viewportWidth = Math.max(1, container ? container.clientWidth : 800);
-  // The frame has a 1px border plus a fixed non-scrollable top breathing gap.
-  const maxScrollportHeight = Math.max(
-    100,
-    Math.floor(window.innerHeight * 0.95) - 2 - DOTPLOT_FRAME_TOP_BREATHING_SPACE
-  );
-  return { viewportWidth, maxScrollportHeight };
+  return { viewportWidth };
 }
 
-function getDotplotImageDisplaySize(img, maxWidth, maxHeight) {
-  let imageWidth = img.naturalWidth;
-  let imageHeight = img.naturalHeight;
-
-  if (imageWidth > maxWidth) {
-    imageHeight = Math.round(imageHeight * maxWidth / imageWidth);
-    imageWidth = maxWidth;
-  }
-  if (imageHeight > maxHeight) {
-    imageWidth = Math.round(imageWidth * maxHeight / imageHeight);
-    imageHeight = maxHeight;
-  }
+function getDotplotImageDisplaySize(img, maxWidth) {
+  const naturalWidth = Math.max(1, img.naturalWidth);
+  const naturalHeight = Math.max(1, img.naturalHeight);
+  // The zoom=1 frame is width-responsive. Zoom is applied only after this
+  // intrinsic-aspect-ratio base size has been established.
+  const fitScale = maxWidth / naturalWidth;
+  const baseImageWidth = Math.max(1, Math.round(naturalWidth * fitScale));
+  const baseImageHeight = Math.max(1, Math.round(naturalHeight * fitScale));
 
   return {
-    imageWidth: Math.max(1, Math.round(imageWidth * _dotplotState.zoom)),
-    imageHeight: Math.max(1, Math.round(imageHeight * _dotplotState.zoom))
+    baseImageWidth,
+    baseImageHeight,
+    imageWidth: Math.max(1, Math.round(baseImageWidth * _dotplotState.zoom)),
+    imageHeight: Math.max(1, Math.round(baseImageHeight * _dotplotState.zoom))
   };
 }
 
@@ -182,12 +182,17 @@ function computeDotplotGeometry(horizontalScrollbarHeight = 0) {
     + yGffWidth + yGffSideGap + DOTPLOT_TRACK.yTrackWidth + yAxisGap;
   const xContextHeight = xAxisGap + DOTPLOT_TRACK.xTrackHeight + xGffHeight;
 
+  const availableImageWidth = Math.max(
+    100,
+    viewport.viewportWidth - yContextWidth - DOTPLOT_OUTER_PADDING.left - DOTPLOT_OUTER_PADDING.right
+  );
   const size = getDotplotImageDisplaySize(
     img,
-    Math.max(100, viewport.viewportWidth - yContextWidth),
-    Math.max(100, viewport.maxScrollportHeight - xContextHeight)
+    availableImageWidth
   );
-  const { imageWidth, imageHeight } = size;
+  const { baseImageWidth, baseImageHeight, imageWidth, imageHeight } = size;
+  const baseMatrixWidth = DOTPLOT_OUTER_PADDING.left + baseImageWidth + DOTPLOT_OUTER_PADDING.right;
+  const baseMatrixHeight = DOTPLOT_OUTER_PADDING.top + baseImageHeight + DOTPLOT_OUTER_PADDING.bottom;
   const matrixWidth = DOTPLOT_OUTER_PADDING.left + imageWidth + DOTPLOT_OUTER_PADDING.right;
   const matrixHeight = DOTPLOT_OUTER_PADDING.top + imageHeight + DOTPLOT_OUTER_PADDING.bottom;
   const imageX = DOTPLOT_OUTER_PADDING.left;
@@ -196,13 +201,14 @@ function computeDotplotGeometry(horizontalScrollbarHeight = 0) {
   const xMax = imageX + imageWidth * DOTPLOT_AXIS_BOUNDS.xMaxRatio;
   const yZeroPixel = imageY + imageHeight * (1 - DOTPLOT_AXIS_BOUNDS.yZeroRatio);
   const yMaxPixel = imageY + imageHeight * (1 - DOTPLOT_AXIS_BOUNDS.yMaxRatio);
+  // The zoom=1 fit fixes the frame footprint. When a horizontal scrollbar is
+  // present, it consumes space inside that footprint rather than enlarging it.
+  const baseMatrixViewportHeight = baseMatrixHeight;
+  const scrollportHeight = baseMatrixViewportHeight + xContextHeight;
   const matrixViewportHeight = Math.min(
     matrixHeight,
-    Math.max(1, viewport.maxScrollportHeight - xContextHeight - horizontalScrollbarHeight)
+    Math.max(1, baseMatrixViewportHeight - horizontalScrollbarHeight)
   );
-  // The scrollport itself must be tall enough to contain the native horizontal
-  // scrollbar. Its client height is therefore matrixViewportHeight + x context.
-  const scrollportHeight = matrixViewportHeight + xContextHeight + horizontalScrollbarHeight;
 
   const xContext = {
     width: matrixWidth,
@@ -227,6 +233,10 @@ function computeDotplotGeometry(horizontalScrollbarHeight = 0) {
   };
 
   return {
+    baseImageWidth,
+    baseImageHeight,
+    baseMatrixWidth,
+    baseMatrixHeight,
     matrixWidth,
     matrixHeight,
     imageX,
@@ -440,6 +450,82 @@ function drawDotplotYAxis(layer, geometry, sample) {
 function isDotplotModeActive() {
   const panel = document.getElementById("dotplot-panel");
   return panel ? !panel.classList.contains("hidden") : false;
+}
+
+function getSelectedDotplotPairKey() {
+  const pair = findDotplotPair(_dotplotState.selectedY, _dotplotState.selectedX);
+  return pair ? `${pair.y_sample}::${pair.x_sample}` : null;
+}
+
+function captureDotplotViewportCenter() {
+  const geometry = _currentDotplotGeometry;
+  const container = document.querySelector(".dotplot-content");
+  if (!geometry || !container) {
+    return null;
+  }
+
+  const xSpan = geometry.xMax - geometry.xZero;
+  const ySpan = geometry.yZeroPixel - geometry.yMaxPixel;
+  if (xSpan <= 0 || ySpan <= 0 || geometry.matrixViewportWidth <= 0 || geometry.matrixViewportHeight <= 0) {
+    return null;
+  }
+
+  const matrixCenterX = container.scrollLeft + geometry.matrixViewportWidth / 2;
+  const matrixCenterY = container.scrollTop + geometry.matrixViewportHeight / 2;
+  return {
+    xRatio: clampValue((matrixCenterX - geometry.xZero) / xSpan, 0, 1),
+    yRatio: clampValue((geometry.yZeroPixel - matrixCenterY) / ySpan, 0, 1)
+  };
+}
+
+function restorePendingDotplotViewportCenter() {
+  const restore = _pendingDotplotViewportRestore;
+  if (!restore) {
+    return;
+  }
+  _pendingDotplotViewportRestore = null;
+
+  // Let the browser commit the new canvas sizes before applying the one-shot
+  // scroll position. This is deliberately not tied to native scroll events.
+  requestAnimationFrame(() => {
+    if (restore.epoch !== _dotplotViewportRestoreEpoch || restore.pairKey !== getSelectedDotplotPairKey()) {
+      return;
+    }
+
+    const geometry = _currentDotplotGeometry;
+    const container = document.querySelector(".dotplot-content");
+    if (!geometry || !container) {
+      return;
+    }
+
+    const matrixCenterX = geometry.xZero + restore.xRatio * (geometry.xMax - geometry.xZero);
+    const matrixCenterY = geometry.yZeroPixel - restore.yRatio * (geometry.yZeroPixel - geometry.yMaxPixel);
+    container.scrollLeft = clampValue(
+      matrixCenterX - geometry.matrixViewportWidth / 2,
+      0,
+      Math.max(0, container.scrollWidth - container.clientWidth)
+    );
+    container.scrollTop = clampValue(
+      matrixCenterY - geometry.matrixViewportHeight / 2,
+      0,
+      Math.max(0, container.scrollHeight - container.clientHeight)
+    );
+  });
+}
+
+function preserveDotplotViewportForNextRedraw() {
+  if (!isDotplotModeActive()) {
+    return;
+  }
+
+  const pairKey = getSelectedDotplotPairKey();
+  const previousViewportCenter = pairKey ? captureDotplotViewportCenter() : null;
+  if (!previousViewportCenter) {
+    return;
+  }
+
+  const epoch = ++_dotplotViewportRestoreEpoch;
+  _pendingDotplotViewportRestore = { ...previousViewportCenter, pairKey, epoch };
 }
 
 // Schedules a dotplot redraw via requestAnimationFrame.
@@ -955,6 +1041,7 @@ function redrawDotplotStage() {
   dotplotStage.draw();
   dotplotXStage.draw();
   dotplotYStage.draw();
+  restorePendingDotplotViewportCenter();
 }
 
 // Binary search: returns index of first element where arr[i].cx >= target.
@@ -1193,6 +1280,8 @@ function _resolveDotplotCenterBlockFeatureId() {
 
 function resetActiveViewerZoom() {
   if (isDotplotModeActive()) {
+    _dotplotViewportRestoreEpoch += 1;
+    _pendingDotplotViewportRestore = null;
     _dotplotState.zoom = 1;
 
     redrawDotplotStage();
@@ -1517,7 +1606,13 @@ function renderDotplot() {
   _dotplotHoverIndexDirty = true;
   _lastResolvedDotplotHoverKey = null;
 
-  img.onload = requestDotplotRedraw;
+  const pairKey = getSelectedDotplotPairKey();
+  _renderedDotplotPairKey = pairKey;
+  img.onload = () => {
+    if (_renderedDotplotPairKey === pairKey) {
+      requestDotplotRedraw();
+    }
+  };
   img.src = pair.svg_rel_path;
 
   updateDotplotStatusMessage("");
@@ -1705,7 +1800,14 @@ function updateDotplotPendingPairVisualState() {
 }
 
 function loadSelectedDotplotPair() {
-  _dotplotState.zoom = 1;
+  const pairKey = getSelectedDotplotPairKey();
+  const previousViewportCenter = pairKey && pairKey !== _renderedDotplotPairKey
+    ? captureDotplotViewportCenter()
+    : null;
+  const epoch = ++_dotplotViewportRestoreEpoch;
+  _pendingDotplotViewportRestore = previousViewportCenter
+    ? { ...previousViewportCenter, pairKey, epoch }
+    : null;
   updateDotplotPendingPairVisualState();
   renderDotplot();
 }

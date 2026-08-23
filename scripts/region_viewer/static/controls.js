@@ -69,6 +69,7 @@ function setupColumnResizer() {
     showViewerBusyOverlay("Rendering viewer\u2026");
     requestStageRedraw();
     requestAlignmentRedraw();
+    preserveDotplotViewportForNextRedraw();
     requestDotplotRedraw();
     syncSidebarHeightToViewerColumn();
     requestAnimationFrame(() => {
