@@ -1,6 +1,5 @@
 project:
   name: "Test dataset"
-  output_dir: results
 
 inputs:
   genotypes: dev/smoke_test_builder/dataset/generated/genotypes.tsv

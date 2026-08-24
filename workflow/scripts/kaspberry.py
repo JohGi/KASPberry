@@ -17,6 +17,7 @@ from snakemake_interface_common.exceptions import WorkflowError
 
 from run_info import (
     finish_run_record,
+    get_snakemake_working_directory,
     is_dry_run,
     start_run_record,
 )
@@ -110,6 +111,10 @@ def run_kaspberry(
             extra_args=snakemake_args,
         )
 
+    working_directory = get_snakemake_working_directory(
+        snakemake_args
+    )
+
     run_record = start_run_record(
         config=config,
         mode=mode,
@@ -117,6 +122,7 @@ def run_kaspberry(
         repo_root=REPO_ROOT,
         argv=sys.argv[1:],
         snakemake_args=snakemake_args,
+        working_directory=working_directory,
     )
 
     try:

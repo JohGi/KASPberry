@@ -15,7 +15,7 @@ wildcard_constraints:
 # Project and inputs
 # ---------------------------------------------------------------------------
 
-OUTDIR = Path(config["project"]["output_dir"])
+OUTDIR = Path("results")
 PROJECT_TITLE = config["project"]["name"]
 
 SCRIPTS_DIR = Path(workflow.current_basedir) / "../scripts"

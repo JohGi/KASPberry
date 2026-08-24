@@ -35,6 +35,30 @@ def is_dry_run(snakemake_args: list[str]) -> bool:
     )
 
 
+def get_snakemake_working_directory(
+    snakemake_args: list[str],
+) -> Path:
+    """Return the working directory selected with Snakemake's ``-d`` option."""
+    working_directory = Path.cwd()
+    args = iter(snakemake_args)
+
+    for arg in args:
+        if arg in {"--directory", "-d"}:
+            try:
+                directory = next(args)
+            except StopIteration as error:
+                raise ValueError(
+                    f"Missing directory after {arg}."
+                ) from error
+            working_directory = Path(directory)
+        elif arg.startswith("--directory="):
+            working_directory = Path(arg.split("=", 1)[1])
+        elif arg.startswith("-d="):
+            working_directory = Path(arg.split("=", 1)[1])
+
+    return working_directory.expanduser().resolve()
+
+
 def _get_kaspberry_version(repo_root: Path) -> str:
     """
     Return the installed KASPberry version.
@@ -165,6 +189,7 @@ def start_run_record(
     repo_root: Path,
     argv: list[str],
     snakemake_args: list[str],
+    working_directory: Path,
 ) -> RunRecord:
     """Create provenance files for a KASPberry run."""
 
@@ -174,9 +199,7 @@ def start_run_record(
         "%Y%m%dT%H%M%S%f%z"
     )
 
-    output_dir = Path(
-        config["project"]["output_dir"]
-    ).expanduser().resolve()
+    output_dir = working_directory / "results"
 
     history_path = (
         output_dir
@@ -219,7 +242,7 @@ def start_run_record(
         },
         "execution": {
             "command": shlex.join(["kaspberry", *argv]),
-            "working_directory": str(Path.cwd()),
+            "working_directory": str(working_directory),
             "hostname": socket.gethostname(),
             "platform": platform.platform(),
             "snakemake_args": list(snakemake_args),

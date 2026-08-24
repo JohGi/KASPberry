@@ -1,6 +1,5 @@
 project:
   name: "Integration test"
-  output_dir: results
 
 inputs:
   genotypes: genotypes.tsv

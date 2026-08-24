@@ -18,18 +18,12 @@ properties:
     additionalProperties: false
     required:
       - name
-      - output_dir
     properties:
 
       name:
         type: string
         minLength: 1
         description: Name of the analysis project.
-
-      output_dir:
-        type: string
-        minLength: 1
-        description: Directory where workflow results are written.
 
 
   inputs:
