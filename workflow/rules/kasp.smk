@@ -18,6 +18,8 @@ def get_polymarker_fai(wildcards):
 
 
 rule prepare_polymarker_genome:
+    conda:
+        "../envs/kasp-preparation.yaml"
     input:
         genome=get_kasp_genome_fasta,
         chromosomes=get_chromosomes_input,
@@ -52,6 +54,8 @@ rule prepare_polymarker_genome:
 
 
 rule index_polymarker_genome:
+    conda:
+        "../envs/kasp-preparation.yaml"
     input:
         genome=POLYMARKER_INPUT_DIR / "{genotype}/genome.fasta",
     output:
@@ -72,6 +76,8 @@ rule index_polymarker_genome:
 
 
 rule build_polymarker_blastdb:
+    conda:
+        "../envs/kasp-preparation.yaml"
     input:
         genome=POLYMARKER_INPUT_DIR / "{genotype}/genome.fasta",
     output:
@@ -97,6 +103,8 @@ rule build_polymarker_blastdb:
 
 
 rule prepare_polymarker_markers:
+    conda:
+        "../envs/kasp-preparation.yaml"
     input:
         snps=SNP_POS_LONG_TSV,
         snp_status=DIAGNOSTIC_STATUS_TSV,
@@ -164,6 +172,8 @@ rule run_polymarker:
 
 
 rule process_polymarker_outputs:
+    conda:
+        "../envs/kasp-preparation.yaml"
     input:
         marker_lists=expand(
             POLYMARKER_INPUT_DIR / "{genotype}/marker_list.csv",

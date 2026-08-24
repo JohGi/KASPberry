@@ -1,4 +1,6 @@
 rule aggregate_snp_results:
+    conda:
+        "../envs/workflow-runtime.yaml"
     input:
         vcf=SNP_VCF,
         positions=SNP_POS_WIDE_TSV,
@@ -20,6 +22,8 @@ rule aggregate_snp_results:
 
 
 rule aggregate_kasp_results:
+    conda:
+        "../envs/workflow-runtime.yaml"
     input:
         vcf=SNP_VCF,
         positions=SNP_POS_WIDE_TSV,

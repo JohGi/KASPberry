@@ -1,4 +1,6 @@
 rule compute_mash_distances:
+    conda:
+        "../envs/mash.yaml"
     input:
         CLEAN_FASTAS
     output:
@@ -16,7 +18,7 @@ rule compute_mash_distances:
         tmpdir="$(mktemp -d "{MASH_DISTANCES_DIR}/mash.XXXXXX")"
         trap 'rm -rf "$tmpdir"' EXIT
 
-        pixi run -e mash mash sketch \
+        mash sketch \
             -k 21 \
             -s 1000 \
             -o "$tmpdir/regions" \
@@ -24,7 +26,7 @@ rule compute_mash_distances:
             1> "{log.stdout}" \
             2> "{log.stderr}"
 
-        pixi run -e mash mash dist \
+        mash dist \
             -t \
             "$tmpdir/regions.msh" \
             "$tmpdir/regions.msh" \

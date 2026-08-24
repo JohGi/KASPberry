@@ -1,4 +1,6 @@
 rule rename_fasta_header:
+    conda:
+        "../envs/workflow-runtime.yaml"
     input:
         lambda wildcards: REGION_FASTA_BY_GENOTYPE[wildcards.sample]
     output:
@@ -20,6 +22,8 @@ rule rename_fasta_header:
         """
 
 rule build_all_genomes_multifasta:
+    conda:
+        "../envs/workflow-runtime.yaml"
     input:
         CLEAN_FASTAS
     output:
@@ -36,6 +40,8 @@ rule build_all_genomes_multifasta:
         """
 
 rule run_sibeliaz:
+    conda:
+        "../envs/block-discovery.yaml"
     input:
         CLEAN_FASTAS
     output:
@@ -63,6 +69,8 @@ rule run_sibeliaz:
         """
 
 rule filter_sibeliaz_blocks:
+    conda:
+        "../envs/workflow-runtime.yaml"
     input:
         SIBELIAZ_GFF
     output:
@@ -88,6 +96,8 @@ rule filter_sibeliaz_blocks:
         """
 
 rule map_block_coordinates:
+    conda:
+        "../envs/workflow-runtime.yaml"
     input:
         gff=FILTERED_GFF,
         genotypes_tsv=GENOTYPES_TSV
@@ -110,6 +120,8 @@ rule map_block_coordinates:
         """
 
 rule collect_blocks:
+    conda:
+        "../envs/workflow-runtime.yaml"
     input:
         FILTERED_GFF
     output:
@@ -130,6 +142,8 @@ rule collect_blocks:
         """
 
 rule extract_all_blocks_fasta:
+    conda:
+        "../envs/block-discovery.yaml"
     input:
         fasta=ALL_GENOMES_FASTA,
         gff=FILTERED_GFF
@@ -153,6 +167,8 @@ rule extract_all_blocks_fasta:
 
 
 checkpoint split_block_fastas:
+    conda:
+        "../envs/workflow-runtime.yaml"
     input:
         raw_fasta=ALL_BLOCKS_RAW_FASTA,
         block_list=BLOCK_LIST
@@ -175,6 +191,8 @@ checkpoint split_block_fastas:
         """
 
 checkpoint split_block_list_into_chunks:
+    conda:
+        "../envs/workflow-runtime.yaml"
     input:
         BLOCK_LIST
     output:

@@ -34,6 +34,8 @@ def get_run_summary_assay_summary(_wildcards):
 
 
 rule write_run_summary:
+    conda:
+        "../envs/workflow-runtime.yaml"
     input:
         genotypes=GENOTYPES_TSV,
         block_coords=BLOCK_COORDINATES_TSV,

@@ -176,6 +176,8 @@ rule run_mfeprimer_hairpin:
 
 
 rule summarize_in_silico_validation:
+    conda:
+        "../envs/workflow-runtime.yaml"
     input:
         design_status=POLYMARKER_DESIGN_STATUS_TSV,
         design_status_by_genotype=POLYMARKER_DESIGN_STATUS_BY_GENOTYPE_TSV,

@@ -19,6 +19,8 @@ SNP_FILTER_GROUP_A, SNP_FILTER_GROUP_B = resolve_snp_filter_groups(
 
 
 rule mask_block_chunk:
+    conda:
+        "../envs/repeat-masking.yaml"
     input:
         fasta_dir=get_split_block_dir,
         chunk_list=MASK_CHUNK_DIR / "{chunk_id}.list"
@@ -49,6 +51,8 @@ rule mask_block_chunk:
 
 
 rule align_block_chunk:
+    conda:
+        "../envs/alignment-snp.yaml"
     input:
         get_alignment_inputs
     output:
@@ -79,6 +83,8 @@ rule align_block_chunk:
         """
 
 rule detect_snps:
+    conda:
+        "../envs/alignment-snp.yaml"
     input:
         align_sentinels=get_align_chunk_sentinels
     output:
@@ -119,6 +125,8 @@ rule write_snp_group_files:
         )
 
 rule filter_snps_by_groups:
+    conda:
+        "../envs/workflow-runtime.yaml"
     input:
         snps=SNP_VCF,
         group_a=GROUP_A_LIST,

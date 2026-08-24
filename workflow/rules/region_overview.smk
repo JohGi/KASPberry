@@ -69,6 +69,8 @@ rule write_gff_tracks_json:
             handle.write("\n")
 
 rule build_dotplot_manifest:
+    conda:
+        "../envs/workflow-runtime.yaml"
     input:
         svgs=DOTPLOT_VIEWER_SVGS
     output:
@@ -91,6 +93,8 @@ rule build_dotplot_manifest:
         """
 
 rule generate_region_viewer:
+    conda:
+        "../envs/workflow-runtime.yaml"
     wildcard_constraints:
         mode="snps|kasp"
 

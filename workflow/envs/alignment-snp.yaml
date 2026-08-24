@@ -1,0 +1,7 @@
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - mafft >=7.526,<8
+  - seqtui >=0.1.1,<0.2
+  - perl >=5.32.1,<5.33

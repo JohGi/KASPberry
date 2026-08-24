@@ -71,6 +71,8 @@ DOTPLOT_VIEWER_SVGS = expand(
 
 
 rule run_pairwise_minimap2:
+    conda:
+        "../envs/dotplots.yaml"
     input:
         fasta_a=lambda wildcards: CLEAN_FASTA_DIR / f"{get_pair_sample_a(wildcards)}.fasta",
         fasta_b=lambda wildcards: CLEAN_FASTA_DIR / f"{get_pair_sample_b(wildcards)}.fasta"
@@ -95,6 +97,8 @@ rule run_pairwise_minimap2:
         """
 
 rule format_pairwise_paf_for_blastn2dotplots:
+    conda:
+        "../envs/dotplots.yaml"
     input:
         DOTPLOT_PAF_DIR / "{pair_id}.paf"
     output:
@@ -112,6 +116,8 @@ rule format_pairwise_paf_for_blastn2dotplots:
         """
 
 rule run_pairwise_blastn2dotplots:
+    conda:
+        "../envs/dotplots.yaml"
     input:
         formatted=DOTPLOT_FORMATTED_DIR / "{pair_id}.tsv",
         fasta_a=lambda wildcards: CLEAN_FASTA_DIR / f"{get_pair_sample_a(wildcards)}.fasta",
@@ -132,7 +138,7 @@ rule run_pairwise_blastn2dotplots:
         r"""
         mkdir -p "{DOTPLOT_PDF_DIR}" "$(dirname "{log.stdout}")"
 
-        pixi run -e dotplot bash "{SCRIPTS_DIR}/run_pairwise_blastn2dotplots.sh" \
+        bash "{SCRIPTS_DIR}/run_pairwise_blastn2dotplots.sh" \
             --blastn-tsv "{input.formatted}" \
             --db-name "{params.db_name}" \
             --query-name "{params.query_name}" \
@@ -142,6 +148,8 @@ rule run_pairwise_blastn2dotplots:
         """
 
 rule convert_pairwise_dotplot_pdf_to_svg:
+    conda:
+        "../envs/dotplots.yaml"
     input:
         DOTPLOT_PDF_DIR / "{pair_id}.pdf"
     output:
@@ -158,6 +166,8 @@ rule convert_pairwise_dotplot_pdf_to_svg:
         """
 
 rule convert_pairwise_dotplot_only_pdf_to_svg:
+    conda:
+        "../envs/dotplots.yaml"
     input:
         DOTPLOT_PDF_DIR / "{pair_id}.dotplot_only.pdf"
     output:
@@ -174,6 +184,8 @@ rule convert_pairwise_dotplot_only_pdf_to_svg:
         """
 
 rule build_dotplot_gallery_html:
+    conda:
+        "../envs/dotplots.yaml"
     input:
         svgs=DOTPLOT_GALLERY_SVGS
     output:

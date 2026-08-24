@@ -1,0 +1,6 @@
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - sibeliaz >=1.2.7,<2
+  - bedtools >=2.31.1,<3

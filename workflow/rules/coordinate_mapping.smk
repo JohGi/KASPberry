@@ -1,4 +1,6 @@
 rule map_snp_coordinates:
+    conda:
+        "../envs/workflow-runtime.yaml"
     input:
         vcf=SNP_VCF,
         block_coords=BLOCK_COORDINATES_TSV,

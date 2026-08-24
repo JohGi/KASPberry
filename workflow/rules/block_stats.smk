@@ -1,4 +1,6 @@
 rule compute_masked_block_n_stats:
+    conda:
+        "../envs/workflow-runtime.yaml"
     input:
         masked_align_done=get_align_chunk_sentinels,
         unmasked_align_done=get_unmasked_align_chunk_sentinels
@@ -21,6 +23,8 @@ rule compute_masked_block_n_stats:
         """
 
 rule align_unmasked_block_chunk:
+    conda:
+        "../envs/block-stats.yaml"
     input:
         chunk_list=MASK_CHUNK_DIR / "{chunk_id}.list",
         split_block_dir=get_split_block_dir
@@ -53,6 +57,8 @@ rule align_unmasked_block_chunk:
         """
 
 rule compute_kimura2p_distmat_chunk:
+    conda:
+        "../envs/block-stats.yaml"
     input:
         chunk_list=MASK_CHUNK_DIR / "{chunk_id}.list",
         unmasked_align_done=UNMASKED_ALIGN_DIR / "{chunk_id}.done"
