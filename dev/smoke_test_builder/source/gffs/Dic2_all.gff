@@ -1,0 +1,5 @@
+##gff-version 3
+Dic2_mlk	smoke	gene	992	1282	.	+	.	ID=Dic2_gene_01;Name=Dic2_gene_01
+Dic2_mlk	smoke	gene	1472	1702	.	-	.	ID=Dic2_gene_02;Name=Dic2_gene_02
+Dic2_mlk	smoke	gene	2062	2332	.	-	.	ID=Dic2_gene_03;Name=Dic2_gene_03
+Dic2_mlk	smoke	gene	2572	2842	.	+	.	ID=Dic2_gene_04;Name=Dic2_gene_04

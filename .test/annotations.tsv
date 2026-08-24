@@ -1,0 +1,5 @@
+genotype	track	gff
+Belalur	LiftOn (Svevo2) genes	annotations/Belalur_all.gff
+Belalur	LRR genes	annotations/Belalur_LRR.gff
+Dic2	LiftOn (Svevo2) genes	annotations/Dic2_all.gff
+Soldur	WAK genes	annotations/Soldur_wak.gff

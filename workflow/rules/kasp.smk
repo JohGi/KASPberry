@@ -140,7 +140,7 @@ rule run_polymarker:
         outdir=lambda wildcards: POLYMARKER_DIR / wildcards.genotype,
         genomes=lambda wildcards: config["kasp"]["polymarker_genomes"],
     container:
-        "dependencies/containers/bio-polyploid-tools.sif"
+            f"{workflow.basedir}/../dependencies/containers/bio-polyploid-tools.sif"
     threads: 1
     log:
         stdout=LOG_DIR / "run_polymarker/{genotype}.stdout",

@@ -19,6 +19,17 @@ ANNOTATION_COLUMNS = {
 }
 
 
+def resolve_input_path(
+    path: str | Path,
+    working_directory: Path,
+) -> Path:
+    """Resolve a user input path as Snakemake does from its workdir."""
+    input_path = Path(path).expanduser()
+    if input_path.is_absolute():
+        return input_path.resolve()
+    return (working_directory / input_path).resolve()
+
+
 def _iter_fasta_records(path: Path):
     """Yield ``(record_id, sequence)`` pairs from a FASTA file."""
     try:
@@ -127,13 +138,17 @@ def _validate_shared_files(
     annotations: pl.DataFrame | None,
     config: dict,
     genotype_names: set[str],
+    working_directory: Path,
 ) -> dict[str, str]:
     """Validate files and references shared by SNP and KASP workflows."""
 
     region_sequences: dict[str, str] = {}
 
     for row in genotypes.iter_rows(named=True):
-        path = Path(row["region_fasta"])
+        path = resolve_input_path(
+            row["region_fasta"],
+            working_directory,
+        )
 
         if not path.is_file():
             raise ValueError(f"region_fasta not found: {path}")
@@ -142,7 +157,11 @@ def _validate_shared_files(
 
     if annotations is not None:
         for gff in annotations.get_column("gff").unique().to_list():
-            if not Path(gff).is_file():
+            gff_path = resolve_input_path(
+                gff,
+                working_directory,
+            )
+            if not gff_path.is_file():
                 raise ValueError(f"GFF file not found: {gff}")
 
     library = (
@@ -152,7 +171,10 @@ def _validate_shared_files(
         .get("library")
     )
 
-    if library and not Path(library).is_file():
+    if library and not resolve_input_path(
+        library,
+        working_directory,
+    ).is_file():
         raise ValueError(
             f"Repeat-masking library not found: {library}"
         )
@@ -206,6 +228,7 @@ def _read_gff_seqids(path: Path) -> set[str]:
 def check_annotation_source_sequences(
     genotypes: pl.DataFrame,
     annotations: pl.DataFrame,
+    working_directory: Path,
 ) -> None:
     """Require GFF-backed genotypes to declare a matching source sequence."""
     source_seq_by_genotype = dict(
@@ -222,7 +245,10 @@ def check_annotation_source_sequences(
                 "source_seq and region_start."
             )
 
-        gff_path = Path(row["gff"])
+        gff_path = resolve_input_path(
+            row["gff"],
+            working_directory,
+        )
         if gff_path not in gff_seqids_cache:
             gff_seqids_cache[gff_path] = _read_gff_seqids(gff_path)
 
@@ -236,6 +262,7 @@ def check_annotation_source_sequences(
 def _validate_kasp_genomes(
     genotypes: pl.DataFrame,
     region_sequences: dict[str, str],
+    working_directory: Path,
 ) -> dict[str, set[str]]:
     """Validate KASP genome coordinates and return FASTA IDs by genotype."""
     genome_ids: dict[str, set[str]] = {}
@@ -247,7 +274,7 @@ def _validate_kasp_genomes(
         start = int(row["region_start"])
         region = region_sequences[genotype]
         ids, source_length, prefix = _inspect_genome_fasta(
-            Path(genome_path),
+            resolve_input_path(genome_path, working_directory),
             target_id=row["source_seq"],
             segment_start=start - 1,
             segment_length=min(500, len(region)),
@@ -508,6 +535,7 @@ def validate_inputs(
     config: dict,
     mode: str,
     schema_dir: str | Path,
+    working_directory: str | Path,
 ) -> None:
     """Validate KASPberry input tables for the requested workflow mode."""
 
@@ -517,6 +545,7 @@ def validate_inputs(
         )
 
     schema_dir = Path(schema_dir)
+    working_directory = Path(working_directory).expanduser().resolve()
 
     # ------------------------------------------------------------------
     # Configuration
@@ -537,7 +566,10 @@ def validate_inputs(
     # Required by both workflows.
     # ------------------------------------------------------------------
 
-    genotypes_path = Path(config["inputs"]["genotypes"])
+    genotypes_path = resolve_input_path(
+        config["inputs"]["genotypes"],
+        working_directory,
+    )
 
     if not genotypes_path.is_file():
         raise ValueError(
@@ -571,7 +603,10 @@ def validate_inputs(
 
     annotations_df = None
     if annotations_path:
-        annotations_path = Path(annotations_path)
+        annotations_path = resolve_input_path(
+            annotations_path,
+            working_directory,
+        )
 
         if not annotations_path.is_file():
             raise ValueError(
@@ -600,10 +635,15 @@ def validate_inputs(
         annotations_df,
         config,
         genotype_names,
+        working_directory,
     )
 
     if annotations_df is not None:
-        check_annotation_source_sequences(genotypes_df, annotations_df)
+        check_annotation_source_sequences(
+            genotypes_df,
+            annotations_df,
+            working_directory,
+        )
 
     # Nothing below is required for SNP discovery alone.
     if mode == "snps":
@@ -642,6 +682,7 @@ def validate_inputs(
     genome_ids_by_genotype = _validate_kasp_genomes(
         genotypes_df,
         region_sequences,
+        working_directory,
     )
 
     # ------------------------------------------------------------------
@@ -660,7 +701,10 @@ def validate_inputs(
         )
 
     if chromosomes_path:
-        chromosomes_path = Path(chromosomes_path)
+        chromosomes_path = resolve_input_path(
+            chromosomes_path,
+            working_directory,
+        )
 
         if not chromosomes_path.is_file():
             raise ValueError(

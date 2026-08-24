@@ -15,7 +15,7 @@ rule index_mfeprimer_genome:
 
         ln -srf "{input.genome}" "{output.db}"
 
-        "{workflow.basedir}/dependencies/bin/mfeprimer-4.2.3-linux-amd64" index \
+        "{workflow.basedir}/../dependencies/bin/mfeprimer-4.2.3-linux-amd64" index \
             -i "{output.db}" \
             1> "{log.stdout}" \
             2> "{log.stderr}"
@@ -75,7 +75,7 @@ rule run_mfeprimer_specificity:
             printf '#1-based coordinate, should be idential to blat output if align primer sequences to genome\n#name\tchrom\tampStart\tampEnd\tampGC\tampSize\tfpName\tfpStart\tfpEnd\tfpSeq\tfpTm\tfpGC\tfpDg\trpName\trpEnd\trpStart\trpSeq\trpTm\trpGC\trpDg\tnote\n' \
                 > "{output.spec}"
         else
-            "{workflow.basedir}/dependencies/bin/mfeprimer-4.2.3-linux-amd64" spec \
+            "{workflow.basedir}/../dependencies/bin/mfeprimer-4.2.3-linux-amd64" spec \
                 --tm "{params.min_tm}" \
                 --cpu {threads} \
                 -i "{input.primers}" \
@@ -123,7 +123,7 @@ rule run_mfeprimer_dimer:
         if [[ ! -s "{input.primers}" ]]; then
             touch "{output.report}"
         else
-            "{workflow.basedir}/dependencies/bin/mfeprimer-4.2.3-linux-amd64" dimer \
+            "{workflow.basedir}/../dependencies/bin/mfeprimer-4.2.3-linux-amd64" dimer \
                 --primer \
                 --dg "{params.max_dg}" \
                 --cpu {threads} \
@@ -164,7 +164,7 @@ rule run_mfeprimer_hairpin:
         if [[ ! -s "{input.primers}" ]]; then
             : > "{output.report}"
         else
-            "{workflow.basedir}/dependencies/bin/mfeprimer-4.2.3-linux-amd64" hairpin \
+            "{workflow.basedir}/../dependencies/bin/mfeprimer-4.2.3-linux-amd64" hairpin \
                 --cpu {threads} \
                 -i "{input.primers}" \
                 -o "{output.report}" \

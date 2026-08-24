@@ -1,0 +1,6 @@
+genotype	group	region_fasta	genome_fasta	source_seq	region_start
+Karur	A	regions/Karur.fasta	genomes/Karur.fasta	Karur	874
+Soldur	B	regions/Soldur.fasta	genomes/Soldur.fasta	Soldur	848
+Belalur		regions/Belalur.fasta	genomes/Belalur.fasta	Belalur	839
+Lloyd		regions/Lloyd.fasta	genomes/Lloyd.fasta	Lloyd	816
+Dic2		regions/Dic2.fasta	genomes/Dic2.fasta	Dic2_mlk	853

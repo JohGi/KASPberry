@@ -153,6 +153,7 @@ def _snapshot_run_inputs(
     config: dict,
     config_path: Path,
     snapshot_dir: Path,
+    working_directory: Path,
 ) -> dict[str, str]:
     """Copy small configuration/input files used for one run."""
 
@@ -172,13 +173,27 @@ def _snapshot_run_inputs(
         if not configured_path:
             continue
 
-        source = Path(configured_path).expanduser().resolve()
+        source = resolve_input_path(
+            configured_path,
+            working_directory,
+        )
         destination = snapshot_dir / f"{key}.tsv"
 
         shutil.copy2(source, destination)
         snapshots[key] = str(destination)
 
     return snapshots
+
+
+def resolve_input_path(
+    path: str | Path,
+    working_directory: Path,
+) -> Path:
+    """Resolve a user input path as Snakemake does from its workdir."""
+    input_path = Path(path).expanduser()
+    if input_path.is_absolute():
+        return input_path.resolve()
+    return (working_directory / input_path).resolve()
 
 
 def start_run_record(
@@ -221,6 +236,7 @@ def start_run_record(
         config=config,
         config_path=config_path,
         snapshot_dir=snapshot_dir,
+        working_directory=working_directory,
     )
 
     data = {

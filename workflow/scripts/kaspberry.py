@@ -102,6 +102,7 @@ def run_kaspberry(
     config: dict,
     config_path: Path,
     snakemake_args: list[str],
+    working_directory: Path,
 ) -> int:
     """Run KASPberry and record provenance for non-dry runs."""
     if is_dry_run(snakemake_args):
@@ -110,10 +111,6 @@ def run_kaspberry(
             config_path=config_path,
             extra_args=snakemake_args,
         )
-
-    working_directory = get_snakemake_working_directory(
-        snakemake_args
-    )
 
     run_record = start_run_record(
         config=config,
@@ -165,10 +162,15 @@ def main() -> int:
 
         config = load_config(config_path)
 
+        working_directory = get_snakemake_working_directory(
+            snakemake_args
+        )
+
         validate_inputs(
             config=config,
             mode=args.mode,
             schema_dir=SCHEMA_DIR,
+            working_directory=working_directory,
         )
 
         return run_kaspberry(
@@ -176,6 +178,7 @@ def main() -> int:
             config=config,
             config_path=config_path,
             snakemake_args=snakemake_args,
+            working_directory=working_directory,
         )
 
     except (ValueError, OSError, WorkflowError) as error:
