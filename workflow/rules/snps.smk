@@ -19,8 +19,8 @@ SNP_FILTER_GROUP_A, SNP_FILTER_GROUP_B = resolve_snp_filter_groups(
 
 
 rule mask_block_chunk:
-    conda:
-        "../envs/repeat-masking.yaml"
+    container:
+        "docker://quay.io/biocontainers/repeatmasker:4.2.4--pl5321hdfd78af_0"
     input:
         fasta_dir=get_split_block_dir,
         chunk_list=MASK_CHUNK_DIR / "{chunk_id}.list"

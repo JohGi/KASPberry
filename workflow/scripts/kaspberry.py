@@ -27,6 +27,9 @@ from validate_inputs import validate_inputs
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SNAKEFILE = REPO_ROOT / "workflow" / "Snakefile"
 SCHEMA_DIR = REPO_ROOT / "workflow" / "schemas"
+DEFAULT_CONDA_PREFIX = REPO_ROOT / ".snakemake" / "conda"
+DEFAULT_APPTAINER_PREFIX = REPO_ROOT / ".snakemake" / "apptainer"
+DEFAULT_SOFTWARE_DEPLOYMENT_METHODS = ["conda", "apptainer"]
 
 
 def parse_args() -> tuple[argparse.Namespace, list[str]]:
@@ -74,19 +77,119 @@ def load_config(config_path: Path) -> dict:
     return config
 
 
+def get_conda_prefix_args(extra_args: list[str]) -> list[str]:
+    """Return a shared Conda prefix unless the user selected one."""
+    has_conda_prefix = any(
+        arg == "--conda-prefix" or arg.startswith("--conda-prefix=")
+        for arg in extra_args
+    )
+    if has_conda_prefix or "SNAKEMAKE_CONDA_PREFIX" in os.environ:
+        return []
+
+    return ["--conda-prefix", str(DEFAULT_CONDA_PREFIX)]
+
+
+def get_apptainer_prefix_args(extra_args: list[str]) -> list[str]:
+    """Return a shared Apptainer cache prefix unless the user selected one."""
+    has_apptainer_prefix = any(
+        arg in ("--apptainer-prefix", "--singularity-prefix")
+        or arg.startswith(("--apptainer-prefix=", "--singularity-prefix="))
+        for arg in extra_args
+    )
+    if has_apptainer_prefix or "APPTAINER_CACHEDIR" in os.environ:
+        return []
+
+    return ["--apptainer-prefix", str(DEFAULT_APPTAINER_PREFIX)]
+
+
+def get_apptainer_args(extra_args: list[str]) -> list[str]:
+    """Add a repository bind to forwarded Apptainer arguments.
+
+    Snakemake runs from the analysis directory, while workflow shell commands
+    can reference scripts using absolute paths below ``REPO_ROOT``.  The bind
+    keeps those paths valid inside every Apptainer container.
+    """
+    repository_bind = f"{REPO_ROOT}:{REPO_ROOT}"
+    bind_argument = f"--bind {repository_bind}"
+    apptainer_args_indexes: list[tuple[int, bool]] = []
+
+    for index, arg in enumerate(extra_args):
+        if arg == "--apptainer-args":
+            apptainer_args_indexes.append((index + 1, False))
+        elif arg.startswith("--apptainer-args="):
+            apptainer_args_indexes.append((index, True))
+
+    supplied_apptainer_args = [
+        (
+            extra_args[index].split("=", 1)[1]
+            if is_equals_form
+            else extra_args[index]
+        )
+        for index, is_equals_form in apptainer_args_indexes
+        if index < len(extra_args)
+    ]
+    if any(repository_bind in args for args in supplied_apptainer_args):
+        return extra_args
+
+    if not apptainer_args_indexes:
+        return [*extra_args, "--apptainer-args", bind_argument]
+
+    updated_args = extra_args.copy()
+    for index, is_equals_form in apptainer_args_indexes:
+        if index >= len(updated_args):
+            continue
+
+        existing_args = (
+            updated_args[index].split("=", 1)[1]
+            if is_equals_form
+            else updated_args[index]
+        )
+        combined_args = " ".join(part for part in (existing_args, bind_argument) if part)
+        updated_args[index] = (
+            f"--apptainer-args={combined_args}"
+            if is_equals_form
+            else combined_args
+        )
+
+    return updated_args
+
+
+def get_software_deployment_method_args(extra_args: list[str]) -> list[str]:
+    """Enable KASPberry's Conda and Apptainer rule environments by default."""
+    deployment_options = (
+        "--software-deployment-method",
+        "--deployment-method",
+        "--deployment",
+        "--sdm",
+    )
+    has_deployment_method = any(
+        arg in deployment_options
+        or arg.startswith(tuple(f"{option}=" for option in deployment_options))
+        for arg in extra_args
+    )
+    if has_deployment_method:
+        return []
+
+    return ["--software-deployment-method", *DEFAULT_SOFTWARE_DEPLOYMENT_METHODS]
+
+
 def run_snakemake(
     mode: str,
     config_path: Path,
     extra_args: list[str],
 ) -> int:
     """Run the requested Snakemake target."""
+    apptainer_args = get_apptainer_args(extra_args)
     command = [
         "snakemake",
         "--snakefile",
         str(SNAKEFILE),
         "--configfile",
         str(config_path),
-        *extra_args,
+        *get_conda_prefix_args(extra_args),
+        *get_apptainer_prefix_args(extra_args),
+        *get_software_deployment_method_args(extra_args),
+        *apptainer_args,
         mode,
     ]
 

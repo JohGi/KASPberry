@@ -14,7 +14,7 @@ __pycache__/
 
 # Workflow outputs
 /results*/
-/.test/results/
+/.test/results*/
 logs/
 
 # OS/editor noise

@@ -148,7 +148,7 @@ rule run_polymarker:
         outdir=lambda wildcards: POLYMARKER_DIR / wildcards.genotype,
         genomes=lambda wildcards: config["kasp"]["polymarker_genomes"],
     container:
-            f"{workflow.basedir}/../dependencies/containers/bio-polyploid-tools.sif"
+            "docker://ghcr.io/johgi/kaspberry-polymarker:1.3.3-k1"
     threads: 1
     log:
         stdout=LOG_DIR / "run_polymarker/{genotype}.stdout",
@@ -162,9 +162,9 @@ rule run_polymarker:
         polymarker.rb \
             --contigs "{input.genome}" \
             --marker_list "{input.marker_list}" \
-            --arm_selection arm_selection_first_two \
+            --arm_selection first_two \
             --output "{params.outdir}" \
-            --genomes "{params.genomes}" \
+            --genomes_count "{params.genomes}" \
             --primers_to_order \
             1> "{log.stdout}" \
             2> "{log.stderr}"

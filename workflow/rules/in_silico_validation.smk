@@ -1,9 +1,15 @@
 rule index_mfeprimer_genome:
+    conda:
+        "../envs/mfeprimer.yaml"
     input:
         genome=POLYMARKER_INPUT_DIR / "{genotype}/genome.fasta",
     output:
         db=IN_SILICO_DIR / "indexes/{genotype}/genome.fasta",
         done=IN_SILICO_DIR / "indexes/{genotype}/index.done",
+    params:
+        kmer_size=lambda wildcards: (
+            config["advanced"]["mfeprimer"]["kmer_size"]
+        ),
     log:
         stdout=LOG_DIR / "index_mfeprimer_genome/{genotype}.stdout",
         stderr=LOG_DIR / "index_mfeprimer_genome/{genotype}.stderr",
@@ -15,8 +21,9 @@ rule index_mfeprimer_genome:
 
         ln -srf "{input.genome}" "{output.db}"
 
-        "{workflow.basedir}/../dependencies/bin/mfeprimer-4.2.3-linux-amd64" index \
+        mfeprimer index \
             -i "{output.db}" \
+            -k "{params.kmer_size}" \
             1> "{log.stdout}" \
             2> "{log.stderr}"
 
@@ -25,6 +32,8 @@ rule index_mfeprimer_genome:
 
 
 rule run_mfeprimer_specificity:
+    conda:
+        "../envs/mfeprimer.yaml"
     wildcard_constraints:
         pair_set="canonical|noncanonical"
 
@@ -72,10 +81,9 @@ rule run_mfeprimer_specificity:
 
         if [[ ! -s "{input.primers}" ]]; then
             touch "{output.report}" "{output.mfe_log}"
-            printf '#1-based coordinate, should be idential to blat output if align primer sequences to genome\n#name\tchrom\tampStart\tampEnd\tampGC\tampSize\tfpName\tfpStart\tfpEnd\tfpSeq\tfpTm\tfpGC\tfpDg\trpName\trpEnd\trpStart\trpSeq\trpTm\trpGC\trpDg\tnote\n' \
-                > "{output.spec}"
+            : > "{output.spec}"
         else
-            "{workflow.basedir}/../dependencies/bin/mfeprimer-4.2.3-linux-amd64" spec \
+            mfeprimer spec \
                 --tm "{params.min_tm}" \
                 --cpu {threads} \
                 -i "{input.primers}" \
@@ -86,13 +94,14 @@ rule run_mfeprimer_specificity:
                 2> "{log.stderr}"
 
             if [[ ! -f "{output.spec}" ]]; then
-                printf '#1-based coordinate, should be idential to blat output if align primer sequences to genome\n#name\tchrom\tampStart\tampEnd\tampGC\tampSize\tfpName\tfpStart\tfpEnd\tfpSeq\tfpTm\tfpGC\tfpDg\trpName\trpEnd\trpStart\trpSeq\trpTm\trpGC\trpDg\tnote\n' \
-                    > "{output.spec}"
+                : > "{output.spec}"
             fi
         fi
         """
 
 rule run_mfeprimer_dimer:
+    conda:
+        "../envs/mfeprimer.yaml"
     input:
         primers=POLYMARKER_SUMMARY_DIR / "primers_with_tails.fasta",
 
@@ -123,7 +132,7 @@ rule run_mfeprimer_dimer:
         if [[ ! -s "{input.primers}" ]]; then
             touch "{output.report}"
         else
-            "{workflow.basedir}/../dependencies/bin/mfeprimer-4.2.3-linux-amd64" dimer \
+            mfeprimer dimer \
                 --primer \
                 --dg "{params.max_dg}" \
                 --cpu {threads} \
@@ -137,6 +146,8 @@ rule run_mfeprimer_dimer:
 
 
 rule run_mfeprimer_hairpin:
+    conda:
+        "../envs/mfeprimer.yaml"
     input:
         primers=POLYMARKER_SUMMARY_DIR / "primers_with_tails.fasta",
 
@@ -164,7 +175,7 @@ rule run_mfeprimer_hairpin:
         if [[ ! -s "{input.primers}" ]]; then
             : > "{output.report}"
         else
-            "{workflow.basedir}/../dependencies/bin/mfeprimer-4.2.3-linux-amd64" hairpin \
+            mfeprimer hairpin \
                 --cpu {threads} \
                 -i "{input.primers}" \
                 -o "{output.report}" \

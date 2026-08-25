@@ -653,6 +653,7 @@ advanced:
   alignment:
     mafft_options: []
   mfeprimer:
+    kmer_size: 9
     specificity_extra_options: []
     dimer_extra_options: []
     hairpin_extra_options: []

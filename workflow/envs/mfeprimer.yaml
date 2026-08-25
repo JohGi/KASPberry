@@ -1,0 +1,10 @@
+# External binary installed by mfeprimer.post-deploy.sh:
+# MFEprimer 4.5.1
+# Archive SHA256: 56abb0789497a6273e0b7d226671d5f1d959d3bceaba5be53f0d2b2edc13c839
+
+channels:
+  - conda-forge
+dependencies:
+  - coreutils
+  - curl
+  - gzip

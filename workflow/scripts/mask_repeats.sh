@@ -104,6 +104,7 @@ else
     )
 fi
 
+export FAMDB_DIR=""
 RepeatMasker "${repeatmasker_args[@]}" "$fasta"
 
 if [[ -f "$masked_candidate" ]]; then
