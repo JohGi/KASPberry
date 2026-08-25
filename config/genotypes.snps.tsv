@@ -1,0 +1,5 @@
+genotype	group	region_fasta	genome_fasta	source_seq	region_start
+GenotypeA	group1	regions/GenotypeA.fasta			
+GenotypeB	group1	regions/GenotypeB.fasta			
+GenotypeC	group2	regions/GenotypeC.fasta			
+GenotypeD	group2	regions/GenotypeD.fasta			

@@ -16,7 +16,10 @@ def write_config(tmp_path: Path, config: dict) -> Path:
     """Write a config YAML and its genotype table for settings tests."""
     genotype_path = tmp_path / "genotypes.tsv"
     genotype_path.write_text(
-        "genotype\tgroup\nalpha\tgroup_a\nbeta\tgroup_a\ngamma\tgroup_b\n",
+        "genotype\tgroup\tgenome_fasta\n"
+        "alpha\tgroup_a\talpha_genome.fa\n"
+        "beta\tgroup_a\t\n"
+        "gamma\tgroup_b\tgamma_genome.fa\n",
         encoding="utf-8",
     )
     config["inputs"] = {"genotypes": str(genotype_path)}
@@ -80,6 +83,7 @@ def test_read_analysis_settings_uses_kasp_defaults_and_omits_empty_options(
     }
     assert settings["kasp_assay_design"] == {
         "polymarker_subgenomes": 2,
+        "genotypes": ["alpha", "gamma"],
         "mfeprimer_min_tm": 50,
         "mfeprimer_dimer_max_dg": -3.5,
     }

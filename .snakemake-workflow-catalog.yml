@@ -1,0 +1,11 @@
+usage:
+  mandatory-flags:
+    desc: >
+      Use the KASPberry CLI for normal analyses. Example configurations for
+      snps and kasp modes are provided in config/.
+    flags: []
+  software-stack-deployment:
+    conda: false
+    apptainer: false
+    apptainer+conda: true
+    report: false

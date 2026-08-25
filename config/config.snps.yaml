@@ -1,0 +1,31 @@
+# KASPberry example configuration — SNP discovery mode
+#
+# Paths are resolved relative to the Snakemake working directory
+# selected with --directory.
+
+project:
+  name: "Example SNP analysis"
+
+inputs:
+  genotypes: genotypes.snps.tsv
+  annotations: null       # optional; e.g. annotations.tsv
+  chromosomes: null       # not required in snps mode
+
+snps:
+  min_block_length: 450   # minimum retained conserved-block length (bp)
+  min_snp_flank: 0        # minimum clean flank on each side of a SNP (bp)
+  repeat_masking:
+    library: null          # optional custom repeat library in FASTA format
+
+viewer:
+  dotplot_reference: null  # optional genotype used as common dotplot reference
+
+advanced:
+  sibeliaz:
+    extra_options: []
+
+  batching:
+    blocks_per_chunk: 2
+
+  alignment:
+    mafft_options: []

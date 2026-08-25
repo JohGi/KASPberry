@@ -1,0 +1,7 @@
+genotype	seq_id	homoeologous_group	subgenome
+GenotypeA	chr1A	1	A
+GenotypeA	chr1B	1	B
+GenotypeB	chr1A	1	A
+GenotypeB	chr1B	1	B
+GenotypeC	chr1A	1	A
+GenotypeC	chr1B	1	B

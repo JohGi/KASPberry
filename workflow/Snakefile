@@ -1,5 +1,8 @@
 from snakemake.utils import validate
 
+if not config:
+    configfile: "../.test/config.yaml"
+
 validate(config, "schemas/config.schema.yaml")
 
 include: "rules/common.smk"

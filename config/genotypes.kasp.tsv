@@ -1,0 +1,5 @@
+genotype	group	region_fasta	genome_fasta	source_seq	region_start
+GenotypeA	group1	regions/GenotypeA.fasta	genomes/GenotypeA.fasta	chr1A	1000001
+GenotypeB	group1	regions/GenotypeB.fasta	genomes/GenotypeB.fasta	chr1A	1025001
+GenotypeC	group2	regions/GenotypeC.fasta	genomes/GenotypeC.fasta	chr1A	995001
+GenotypeD	group2	regions/GenotypeD.fasta			

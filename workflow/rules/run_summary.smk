@@ -1,15 +1,16 @@
 import os
 
 
-RUN_SUMMARY_MODE = os.environ.get("KASPBERRY_MODE")
+# The KASPberry CLI sets this explicitly; Direct Snakefile invocations default to "snps"
+RUN_SUMMARY_MODE = os.environ.get("KASPBERRY_MODE", "snps")
 
 
 def get_run_summary_mode():
-    """Return the workflow mode supplied by the KASPberry CLI."""
+    """Return the requested workflow mode."""
     if RUN_SUMMARY_MODE not in {"snps", "kasp"}:
         raise ValueError(
-            "KASPberry run mode is unavailable. "
-            "Run the workflow through `kaspberry snps` or `kaspberry kasp`."
+            "Invalid KASPBERRY_MODE. Expected 'snps' or 'kasp', "
+            f"got {RUN_SUMMARY_MODE!r}."
         )
 
     return RUN_SUMMARY_MODE
