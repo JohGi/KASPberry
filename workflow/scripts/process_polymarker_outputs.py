@@ -479,6 +479,11 @@ def write_assay_outputs(
                 f"{second_primer}\t{second_primer}\n"
             )
 
+            noncanonical_pairs.write(
+                f"{assay_id}_common_common_reverse_self\t"
+                f"{common_primer}\t{common_primer}\n"
+            )
+
             fasta.write(
                 f">{assay_id}_comm_rev\n"
                 f"{common_primer}\n"

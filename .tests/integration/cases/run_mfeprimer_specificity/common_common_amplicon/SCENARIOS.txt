@@ -1,0 +1,17 @@
+MFEprimer specificity: common x common noncanonical amplicon
+
+Purpose
+- Run the real MFEprimer specificity command used by KASPberry.
+- Verify that a common-primer self-pair can produce a genomic amplicon.
+
+Synthetic setup
+- One KASP genotype: Test.
+- Pair ID: snp::1::100::assay::01_common_common_reverse_self.
+- The same 24-nt primer is supplied as forward and reverse member of the pair.
+- The mini genome contains the primer sequence and its reverse complement in
+  inward-facing orientation, separated by 100 bp.
+
+Expected behaviour
+- index_mfeprimer_genome builds the MFEprimer index.
+- run_mfeprimer_specificity runs on the noncanonical pair set.
+- noncanonical.spec.tsv is non-empty and contains the expected pair ID.

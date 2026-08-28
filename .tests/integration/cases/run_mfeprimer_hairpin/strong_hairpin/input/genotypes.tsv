@@ -1,0 +1,2 @@
+genotype	group	region_fasta	genome_fasta	source_seq	region_start
+Test		dummy/Test_region.fasta	dummy/Test_genome.fasta	chr1	1

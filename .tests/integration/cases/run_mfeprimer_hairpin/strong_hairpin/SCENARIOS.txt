@@ -1,0 +1,13 @@
+MFEprimer hairpin: strong primer hairpin
+
+Purpose
+- Run the real `mfeprimer hairpin` command used by KASPberry.
+- Verify that an obvious stable stem-loop is reported.
+
+Synthetic setup
+- One 24-nt primer.
+- Two 10-nt GC-rich self-complementary arms are separated by a 4-nt loop.
+
+Expected behaviour
+- run_mfeprimer_hairpin writes a non-empty hairpins.tsv report.
+- The report contains the primer ID.

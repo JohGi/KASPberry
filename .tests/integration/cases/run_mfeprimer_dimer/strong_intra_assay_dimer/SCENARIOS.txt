@@ -1,0 +1,14 @@
+MFEprimer dimer: strong intra-assay primer dimer
+
+Purpose
+- Run the real `mfeprimer dimer` command used by KASPberry.
+- Verify that an obvious strong primer dimer is reported.
+
+Synthetic setup
+- Two primers belonging to the same assay.
+- The two 24-nt primers are exact reverse complements, yielding a strong
+  full-length interaction including their 3' ends.
+
+Expected behaviour
+- run_mfeprimer_dimer writes a non-empty dimers.tsv report.
+- The report contains both primer IDs.
