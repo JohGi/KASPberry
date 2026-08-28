@@ -52,6 +52,7 @@ def test_prepare_polymarker_markers_cases(
         workdir=tmp_path,
         target=case["target"],
         configfile=configfile,
+        allowed_rules=[RULE_NAME],
     )
 
     compare_directories(

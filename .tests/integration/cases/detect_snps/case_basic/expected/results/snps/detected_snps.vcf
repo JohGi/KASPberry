@@ -3,8 +3,8 @@
 ##INFO=<ID=DR,Number=1,Type=Integer,Description="Distance to nearest polymorphic site on the right">
 ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
 #CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	SampleA	SampleB	SampleC
-01_valid.aln	6	.	A	G	.	PASS	DL=5;DR=5	GT	0	1	0
-03_near_snp_exact_threshold.aln	4	.	A	C	.	PASS	DL=3;DR=3	GT	0	1	0
-03_near_snp_exact_threshold.aln	8	.	A	G	.	PASS	DL=3;DR=3	GT	0	0	1
-11_at_start_threshold.aln	4	.	A	T	.	PASS	DL=3;DR=5	GT	0	1	0
-13_at_end_threshold.aln	6	.	A	C	.	PASS	DL=5;DR=3	GT	0	0	1
+01_valid.aln	201	.	A	G	.	PASS	DL=200;DR=200	GT	0	1	0
+03_near_snp_exact_threshold.aln	151	.	A	C	.	PASS	DL=150;DR=150	GT	0	1	0
+03_near_snp_exact_threshold.aln	302	.	A	G	.	PASS	DL=150;DR=150	GT	0	0	1
+11_at_start_threshold.aln	151	.	A	T	.	PASS	DL=150;DR=200	GT	0	1	0
+13_at_end_threshold.aln	201	.	A	C	.	PASS	DL=200;DR=150	GT	0	0	1

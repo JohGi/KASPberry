@@ -26,6 +26,10 @@ TEST_CASES = [
         "case_name": "too_short",
         "target": "results/.work/blocks/collinear_blocks.gff",
     },
+    {
+        "case_name": "default_min_length_boundary",
+        "target": "results/.work/blocks/collinear_blocks.gff",
+    },
 ]
 
 
@@ -57,6 +61,7 @@ def test_filter_sibeliaz_blocks_cases(
         workdir=tmp_path,
         target=case["target"],
         configfile=configfile,
+        allowed_rules=[RULE_NAME],
     )
 
     compare_directories(

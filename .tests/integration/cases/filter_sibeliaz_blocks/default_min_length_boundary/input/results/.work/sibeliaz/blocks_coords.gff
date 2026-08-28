@@ -1,0 +1,16 @@
+##gff-version 3.1.26
+##sequence-region Karur 1 1000
+##sequence-region Soldur 1 1000
+##sequence-region Belalur 1 1000
+##sequence-region Lloyd 1 1000
+##sequence-region Dic2 1 1000
+Karur	SibeliaZ	SO:0000856	1	300	.	+	.	ID=1
+Soldur	SibeliaZ	SO:0000856	1	300	.	+	.	ID=1
+Belalur	SibeliaZ	SO:0000856	1	300	.	+	.	ID=1
+Lloyd	SibeliaZ	SO:0000856	1	300	.	+	.	ID=1
+Dic2	SibeliaZ	SO:0000856	1	300	.	+	.	ID=1
+Karur	SibeliaZ	SO:0000856	400	700	.	+	.	ID=2
+Soldur	SibeliaZ	SO:0000856	400	700	.	+	.	ID=2
+Belalur	SibeliaZ	SO:0000856	400	700	.	+	.	ID=2
+Lloyd	SibeliaZ	SO:0000856	400	700	.	+	.	ID=2
+Dic2	SibeliaZ	SO:0000856	400	700	.	+	.	ID=2

@@ -1,0 +1,7 @@
+##fileformat=VCFv4.2
+##INFO=<ID=DL,Number=1,Type=Integer,Description="Distance to nearest polymorphic site on the left">
+##INFO=<ID=DR,Number=1,Type=Integer,Description="Distance to nearest polymorphic site on the right">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	Test	Other
+4.aln	151	.	A	G	.	PASS	DL=150;DR=150	GT	0	1
+7.aln	151	.	C	T	.	PASS	DL=150;DR=150	GT	0	1

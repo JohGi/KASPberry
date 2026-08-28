@@ -66,30 +66,39 @@ def run_snakemake(
     workdir: Path,
     target: str,
     configfile: Path,
+    allowed_rules: list[str] | None = None,
+    force: bool = False,
 ) -> None:
-    """Run Snakemake on one target in an isolated work directory."""
+    command = [
+        "snakemake",
+        "-s",
+        str(repo_root / "workflow" / "Snakefile"),
+        "--directory",
+        str(workdir),
+        "--configfile",
+        str(configfile),
+        "--cores",
+        "1",
+        "--sdm",
+        "conda",
+        "apptainer",
+        "--conda-prefix",
+        str(repo_root / ".snakemake" / "conda"),
+        "--apptainer-prefix",
+        str(repo_root / ".snakemake" / "apptainer"),
+        "--apptainer-args",
+        f"--bind {repo_root}:{repo_root}",
+        target,
+    ]
+
+    if allowed_rules:
+        command.extend(["--allowed-rules", *allowed_rules])
+
+    if force:
+        command.append("--force")
+
     subprocess.run(
-        [
-            "snakemake",
-            "-s",
-            str(repo_root / "workflow" / "Snakefile"),
-            "--directory",
-            str(workdir),
-            "--configfile",
-            str(configfile),
-            "--cores",
-            "1",
-            "--sdm",
-            "conda",
-            "apptainer",
-            "--conda-prefix",
-            str(repo_root / ".snakemake" / "conda"),
-            "--apptainer-prefix",
-            str(repo_root / ".snakemake" / "apptainer"),
-            "--apptainer-args",
-            f"--bind {repo_root}:{repo_root}",
-            target,
-        ],
+        command,
         check=True,
     )
 

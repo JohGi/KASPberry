@@ -1,15 +1,15 @@
-min_snp_flank = 3
+SNP_CLEAN_FLANK = 150 (fixed KASPberry analysis constant)
 
 01_valid: isolated biallelic SNP -> kept
-02_near_snp_too_close: two SNPs with only 2 clean bases between -> both filtered
-03_near_snp_exact_threshold: two SNPs with exactly 3 clean bases between -> both kept
-04_near_gap: SNP 2 clean bases away from a gap -> filtered
-05_near_N: SNP 2 clean bases away from N; KASPberry converts N to gap -> filtered
-06_near_triallelic: biallelic SNP 2 clean bases away from a triallelic site -> filtered
+02_near_snp_too_close: two SNPs with only 149 clean bases between -> both filtered
+03_near_snp_exact_threshold: two SNPs with exactly 150 clean bases between -> both kept
+04_near_gap: SNP 149 clean bases away from a gap -> filtered
+05_near_N: SNP 149 clean bases away from N; KASPberry converts N to gap -> filtered
+06_near_triallelic: biallelic SNP 149 clean bases away from a triallelic site -> filtered
 07_triallelic_site: triallelic site itself -> not exported
 08_missing_N_at_snp: A/G/N at candidate; N becomes gap -> not exported
 09_gap_at_snp: A/G/- at candidate -> not exported
-10_near_start: SNP with only 2 left flanking bases -> filtered
-11_at_start_threshold: SNP with exactly 3 left flanking bases -> kept
-12_near_end: SNP with only 2 right flanking bases -> filtered
-13_at_end_threshold: SNP with exactly 3 right flanking bases -> kept
+10_near_start: SNP with only 149 left flanking bases -> filtered
+11_at_start_threshold: SNP with exactly 150 left flanking bases -> kept
+12_near_end: SNP with only 149 right flanking bases -> filtered
+13_at_end_threshold: SNP with exactly 150 right flanking bases -> kept

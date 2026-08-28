@@ -1,0 +1,10 @@
+Default min_block_length boundary case
+
+No config_override.yaml is provided: snps.min_block_length must therefore
+come from the schema default (301 bp).
+
+01_block_300_bp: present once in all five genotypes, same strand, length 300 bp -> rejected
+02_block_301_bp: present once in all five genotypes, same strand, length 301 bp -> retained
+
+This verifies schema default injection, propagation to filter_sibeliaz_blocks,
+and the inclusive >= threshold in filter_sibeliaz_blocks.sh.

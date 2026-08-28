@@ -1,0 +1,3 @@
+snp_id	block_id	aln_pos	Test_nt	Other_nt
+snp::4::151	4	151	A	G
+snp::7::151	7	151	C	T

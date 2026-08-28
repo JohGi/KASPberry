@@ -1,17 +1,26 @@
 Basic prepare_polymarker_markers integration case
 
-Inputs
+Purpose
+- Test only the behaviour of prepare_polymarker_markers.
+- The fixture supplies the complete outputs of upstream rules so Snakemake
+  should only need to execute prepare_polymarker_markers.
+
+Inputs relevant to the rule
 - One KASP QC genotype: Test.
 - One discovery-only genotype: Other.
-- Two biallelic SNPs at regional positions 80 and 190.
+- Two PASS biallelic SNPs.
+- Marker IDs: snp::4::151 and snp::7::151.
 - Test alleles: A and C.
 - Alternative alleles: G and T.
 - PolyMarker source alias: 7A__001.
-- snps.min_snp_flank: 50.
+- POLYMARKER_CONTEXT_FLANK = 100.
 
 Expected behaviour
 - Write exactly two rows to marker_list.csv.
-- Marker IDs are snp::4::80 and snp::7::190.
 - Target chromosome is 7A for both markers.
-- Each marker contains exactly 50 reference bases on each side of the SNP.
+- Each marker contains exactly 100 reference bases on each side of the SNP.
 - Output has no header and uses PolyMarker ID,Chromosome,SEQUENCE format.
+
+This is the same functional scope as the original case; only the SNP positions
+and context length were updated to remain compatible with the current fixed
+150-bp SNP clean-flank and 100-bp PolyMarker context.
