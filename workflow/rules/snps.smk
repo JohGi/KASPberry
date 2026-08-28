@@ -95,7 +95,7 @@ rule detect_snps:
         stdout=LOG_DIR / "detect_snps" / "detect_snps.stdout",
         stderr=LOG_DIR / "detect_snps" / "detect_snps.stderr"
     params:
-        min_flank=config["snps"]["min_snp_flank"]
+        min_flank=SNP_CLEAN_FLANK
     shell:
         r"""
         mkdir -p "{SNP_DIR}" "$(dirname "{log.stdout}")"

@@ -37,6 +37,13 @@ NB_GENOTYPES = len(GENOTYPES)
 
 
 # ---------------------------------------------------------------------------
+# Analysis constants
+# ---------------------------------------------------------------------------
+
+SNP_CLEAN_FLANK = 150
+POLYMARKER_CONTEXT_FLANK = 100
+
+# ---------------------------------------------------------------------------
 # KASP genotypes
 # ---------------------------------------------------------------------------
 
@@ -179,6 +186,7 @@ DOTPLOT_GALLERY_HTML = REPORTS_DIR / "dotplots.html"
 
 DOTPLOT_MANIFEST = VIEWER_DIR / "dotplots_manifest.json"
 GFF_TRACKS_JSON = VIEWER_DIR / "gff_tracks.json"
+ANALYSIS_SETTINGS_JSON = VIEWER_DIR / "analysis_settings_{mode}.json"
 
 
 # ---------------------------------------------------------------------------
@@ -230,22 +238,17 @@ IN_SILICO_ASSAY_STATUS_TSV = (
     VALIDATION_DIR / "in_silico_assay_status.tsv"
 )
 
-IN_SILICO_ASSAY_STATUS_BY_GENOTYPE_TSV = (
-    VALIDATION_DIR / "in_silico_assay_status_by_genotype.tsv"
-)
-
 
 # ---------------------------------------------------------------------------
 # Public KASP outputs
 # ---------------------------------------------------------------------------
 
 CANDIDATE_SNPS_VCF = KASP_DIR / "candidate_snps.vcf"
-
 KASP_SUMMARY_TSV = KASP_DIR / "kasp_snp_summary.tsv"
 ASSAY_SUMMARY_TSV = KASP_DIR / "assay_summary.tsv"
 CANDIDATE_ASSAYS_TSV = KASP_DIR / "candidate_assays.tsv"
 PRIMERS_TO_ORDER_TSV = KASP_DIR / "primers_to_order.tsv"
-
+ASSAY_SCREENING_BY_GENOTYPE_TSV = KASP_DIR / "assay_screening_by_genotype.tsv"
 
 # ---------------------------------------------------------------------------
 # Repeat masking configuration

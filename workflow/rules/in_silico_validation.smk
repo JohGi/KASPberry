@@ -207,7 +207,7 @@ rule summarize_in_silico_validation:
 
     output:
         assay_status=IN_SILICO_ASSAY_STATUS_TSV,
-        assay_status_by_genotype=IN_SILICO_ASSAY_STATUS_BY_GENOTYPE_TSV,
+        assay_status_by_genotype=ASSAY_SCREENING_BY_GENOTYPE_TSV,
         validation_status=IN_SILICO_VALIDATION_STATUS_TSV,
 
     log:

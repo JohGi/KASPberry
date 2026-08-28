@@ -594,14 +594,9 @@ function renderAnalysisSettings() {
     ? `${settings.minimum_block_length_bp} bp`
     : "NA";
 
-  const minFlank = settings.minimum_snp_flank_bp !== null && settings.minimum_snp_flank_bp !== undefined
-    ? `${settings.minimum_snp_flank_bp} bp`
-    : "NA";
-
   let html = `<div class="analysis-settings">`;
   html += renderAnalysisSettingsSection("SNP discovery", renderAnalysisSettingsRows([
     ["Minimum block length", minBlock],
-    ["Minimum SNP flank", minFlank]
   ]));
   html += renderDiagnosticGroups(settings.snp_groups);
 
@@ -878,7 +873,7 @@ function renderBlockSidebar(featureId, isPinned) {
 
 const SNP_WORKFLOW_DISPLAY_VALUES = {
   non_diagnostic_allele_pattern: "Non-diagnostic allele pattern",
-  no_polymarker_assay: "No PolyMarker assay",
+  missing_polymarker_assay: "Missing PolyMarker assay",
   no_assay_passed_in_silico_validation: "No assay passed in-silico screening"
 };
 

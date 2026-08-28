@@ -17,16 +17,15 @@ def test_config_schema_accepts_project_without_output_dir() -> None:
     config = {
         "project": {"name": "Test project"},
         "inputs": {"genotypes": "genotypes.tsv"},
-        "snps": {
-            "min_block_length": 1,
-            "min_snp_flank": 0,
-        },
+        "snps": {},
     }
 
     validate(
         config,
         REPO_ROOT / "workflow" / "schemas" / "config.schema.yaml",
     )
+
+    assert config["snps"]["min_block_length"] == 301
 
 
 def test_snakemake_directory_selects_results_parent(

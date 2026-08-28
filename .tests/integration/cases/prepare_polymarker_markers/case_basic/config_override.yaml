@@ -1,8 +1,5 @@
 inputs:
   chromosomes: chromosomes.tsv
 
-snps:
-  min_snp_flank: 50
-
 kasp:
   polymarker_genomes: 2

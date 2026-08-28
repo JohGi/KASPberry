@@ -60,22 +60,14 @@ properties:
   snps:
     type: object
     additionalProperties: false
-    required:
-      - min_block_length
-      - min_snp_flank
     properties:
 
       min_block_length:
         type: integer
-        minimum: 1
+        minimum: 301
+        default: 301
         description: >
           Minimum length of conserved blocks retained for SNP discovery.
-
-      min_snp_flank:
-        type: integer
-        minimum: 0
-        description: >
-          Minimum polymorphism-free flank required around candidate SNPs.
 
       repeat_masking:
         type: object

@@ -3,7 +3,6 @@
 # Paths are resolved relative to the Snakemake working directory
 # selected with --directory.
 #
-# In kasp mode, min_snp_flank must be >= 50 bp.
 # chromosomes.tsv is required when polymarker_genomes > 1.
 
 project:
@@ -15,8 +14,7 @@ inputs:
   chromosomes: chromosomes.kasp.tsv
 
 snps:
-  min_block_length: 450
-  min_snp_flank: 50
+  min_block_length: 301           # minimum retained conserved-block length (bp), default: 301
   repeat_masking:
     library: null                 # optional custom repeat library
 

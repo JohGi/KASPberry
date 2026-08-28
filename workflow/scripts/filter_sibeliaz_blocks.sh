@@ -13,12 +13,12 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 Usage:
-  filter_sibeliaz_blocks.sh --gff blocks.gff --nb_samples N [--min_len 500] --output filtered.gff
+  filter_sibeliaz_blocks.sh --gff blocks.gff --nb_samples N --min_len MIN_LEN --output filtered.gff
 
 Arguments:
   --gff         Input GFF file
   --nb_samples Required minimum number of distinct sequence names per block
-  --min_len    Minimum feature length required for every block occurrence, inclusive (default: 500)
+  --min_len    Minimum feature length required for every block occurrence, inclusive
   --output     Output filtered GFF file
 EOF
 }
@@ -26,7 +26,7 @@ EOF
 parse_args() {
   gff=""
   nb_samples=""
-  min_len=500
+  min_len=""
   output=""
 
   while [[ $# -gt 0 ]]; do
@@ -66,6 +66,11 @@ parse_args() {
 
   if [[ -z "$nb_samples" ]]; then
     echo "ERROR: --nb_samples is required." >&2
+    exit 2
+  fi
+
+  if [[ -z "$min_len" ]]; then
+    echo "ERROR: --min_len is required." >&2
     exit 2
   fi
 

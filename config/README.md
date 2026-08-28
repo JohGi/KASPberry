@@ -43,8 +43,7 @@ inputs:
   chromosomes: null
 
 snps:
-  min_block_length: 450
-  min_snp_flank: 50
+  min_block_length: 301
   repeat_masking:
     library: null
 
@@ -155,13 +154,7 @@ For every genotype used for KASP whole-genome QC, the row corresponding to `sour
 
 ### `snps.min_block_length`
 
-Minimum length, in base pairs, of conserved/collinear blocks retained for SNP discovery.
-
-### `snps.min_snp_flank`
-
-Minimum polymorphism-free sequence required on each side of a candidate SNP.
-
-In `kasp` mode this value must be at least 50 bp so that sufficient sequence is available for assay design.
+Minimum length, in base pairs, of conserved/collinear blocks retained for SNP discovery. Default: 301; minimum allowed value: 301. This threshold is consistent with KASPberry's fixed requirement of 150 bp of polymorphism-free aligned sequence on each side of a candidate SNP.
 
 ### `snps.repeat_masking.library`
 

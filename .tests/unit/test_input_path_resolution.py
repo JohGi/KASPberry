@@ -60,8 +60,6 @@ def create_analysis(analysis_dir: Path) -> dict:
             "chromosomes": "chromosomes.tsv",
         },
         "snps": {
-            "min_block_length": 1,
-            "min_snp_flank": 50,
             "repeat_masking": {"library": "repeats.fa"},
         },
         "kasp": {"polymarker_genomes": 1},
@@ -74,8 +72,6 @@ def create_analysis(analysis_dir: Path) -> dict:
         "  annotations: annotations.tsv\n"
         "  chromosomes: chromosomes.tsv\n"
         "snps:\n"
-        "  min_block_length: 1\n"
-        "  min_snp_flank: 50\n"
         "  repeat_masking:\n"
         "    library: repeats.fa\n"
         "kasp:\n"

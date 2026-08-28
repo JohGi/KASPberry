@@ -367,7 +367,7 @@ def write_status_outputs(
 
             passed = n_genomes_ok == len(genotypes)
             status = "PASS" if passed else "FAIL"
-            failure_reason = "" if passed else "no_polymarker_assay"
+            failure_reason = "" if passed else "missing_polymarker_assay"
 
             summary_writer.writerow(
                 {

@@ -52,11 +52,11 @@ class RegionOverviewBuilder:
     masked_block_n_stats_path: Path
     masked_align_dir: Path
     gff_tracks_json_path: Path
+    analysis_settings_json_path: Path
     title: str
     output_path: Path
 
     assay_summary_path: Path | None = field(default=None)
-    config_yaml_path: Path | None = field(default=None)
     dotplot_manifest_json_path: Path | None = field(default=None)
 
     def run(self) -> None:
@@ -130,8 +130,7 @@ class RegionOverviewBuilder:
             block_alignments=block_alignments,
             gff_tracks_by_sample=gff_tracks_by_sample,
             analysis_settings=read_analysis_settings(
-                self.config_yaml_path,
-                mode=self.mode,
+                self.analysis_settings_json_path,
             ),
             dotplots=read_dotplot_manifest(
                 path=self.dotplot_manifest_json_path,

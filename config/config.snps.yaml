@@ -12,8 +12,7 @@ inputs:
   chromosomes: null       # not required in snps mode
 
 snps:
-  min_block_length: 450   # minimum retained conserved-block length (bp)
-  min_snp_flank: 0        # minimum clean flank on each side of a SNP (bp)
+  min_block_length: 301   # minimum retained conserved-block length (bp), default: 301
   repeat_masking:
     library: null          # optional custom repeat library in FASTA format
 

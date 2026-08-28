@@ -1,6 +1,6 @@
 snp_id	block_id	aln_pos	A_nt	B_nt	A_pos	B_pos	diagnostic_status	diagnostic_failure_reason	design_status	design_failure_reason	validation_status	validation_failure_reason	final_status	final_failure_reason
 snp::5::100	5	100	A	G	5100	6100	FAIL	not_diagnostic	NOT_RUN		NOT_RUN		FAIL	not_diagnostic
-snp::5::200	5	200	C	T	5200	6200	PASS		FAIL	no_polymarker_assay	NOT_RUN		FAIL	no_polymarker_assay
+snp::5::200	5	200	C	T	5200	6200	PASS		FAIL	missing_polymarker_assay	NOT_RUN		FAIL	missing_polymarker_assay
 snp::5::300	5	300	G	A	5300	6300	PASS		PASS		FAIL	no_assay_passed_in_silico_validation	FAIL	no_assay_passed_in_silico_validation
 snp::5::400	5	400	T	C	5400	6400	PASS		PASS		PASS		PASS	
 snp::5::500	5	500	A	G	5500	6500	PASS		PASS		PASS		PASS	

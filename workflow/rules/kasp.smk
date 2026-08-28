@@ -113,7 +113,7 @@ rule prepare_polymarker_markers:
     output:
         marker_list=POLYMARKER_INPUT_DIR / "{genotype}/marker_list.csv",
     params:
-        flank=config["snps"]["min_snp_flank"],
+        flank=POLYMARKER_CONTEXT_FLANK,
     log:
         stdout=LOG_DIR / "prepare_polymarker_markers/{genotype}.stdout",
         stderr=LOG_DIR / "prepare_polymarker_markers/{genotype}.stderr",

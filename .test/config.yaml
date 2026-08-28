@@ -8,7 +8,6 @@ inputs:
 
 snps:
   min_block_length: 450
-  min_snp_flank: 50
   repeat_masking:
     library: resources/mini_TE_lib.fasta
 

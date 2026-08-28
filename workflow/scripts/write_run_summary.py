@@ -20,8 +20,8 @@ FAILURE_REASON_LABELS = {
     ),
 
     # PolyMarker design
-    "no_polymarker_assay": (
-        "No PolyMarker assay"
+    "missing_polymarker_assay": (
+        "Missing PolyMarker assay"
     ),
 
     # In-silico screening, SNP level

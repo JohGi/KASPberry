@@ -164,12 +164,7 @@ def _validate_shared_files(
             if not gff_path.is_file():
                 raise ValueError(f"GFF file not found: {gff}")
 
-    library = (
-        config
-        .get("snps", {})
-        .get("repeat_masking", {})
-        .get("library")
-    )
+    library = config["snps"]["repeat_masking"]["library"]
 
     if library and not resolve_input_path(
         library,
@@ -179,11 +174,7 @@ def _validate_shared_files(
             f"Repeat-masking library not found: {library}"
         )
 
-    dotplot_reference = (
-        config
-        .get("viewer", {})
-        .get("dotplot_reference")
-    )
+    dotplot_reference = config["viewer"]["dotplot_reference"]
 
     if dotplot_reference and dotplot_reference not in genotype_names:
         raise ValueError(
@@ -556,10 +547,6 @@ def validate_inputs(
         schema_dir / "config.schema.yaml",
     )
     
-    if mode == "kasp" and config["snps"]["min_snp_flank"] < 50:
-        raise ValueError(
-            "snps.min_snp_flank must be at least 50 for the KASP workflow."
-        )
 
     # ------------------------------------------------------------------
     # genotypes.tsv
@@ -599,7 +586,7 @@ def validate_inputs(
     # Optional for both workflows.
     # ------------------------------------------------------------------
 
-    annotations_path = config.get("inputs", {}).get("annotations")
+    annotations_path = config["inputs"]["annotations"]
 
     annotations_df = None
     if annotations_path:
@@ -692,7 +679,7 @@ def validate_inputs(
     # Optional when polymarker_genomes == 1.
     # ------------------------------------------------------------------
 
-    chromosomes_path = config.get("inputs", {}).get("chromosomes")
+    chromosomes_path = config["inputs"]["chromosomes"]
 
     if polymarker_genomes > 1 and not chromosomes_path:
         raise ValueError(
@@ -735,13 +722,10 @@ def validate_inputs(
     # MFE-primer advanced options
     # ------------------------------------------------------------------
 
-    mfeprimer_extra = (
-        config.get("advanced", {})
-        .get("mfeprimer", {})
-    )
+    mfeprimer_extra = config["advanced"]["mfeprimer"]
 
     check_extra_options(
-        mfeprimer_extra.get("specificity_extra_options", []),
+        mfeprimer_extra["specificity_extra_options"],
         {
             "-i", "--in",
             "-o", "--out",
@@ -760,7 +744,7 @@ def validate_inputs(
     )
 
     check_extra_options(
-        mfeprimer_extra.get("dimer_extra_options", []),
+        mfeprimer_extra["dimer_extra_options"],
         {
             "-i", "--in",
             "-o", "--out",
@@ -773,7 +757,7 @@ def validate_inputs(
     )
 
     check_extra_options(
-        mfeprimer_extra.get("hairpin_extra_options", []),
+        mfeprimer_extra["hairpin_extra_options"],
         {
             "-i", "--in",
             "-o", "--out",
