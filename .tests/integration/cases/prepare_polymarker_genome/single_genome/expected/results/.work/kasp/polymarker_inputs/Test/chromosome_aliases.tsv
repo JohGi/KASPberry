@@ -1,2 +1,3 @@
 genotype	original_seq_id	alias	homoeologous_group	subgenome	is_source_seq
-Test	target_seq	0A__001		A	true
+Test	other_seq	1A__001			false
+Test	target_seq	0A__001			true

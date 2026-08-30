@@ -3,7 +3,8 @@
 # Paths are resolved relative to the Snakemake working directory
 # selected with --directory.
 #
-# chromosomes.tsv is required when polymarker_genomes > 1.
+# chromosomes.tsv is required when polymarker_genomes > 1
+# and recommended whenever chromosome/pseudomolecule assignments are known.
 
 project:
   name: "Example KASP analysis"

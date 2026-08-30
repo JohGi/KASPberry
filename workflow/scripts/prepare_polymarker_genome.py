@@ -9,7 +9,18 @@ import string
 from pathlib import Path
 
 
-CODE_CHARS = string.digits + string.ascii_uppercase + string.ascii_lowercase
+GROUP_CODE_CHARS = (
+    string.digits
+    + string.ascii_uppercase
+    + string.ascii_lowercase
+    + "-_.:*#"
+)
+
+SUBGENOME_CODE_CHARS = (
+    string.digits
+    + string.ascii_uppercase
+    + string.ascii_lowercase
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -22,50 +33,71 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--chromosomes", default="")
     parser.add_argument("--out-fasta", required=True, type=Path)
     parser.add_argument("--out-aliases", required=True, type=Path)
-
     return parser.parse_args()
 
 
-def assign_codes(labels: list[str]) -> dict[str, str]:
+def read_fasta_ids(path: Path) -> list[str]:
+    """Return FASTA record IDs in input order."""
+    ids = []
+
+    with path.open("rb") as handle:
+        for line in handle:
+            if line.startswith(b">"):
+                ids.append(
+                    line[1:]
+                    .split(None, 1)[0]
+                    .decode("utf-8")
+                )
+
+    return ids
+
+
+def assign_codes(
+    labels: list[str],
+    code_chars: str,
+) -> dict[str, str]:
     """Assign one-character codes, preserving simple labels when possible."""
     labels = sorted(set(labels))
     codes = {}
     used = set()
 
     for label in labels:
-        if len(label) == 1 and label in CODE_CHARS:
+        if len(label) == 1 and label in code_chars:
             codes[label] = label
             used.add(label)
 
     available = iter(
-        char for char in CODE_CHARS
+        char
+        for char in code_chars
         if char not in used
     )
 
     for label in labels:
         if label not in codes:
-            try:
-                codes[label] = next(available)
-            except StopIteration as error:
-                raise ValueError(
-                    "Too many labels to encode in PolyMarker sequence IDs."
-                ) from error
+            codes[label] = next(available)
 
     return codes
 
 
 def build_aliases(
+    genome_ids: list[str],
     chromosomes_path: Path | None,
     genotype: str,
-    source_seq: str,
 ) -> tuple[dict[str, str], dict[str, tuple[str, str]]]:
-    """Build PolyMarker aliases for the sequences to retain."""
+    """Build PolyMarker aliases for every genome FASTA record."""
 
+    # No chromosome information: every FASTA record is treated
+    # as an independent chromosome group.
     if chromosomes_path is None:
-        return (
-            {source_seq: "0A__001"},
-            {source_seq: ("", "A")},
-        )
+        aliases = {
+            seq_id: f"{group}A__001"
+            for seq_id, group in zip(genome_ids, GROUP_CODE_CHARS)
+        }
+        metadata = {
+            seq_id: ("", "")
+            for seq_id in genome_ids
+        }
+        return aliases, metadata
 
     with chromosomes_path.open(
         newline="",
@@ -77,15 +109,21 @@ def build_aliases(
             if row["genotype"] == genotype
         ]
 
-    group_codes = assign_codes([
-        row["homoeologous_group"]
-        for row in rows
-    ])
+    group_codes = assign_codes(
+        [
+            row["homoeologous_group"]
+            for row in rows
+        ],
+        GROUP_CODE_CHARS,
+    )
 
-    subgenome_codes = assign_codes([
-        row["subgenome"]
-        for row in rows
-    ])
+    subgenome_codes = assign_codes(
+        [
+            row["subgenome"]
+            for row in rows
+        ],
+        SUBGENOME_CODE_CHARS,
+    )
 
     aliases = {}
     metadata = {}
@@ -114,6 +152,26 @@ def build_aliases(
 
         metadata[seq_id] = (group, subgenome)
 
+    # All records absent from chromosomes.tsv are retained
+    # in one artificial, unassigned PolyMarker chromosome.
+    unassigned = [
+        seq_id
+        for seq_id in genome_ids
+        if seq_id not in aliases
+    ]
+
+    if unassigned:
+        used_groups = set(group_codes.values())
+        unassigned_group = next(
+            char
+            for char in GROUP_CODE_CHARS
+            if char not in used_groups
+        )
+
+        for i, seq_id in enumerate(unassigned, start=1):
+            aliases[seq_id] = f"{unassigned_group}0__{i:06d}"
+            metadata[seq_id] = ("", "")
+
     return aliases, metadata
 
 
@@ -122,20 +180,10 @@ def write_polymarker_fasta(
     output_path: Path,
     aliases: dict[str, str],
 ) -> None:
-    """Stream the genome and write only sequences used by PolyMarker."""
-
-    seen = set()
-    keep = False
-
+    """Write the complete genome with PolyMarker-compatible record IDs."""
     with (
-        genome_path.open(
-            "rb",
-            buffering=16 * 1024 * 1024,
-        ) as source,
-        output_path.open(
-            "wb",
-            buffering=16 * 1024 * 1024,
-        ) as output,
+        genome_path.open("rb", buffering=16 * 1024 * 1024) as source,
+        output_path.open("wb", buffering=16 * 1024 * 1024) as output,
     ):
         for line in source:
             if line.startswith(b">"):
@@ -144,26 +192,11 @@ def write_polymarker_fasta(
                     .split(None, 1)[0]
                     .decode("utf-8")
                 )
-
-                keep = seq_id in aliases
-
-                if keep:
-                    seen.add(seq_id)
-                    output.write(
-                        f">{aliases[seq_id]}\n".encode("ascii")
-                    )
-
-            elif keep:
+                output.write(
+                    f">{aliases[seq_id]}\n".encode("ascii")
+                )
+            else:
                 output.write(line)
-
-    missing = set(aliases) - seen
-
-    if missing:
-        raise ValueError(
-            "Sequences expected by PolyMarker are missing from "
-            f"{genome_path}: "
-            + ", ".join(sorted(missing))
-        )
 
 
 def write_alias_table(
@@ -173,14 +206,17 @@ def write_alias_table(
     aliases: dict[str, str],
     metadata: dict[str, tuple[str, str]],
 ) -> None:
-    """Write the mapping between original and PolyMarker sequence IDs."""
-
+    """Write original-to-PolyMarker sequence ID mapping."""
     with output_path.open(
         "w",
         newline="",
         encoding="utf-8",
     ) as handle:
-        writer = csv.writer(handle, delimiter="\t", lineterminator="\n")
+        writer = csv.writer(
+            handle,
+            delimiter="\t",
+            lineterminator="\n",
+        )
 
         writer.writerow([
             "genotype",
@@ -213,38 +249,34 @@ def main() -> None:
         else None
     )
 
+    genome_ids = read_fasta_ids(args.genome)
+
     aliases, metadata = build_aliases(
+        genome_ids=genome_ids,
         chromosomes_path=chromosomes_path,
         genotype=args.genotype,
-        source_seq=args.source_seq,
     )
 
-    args.out_fasta.parent.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
-    args.out_aliases.parent.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
+    args.out_fasta.parent.mkdir(parents=True, exist_ok=True)
+    args.out_aliases.parent.mkdir(parents=True, exist_ok=True)
 
     write_polymarker_fasta(
-        genome_path=args.genome,
-        output_path=args.out_fasta,
-        aliases=aliases,
+        args.genome,
+        args.out_fasta,
+        aliases,
     )
 
     write_alias_table(
-        output_path=args.out_aliases,
-        genotype=args.genotype,
-        source_seq=args.source_seq,
-        aliases=aliases,
-        metadata=metadata,
+        args.out_aliases,
+        args.genotype,
+        args.source_seq,
+        aliases,
+        metadata,
     )
 
     print(
-        f"{args.genotype}: retained {len(aliases)} sequences "
-        "for PolyMarker"
+        f"{args.genotype}: prepared {len(aliases)} genome sequences "
+        "for PolyMarker and MFEprimer"
     )
 
 

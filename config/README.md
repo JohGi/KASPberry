@@ -125,18 +125,22 @@ A genotype with an annotation track must also provide `source_seq` and `region_s
 
 ## `chromosomes.tsv`
 
-`inputs.chromosomes` describes chromosome/pseudomolecule records used by PolyMarker.
+`inputs.chromosomes` describes chromosome or pseudomolecule records whose homoeologous group and subgenome assignment is known.
 
-It is required in `kasp` mode when `kasp.polymarker_genomes > 1` and optional when `kasp.polymarker_genomes == 1`.
+It is required in `kasp` mode when `kasp.polymarker_genomes > 1` and optional when `kasp.polymarker_genomes == 1`. When chromosome or pseudomolecule assignments are known, providing this table is recommended even when `kasp.polymarker_genomes == 1`.
+
+All records from each `genome_fasta` are retained for PolyMarker design and MFEprimer validation. When `chromosomes.tsv` is provided, records listed in the table are assigned PolyMarker-compatible identifiers preserving their declared homoeologous-group and subgenome structure. Records not listed in the table are retained but treated as unassigned sequences belonging to a single artificial PolyMarker chromosome group.
+
+When `kasp.polymarker_genomes == 1` and no `chromosomes.tsv` is provided, each FASTA record is treated as an independent PolyMarker chromosome group.
 
 The table must contain:
 
-| Column | Description |
-| --- | --- |
-| `genotype` | Genotype/accession declared in `genotypes.tsv`. |
-| `seq_id` | Exact FASTA record identifier in that genotype's `genome_fasta`. |
-| `homoeologous_group` | User-defined label for the homoeologous chromosome group. |
-| `subgenome` | User-defined subgenome label. |
+| Column               | Description                                                      |
+| -------------------- | ---------------------------------------------------------------- |
+| `genotype`           | Genotype/accession declared in `genotypes.tsv`.                  |
+| `seq_id`             | Exact FASTA record identifier in that genotype's `genome_fasta`. |
+| `homoeologous_group` | User-defined label for the homoeologous chromosome group.        |
+| `subgenome`          | User-defined subgenome label.                                    |
 
 Example for a tetraploid genome:
 
@@ -148,7 +152,11 @@ Wild1	2A	2	A
 Wild1	2B	2	B
 ```
 
-For every genotype used for KASP whole-genome QC, the row corresponding to `source_seq` must be present. Within its homoeologous group, the number of distinct `subgenome` labels must equal `kasp.polymarker_genomes`.
+Users are encouraged to list all known chromosomes or pseudomolecules of the assembly. Smaller contigs, scaffolds, or other unassigned sequences do not need to be listed and remain included automatically as unassigned sequences.
+
+For every genotype used for KASP whole-genome QC, when `chromosomes.tsv` is provided, the row corresponding to `source_seq` must be present. Within its homoeologous group, the number of distinct `subgenome` labels must equal `kasp.polymarker_genomes`.
+
+PolyMarker-compatible chromosome-group identifiers are limited to 68 distinct values. When `chromosomes.tsv` is provided and unassigned FASTA records are present, these records collectively require one additional artificial group. Therefore, at most 67 annotated homoeologous groups can coexist with unassigned sequences, or 68 annotated groups when every FASTA record is assigned. When `kasp.polymarker_genomes == 1` and no `chromosomes.tsv` is provided, the genome FASTA can therefore contain at most 68 records.
 
 ## SNP discovery settings
 
@@ -166,7 +174,13 @@ Set `library` to a FASTA repeat library to additionally mask user-defined repeat
 
 ### `kasp.polymarker_genomes`
 
-Number of subgenomes expected by PolyMarker for the target homoeologous group. For example, use `2` for a tetraploid genome when the target group contains A- and B-subgenome chromosomes.
+Number of subgenomes expected by PolyMarker for the target homoeologous group.
+For example, use `2` for a tetraploid genome when the target group contains
+A- and B-subgenome chromosomes.
+
+Allowed values range from `1` to `62`. When the value is greater than `1`,
+`inputs.chromosomes` is required so that KASPberry can identify the expected
+homoeologous chromosome structure.
 
 ### `kasp.mfeprimer.specificity.min_tm`
 

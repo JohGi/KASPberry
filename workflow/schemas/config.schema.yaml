@@ -53,8 +53,10 @@ properties:
         minLength: 1
         default: null
         description: >
-          Optional path to the chromosomes TSV file describing
-          homoeologous groups and subgenomes for PolyMarker.
+          Optional when polymarker_genomes == 1 and required when >1.
+          Describes chromosome/pseudomolecule records whose homoeologous
+          group and subgenome are known. Genome FASTA records absent from
+          this table remain included and are treated as unassigned contigs.
 
 
   snps:
@@ -94,6 +96,7 @@ properties:
       polymarker_genomes:
         type: integer
         minimum: 1
+        maximum: 62
         description: >
           Number of subgenomes expected by PolyMarker for the target
           homoeologous group. Required when running the KASP workflow.

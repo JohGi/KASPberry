@@ -18,6 +18,7 @@ ANNOTATION_COLUMNS = {
     "gff",
 }
 
+POLYMARKER_MAX_GROUPS = 68
 
 def resolve_input_path(
     path: str | Path,
@@ -490,6 +491,47 @@ def check_chromosomes_table(
             pl.col("genotype") == genotype
         )
 
+        if genome_ids_by_genotype is not None:
+            genome_ids = genome_ids_by_genotype[genotype]
+
+            listed_seq_ids = set(
+                genotype_chromosomes
+                .get_column("seq_id")
+                .to_list()
+            )
+
+            unassigned_seq_ids = (
+                genome_ids
+                - listed_seq_ids
+            )
+
+            annotated_groups = (
+                genotype_chromosomes
+                .get_column("homoeologous_group")
+                .n_unique()
+            )
+
+            required_groups = (
+                annotated_groups
+                + int(bool(unassigned_seq_ids))
+            )
+
+            if required_groups > POLYMARKER_MAX_GROUPS:
+                raise ValueError(
+                    f"Genotype '{genotype}' requires "
+                    f"{required_groups} PolyMarker chromosome groups, "
+                    f"but arm_selection=first_two supports at most "
+                    f"{POLYMARKER_MAX_GROUPS}. "
+                    f"Found {annotated_groups} annotated groups"
+                    + (
+                        f" plus {len(unassigned_seq_ids)} unassigned "
+                        "FASTA record(s), which require one additional "
+                        "artificial group."
+                        if unassigned_seq_ids
+                        else "."
+                    )
+                )
+
         source_rows = genotype_chromosomes.filter(
             pl.col("seq_id") == source_seq
         )
@@ -717,6 +759,21 @@ def validate_inputs(
             polymarker_genomes=polymarker_genomes,
             genome_ids_by_genotype=genome_ids_by_genotype,
         )
+
+    else:
+        for genotype, genome_ids in genome_ids_by_genotype.items():
+            if len(genome_ids) > POLYMARKER_MAX_GROUPS:
+                raise ValueError(
+                    f"Genome FASTA for genotype '{genotype}' contains "
+                    f"{len(genome_ids)} records, but without "
+                    "inputs.chromosomes each FASTA record is treated as "
+                    "an independent PolyMarker chromosome group. "
+                    f"arm_selection=first_two supports at most "
+                    f"{POLYMARKER_MAX_GROUPS} groups. "
+                    "Provide inputs.chromosomes to identify known "
+                    "chromosomes/pseudomolecules; remaining FASTA records "
+                    "will then be treated as unassigned contigs."
+                )
 
     # ------------------------------------------------------------------
     # MFE-primer advanced options

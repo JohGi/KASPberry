@@ -2,8 +2,10 @@ $schema: "https://json-schema.org/draft/2020-12/schema"
 
 title: KASPberry chromosomes table
 description: >
-  Schema for one row of chromosomes.tsv. The table describes the chromosome
-  or pseudomolecule records used by PolyMarker for each genotype.
+  Schema for one row of chromosomes.tsv. The table describes chromosome
+  or pseudomolecule records whose homoeologous group and subgenome assignment
+  is known. Genome FASTA records not listed in this table are retained and
+  treated as unassigned sequences by PolyMarker.
 
 type: object
 
