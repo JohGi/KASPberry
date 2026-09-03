@@ -118,14 +118,27 @@ def write_tsv(
         writer.writerows(rows)
 
 
+def primer_pair_id(primer_name: str) -> str:
+    """Return pair ID from an MFEprimer fp/rp primer name."""
+    if primer_name.endswith("_fp"):
+        return primer_name.removesuffix("_fp")
+
+    if primer_name.endswith("_rp"):
+        return primer_name.removesuffix("_rp")
+
+    raise ValueError(
+        f"Unexpected MFEprimer primer name: {primer_name}"
+    )
+
+
 def pair_id(hit: dict[str, str]) -> str:
-    fp = hit["fpName"].removesuffix("_fp")
-    rp = hit["rpName"].removesuffix("_rp")
+    fp = primer_pair_id(hit["fpName"])
+    rp = primer_pair_id(hit["rpName"])
 
     if fp != rp:
         raise ValueError(
             "Inconsistent primer-pair names in MFEprimer output: "
-            f"{fp} / {rp}"
+            f"{hit['fpName']} / {hit['rpName']}"
         )
 
     return fp
