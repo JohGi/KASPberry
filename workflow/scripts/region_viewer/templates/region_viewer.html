@@ -39,10 +39,29 @@
 
             <div class="viewer-panel-topbar-toggle">
               <label class="viewer-toggle" for="show-rejected-snps">
-                <span>Show rejected SNPs</span>
+                <span>Rejected SNPs</span>
                 <input id="show-rejected-snps" type="checkbox" checked />
                 <span class="viewer-toggle-switch" aria-hidden="true"></span>
               </label>
+              <details id="rejected-snp-filter" class="rejected-snp-filter hidden">
+                <summary aria-label="Filter rejected SNP categories" title="Filter rejected SNP categories">
+                  <span aria-hidden="true">▾</span>
+                </summary>
+                <div class="rejected-snp-filter-popover">
+                  <label>
+                    <input type="checkbox" data-rejected-snp-category="non_diagnostic" checked />
+                    <span>Non-diagnostic</span>
+                  </label>
+                  <label>
+                    <input type="checkbox" data-rejected-snp-category="no_assay" checked />
+                    <span>No assay proposed</span>
+                  </label>
+                  <label>
+                    <input type="checkbox" data-rejected-snp-category="failed_in_silico" checked />
+                    <span>Failed in-silico screening</span>
+                  </label>
+                </div>
+              </details>
             </div>
 
             <div class="viewer-panel-topbar-right">

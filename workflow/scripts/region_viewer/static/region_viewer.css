@@ -160,6 +160,7 @@ body {
 .viewer-panel-topbar-toggle {
   display: flex;
   align-items: center;
+  gap: 4px;
   margin-left: 10px;
 }
 
@@ -244,6 +245,74 @@ body {
 .viewer-toggle input:focus-visible + .viewer-toggle-switch {
   outline: 2px solid #2f5f95;
   outline-offset: 2px;
+}
+
+.rejected-snp-filter {
+  position: relative;
+}
+
+.rejected-snp-filter > summary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: white;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 11px;
+  list-style: none;
+  user-select: none;
+}
+
+.rejected-snp-filter > summary::-webkit-details-marker {
+  display: none;
+}
+
+.rejected-snp-filter > summary:hover {
+  background: #f5f5f5;
+  color: var(--text);
+}
+
+.rejected-snp-filter > summary:focus-visible {
+  outline: 2px solid #2f5f95;
+  outline-offset: 2px;
+}
+
+.rejected-snp-filter[open] > summary span {
+  display: inline-block;
+  transform: rotate(180deg);
+}
+
+.rejected-snp-filter-popover {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 6px);
+  right: 0;
+  display: grid;
+  gap: 6px;
+  min-width: 205px;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: white;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.14);
+}
+
+.rejected-snp-filter-popover label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.rejected-snp-filter-popover input {
+  margin: 0;
 }
 
 .viewer-toolbar-group.has-separator::before {

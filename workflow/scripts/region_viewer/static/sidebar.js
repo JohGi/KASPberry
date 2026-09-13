@@ -677,10 +677,13 @@ function formatFeatureInfoEntries(featureType, info) {
     ];
   }
 
+  const sourceSeq = info.source_seq == null ? "" : String(info.source_seq).trim();
+  const sourcePosition = String(info.pos_in_source_seq);
+
   return [
     ["Allele", String(info.nt)],
     ["Pos in region", String(info.pos_in_region)],
-    ["Pos in source seq", String(info.pos_in_source_seq)]
+    ["Pos in source seq", sourceSeq ? `${sourceSeq}::${sourcePosition}` : sourcePosition]
   ];
 }
 

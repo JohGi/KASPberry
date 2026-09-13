@@ -152,7 +152,12 @@ const state = {
   alignmentFocusedSnpColumn: null,
   activeKeyboardViewer: "region",
   isApplyingPin: false,
-  showRejectedSnps: true
+  showRejectedSnps: true,
+  rejectedSnpCategories: {
+    non_diagnostic: true,
+    no_assay: true,
+    failed_in_silico: true
+  }
 };
 
 const derivedData = {
@@ -196,8 +201,50 @@ function isRejectedSnp(featureId) {
   return getSnpResult(featureId)?.final_status === "FAIL";
 }
 
+function getRejectedSnpCategory(featureId) {
+  const result = getSnpResult(featureId);
+
+  if (result?.final_status !== "FAIL") {
+    return null;
+  }
+
+  if (result?.diagnostic_status === "FAIL") {
+    return "non_diagnostic";
+  }
+
+  if (
+    result?.diagnostic_status === "PASS" &&
+    result?.design_status === "FAIL"
+  ) {
+    return "no_assay";
+  }
+
+  if (
+    result?.diagnostic_status === "PASS" &&
+    result?.design_status === "PASS" &&
+    result?.validation_status === "FAIL"
+  ) {
+    return "failed_in_silico";
+  }
+
+  return null;
+}
+
 function shouldDisplaySnp(featureId) {
-  return state.showRejectedSnps || !isRejectedSnp(featureId);
+  if (!isRejectedSnp(featureId)) {
+    return true;
+  }
+
+  if (!state.showRejectedSnps) {
+    return false;
+  }
+
+  if (REGION_DATA.mode !== "kasp") {
+    return true;
+  }
+
+  const category = getRejectedSnpCategory(featureId);
+  return category !== null && Boolean(state.rejectedSnpCategories[category]);
 }
 
 const _searchState = {
@@ -375,6 +422,7 @@ function buildViewerIndexes() {
           nt: snp.nt,
           pos_in_block: snp.pos_in_block,
           pos_in_region: snp.pos_in_region,
+          source_seq: sample.source_seq,
           pos_in_source_seq: snp.pos_in_source_seq
         }
       };

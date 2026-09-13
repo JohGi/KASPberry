@@ -130,45 +130,85 @@ function setupFloatingTooltips() {
 
 setupFloatingTooltips();
 
-function setupRejectedSnpToggle() {
+function refreshRejectedSnpVisibility() {
+  _hoverIndexDirty = true;
+  _lastResolvedHoverKey = null;
+  _dotplotHoverIndexDirty = true;
+  _lastResolvedDotplotHoverKey = null;
+
+  if (
+    state.hoveredFeatureType === "snp" &&
+    state.hoveredFeatureId &&
+    !shouldDisplaySnp(state.hoveredFeatureId)
+  ) {
+    clearHoveredFeature();
+  }
+
+  if (
+    state.pinnedFeatureType === "snp" &&
+    state.pinnedFeatureId &&
+    !shouldDisplaySnp(state.pinnedFeatureId)
+  ) {
+    clearPinnedFeature();
+  }
+
+  requestStageRedraw();
+  if (isDotplotModeActive()) {
+    requestDotplotRedraw();
+  }
+}
+
+function setupRejectedSnpFilters() {
   const toggle = document.getElementById("show-rejected-snps");
+  const categoryFilter = document.getElementById("rejected-snp-filter");
 
   if (!toggle) {
     return;
   }
 
+  const hasCategoryFilters = Boolean(
+    categoryFilter && REGION_DATA.mode === "kasp"
+  );
+  const categoryInputs = hasCategoryFilters
+    ? categoryFilter.querySelectorAll("input[data-rejected-snp-category]")
+    : [];
+
   toggle.checked = state.showRejectedSnps;
   toggle.addEventListener("change", () => {
     state.showRejectedSnps = toggle.checked;
-    _hoverIndexDirty = true;
-    _lastResolvedHoverKey = null;
-    _dotplotHoverIndexDirty = true;
-    _lastResolvedDotplotHoverKey = null;
 
-    if (
-      state.hoveredFeatureType === "snp" &&
-      state.hoveredFeatureId &&
-      isRejectedSnp(state.hoveredFeatureId)
-    ) {
-      clearHoveredFeature();
+    for (const input of categoryInputs) {
+      input.checked = toggle.checked;
+      state.rejectedSnpCategories[input.dataset.rejectedSnpCategory] = toggle.checked;
     }
 
-    if (
-      state.pinnedFeatureType === "snp" &&
-      state.pinnedFeatureId &&
-      isRejectedSnp(state.pinnedFeatureId)
-    ) {
-      clearPinnedFeature();
-    }
+    refreshRejectedSnpVisibility();
+  });
 
-    requestStageRedraw();
-    if (isDotplotModeActive()) {
-      requestDotplotRedraw();
+  if (!hasCategoryFilters) {
+    return;
+  }
+
+  categoryFilter.classList.remove("hidden");
+  document.addEventListener("pointerdown", (event) => {
+    if (categoryFilter.open && !categoryFilter.contains(event.target)) {
+      categoryFilter.removeAttribute("open");
     }
   });
+
+  for (const input of categoryInputs) {
+    const category = input.dataset.rejectedSnpCategory;
+    input.checked = state.rejectedSnpCategories[category];
+    input.addEventListener("change", () => {
+      state.rejectedSnpCategories[category] = input.checked;
+      state.showRejectedSnps = [...categoryInputs].some(item => item.checked);
+      toggle.checked = state.showRejectedSnps;
+      refreshRejectedSnpVisibility();
+    });
+  }
 }
 
-setupRejectedSnpToggle();
+setupRejectedSnpFilters();
 
 function getViewerToolbarHeight() {
   // The toolbar is no longer overlaid on the canvas; it lives above it in normal

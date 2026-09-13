@@ -88,6 +88,7 @@ def build_region_payload(
         "samples": [
             {
                 "sample": sample.sample,
+                "source_seq": sample.source_seq,
                 "region_length": sample.region_length,
                 "region_start_in_source_seq":
                     sample.region_start_in_source_seq,
