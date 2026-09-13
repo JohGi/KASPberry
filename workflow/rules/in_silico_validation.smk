@@ -204,6 +204,10 @@ rule summarize_in_silico_validation:
         ),
         dimers=IN_SILICO_DIR / "dimers.tsv",
         hairpins=IN_SILICO_DIR / "hairpins.tsv",
+        aliases=expand(
+            POLYMARKER_INPUT_DIR / "{genotype}/chromosome_aliases.tsv",
+            genotype=KASP_GENOTYPE_NAMES,
+        ),
 
     output:
         assay_status=IN_SILICO_ASSAY_STATUS_TSV,
@@ -226,6 +230,7 @@ rule summarize_in_silico_validation:
             --design-status-by-genotype "{input.design_status_by_genotype}" \
             --assays "{input.assays}" \
             --snp-positions "{input.snp_positions}" \
+            --aliases {input.aliases:q} \
             --in-silico-dir "{IN_SILICO_DIR}" \
             --assay-status "{output.assay_status}" \
             --assay-status-by-genotype "{output.assay_status_by_genotype}" \

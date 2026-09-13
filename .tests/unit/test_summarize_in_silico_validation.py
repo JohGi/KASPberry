@@ -2,6 +2,7 @@ import importlib.util
 from pathlib import Path
 
 import pytest
+import sys
 
 
 SCRIPT_PATH = (
@@ -16,6 +17,7 @@ spec = importlib.util.spec_from_file_location(
     SCRIPT_PATH,
 )
 module = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = module
 assert spec.loader is not None
 spec.loader.exec_module(module)
 
@@ -68,7 +70,7 @@ def test_target_hit_accepts_allele_primer_on_forward_side() -> None:
 
     assert target_hit(
         hit,
-        target_chromosome="2A",
+        target_alias="2A__001",
         target_position=343,
     )
 
@@ -84,7 +86,7 @@ def test_target_hit_accepts_allele_primer_on_reverse_side() -> None:
 
     assert target_hit(
         hit,
-        target_chromosome="2A",
+        target_alias="2A__001",
         target_position=343,
     )
 
@@ -100,7 +102,7 @@ def test_target_hit_rejects_wrong_reverse_three_prime_position() -> None:
 
     assert not target_hit(
         hit,
-        target_chromosome="2A",
+        target_alias="2A__001",
         target_position=343,
     )
 
@@ -120,6 +122,22 @@ def test_target_hit_rejects_invalid_pair_members() -> None:
     ):
         target_hit(
             hit,
-            target_chromosome="2A",
+            target_alias="2A__001",
             target_position=343,
         )
+
+
+def test_target_hit_rejects_different_sequence_with_same_polymarker_prefix() -> None:
+    hit = {
+        "chrom": "2A__002",
+        "fpName": "snp::12041::343::assay::01_T_common_fp",
+        "rpName": "snp::12041::343::assay::01_T_common_rp",
+        "fpEnd": "343",
+        "rpStart": "400",
+    }
+
+    assert not target_hit(
+        hit,
+        target_alias="2A__001",
+        target_position=343,
+    )

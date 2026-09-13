@@ -7,6 +7,7 @@ import argparse
 import csv
 import re
 from collections import defaultdict
+from dataclasses import dataclass
 from pathlib import Path
 
 
@@ -22,6 +23,17 @@ HAIRPIN_VALUES = re.compile(
 PRIMER_ASSAY = re.compile(
     r"^(snp::.+::assay::\d+)_(?:common|[ACGT]_specific)$"
 )
+
+
+@dataclass(frozen=True)
+class ValidationContext:
+    genotypes: list[str]
+    design_by_snp: dict[str, dict[str, str]]
+    design_by_snp_genotype: dict[tuple[str, str], dict[str, str]]
+    positions_by_genotype: dict[tuple[str, str], tuple[str, int]]
+    source_aliases: dict[str, str]
+    canonical: dict[str, list[dict[str, str]]]
+    noncanonical: dict[str, list[dict[str, str]]]
 
 
 def parse_args() -> argparse.Namespace:
@@ -53,6 +65,13 @@ def parse_args() -> argparse.Namespace:
         help="Long SNP position table.",
     )
     parser.add_argument(
+        "--aliases",
+        nargs="+",
+        required=True,
+        type=Path,
+        help="PolyMarker chromosome alias tables for KASP genotypes.",
+    )
+    parser.add_argument(
         "--in-silico-dir",
         required=True,
         type=Path,
@@ -82,6 +101,37 @@ def parse_args() -> argparse.Namespace:
 def read_tsv(path: Path) -> list[dict[str, str]]:
     with path.open(newline="", encoding="utf-8") as handle:
         return list(csv.DictReader(handle, delimiter="\t"))
+
+
+def read_source_aliases(paths: list[Path]) -> dict[str, str]:
+    """Return the exact PolyMarker source-sequence alias for each genotype."""
+    aliases: dict[str, str] = {}
+
+    for path in paths:
+        rows = read_tsv(path)
+        source_rows = [
+            row
+            for row in rows
+            if row["is_source_seq"].lower() == "true"
+        ]
+
+        if len(source_rows) != 1:
+            raise ValueError(
+                f"{path}: expected exactly one source sequence, "
+                f"found {len(source_rows)}"
+            )
+
+        source = source_rows[0]
+        genotype = source["genotype"]
+
+        if genotype in aliases:
+            raise ValueError(
+                f"Duplicate chromosome alias table for genotype {genotype}"
+            )
+
+        aliases[genotype] = source["alias"]
+
+    return aliases
 
 
 def read_spec(path: Path) -> list[dict[str, str]]:
@@ -209,11 +259,11 @@ def parse_hairpins(path: Path) -> list[tuple[str, int, float, float]]:
 
 def target_hit(
     hit: dict[str, str],
-    target_chromosome: str,
+    target_alias: str,
     target_position: int,
 ) -> bool:
     """Check that the allele-specific primer ends exactly on the target SNP."""
-    if hit["chrom"].split("__", 1)[0] != target_chromosome:
+    if hit["chrom"] != target_alias:
         return False
 
     fp_name = hit["fpName"]
@@ -232,95 +282,202 @@ def target_hit(
             f"hit: {fp_name} / {rp_name}"
         )
 
+    # The first primer supplied in each canonical pair is allele-specific.
+    # MFEprimer keeps that input role as the "_fp" suffix even when genomic
+    # orientation places it in the rpName/rpStart output columns.
     if fp_is_input_primer:
         return int(hit["fpEnd"]) == target_position
 
     return int(hit["rpStart"]) == target_position
 
 
-def main() -> None:
-    args = parse_args()
-
-    design_status = read_tsv(args.design_status)
+def build_validation_context(
+    args: argparse.Namespace,
+    design_status: list[dict[str, str]],
+) -> ValidationContext:
+    """Load and index the per-genotype inputs needed for validation."""
     by_genotype = read_tsv(args.design_status_by_genotype)
-    assays = read_tsv(args.assays)
     positions = read_tsv(args.snp_positions)
-
-    design_by_snp = {
-        row["snp_id"]: row
-        for row in design_status
-    }
-
-    design_by_snp_genotype = {
-        (row["snp_id"], row["genotype"]): row
-        for row in by_genotype
-    }
-
-    positions_by_genotype = {
-        (row["snp_id"], row["genotype"]): (
-            row["nt"],
-            int(row["pos_in_source_seq"]),
-        )
-        for row in positions
-    }
 
     genotypes = sorted({
         row["genotype"]
         for row in by_genotype
     })
 
-    canonical = {
-        genotype: read_spec(
-            args.in_silico_dir
-            / "specificity"
-            / genotype
-            / "canonical.spec.tsv"
+    source_aliases = read_source_aliases(args.aliases)
+    if set(source_aliases) != set(genotypes):
+        raise ValueError(
+            "Genotypes differ between PolyMarker alias tables and "
+            "in silico validation inputs"
         )
-        for genotype in genotypes
-    }
 
-    noncanonical = {
-        genotype: read_spec(
-            args.in_silico_dir
-            / "specificity"
-            / genotype
-            / "noncanonical.spec.tsv"
-        )
-        for genotype in genotypes
-    }
+    return ValidationContext(
+        genotypes=genotypes,
+        design_by_snp={
+            row["snp_id"]: row
+            for row in design_status
+        },
+        design_by_snp_genotype={
+            (row["snp_id"], row["genotype"]): row
+            for row in by_genotype
+        },
+        positions_by_genotype={
+            (row["snp_id"], row["genotype"]): (
+                row["nt"],
+                int(row["pos_in_source_seq"]),
+            )
+            for row in positions
+        },
+        source_aliases=source_aliases,
+        canonical={
+            genotype: read_spec(
+                args.in_silico_dir
+                / "specificity"
+                / genotype
+                / "canonical.spec.tsv"
+            )
+            for genotype in genotypes
+        },
+        noncanonical={
+            genotype: read_spec(
+                args.in_silico_dir
+                / "specificity"
+                / genotype
+                / "noncanonical.spec.tsv"
+            )
+            for genotype in genotypes
+        },
+    )
 
-    bad_dimers: dict[
-        str,
-        list[tuple[str, str, int, float]],
-    ] = defaultdict(list)
 
-    for primer_a, primer_b, score, dg in parse_dimers(
-        args.in_silico_dir / "dimers.tsv"
-    ):
+def find_bad_dimer_assays(path: Path) -> set[str]:
+    """Return assays with at least one reported intra-assay dimer."""
+    bad_assays: set[str] = set()
+
+    for primer_a, primer_b, _score, _dg in parse_dimers(path):
         assay_a = assay_from_primer(primer_a)
         assay_b = assay_from_primer(primer_b)
 
         # Cross-assay dimers are intentionally ignored.
         if assay_a and assay_a == assay_b:
-            bad_dimers[assay_a].append(
-                (primer_a, primer_b, score, dg)
-            )
+            bad_assays.add(assay_a)
 
-    bad_hairpins: dict[
-        str,
-        list[tuple[str, int, float, float]],
-    ] = defaultdict(list)
+    return bad_assays
 
-    for primer, score, tm, dg in parse_hairpins(
-        args.in_silico_dir / "hairpins.tsv"
-    ):
+
+def find_bad_hairpin_assays(path: Path) -> set[str]:
+    """Return assays with at least one reported primer hairpin."""
+    bad_assays: set[str] = set()
+
+    for primer, _score, _tm, _dg in parse_hairpins(path):
         assay_id = assay_from_primer(primer)
-
         if assay_id:
-            bad_hairpins[assay_id].append(
-                (primer, score, tm, dg)
-            )
+            bad_assays.add(assay_id)
 
+    return bad_assays
+
+
+def evaluate_assay_in_genotype(
+    assay: dict[str, str],
+    genotype: str,
+    context: ValidationContext,
+) -> tuple[dict[str, object], list[str]]:
+    """Evaluate specificity of one assay in one genotype."""
+    assay_id = assay["assay_id"]
+    snp_id = assay["snp_id"]
+    design_key = (snp_id, genotype)
+
+    if design_key not in context.design_by_snp_genotype:
+        raise ValueError(
+            f"{snp_id}/{genotype} is missing from the "
+            "PolyMarker by-genotype status table"
+        )
+
+    allele = context.design_by_snp_genotype[design_key]["expected_allele"]
+
+    position_key = (snp_id, genotype)
+    if position_key not in context.positions_by_genotype:
+        raise ValueError(
+            f"{snp_id}/{genotype} is missing from snp_positions_long.tsv"
+        )
+
+    position_allele, position = context.positions_by_genotype[position_key]
+    if allele != position_allele:
+        raise ValueError(
+            f"{snp_id}/{genotype}: expected allele {allele} != "
+            f"snp_positions_long.tsv allele {position_allele}"
+        )
+
+    if allele == assay["first_allele"]:
+        other_allele = assay["second_allele"]
+    elif allele == assay["second_allele"]:
+        other_allele = assay["first_allele"]
+    else:
+        raise ValueError(
+            f"{snp_id}/{genotype}: allele {allele} is absent from {assay_id}"
+        )
+
+    expected_pair = f"{assay_id}_{allele}_common"
+    unexpected_pair = f"{assay_id}_{other_allele}_common"
+
+    expected_hits = [
+        hit
+        for hit in context.canonical[genotype]
+        if pair_id(hit) == expected_pair
+    ]
+    unexpected_hits = [
+        hit
+        for hit in context.canonical[genotype]
+        if pair_id(hit) == unexpected_pair
+    ]
+    noncanonical_hits = [
+        hit
+        for hit in context.noncanonical[genotype]
+        if pair_id(hit).startswith(f"{assay_id}_")
+    ]
+    target_hits = [
+        hit
+        for hit in expected_hits
+        if target_hit(
+            hit,
+            context.source_aliases[genotype],
+            position,
+        )
+    ]
+
+    failure_reasons: list[str] = []
+    if not target_hits:
+        failure_reasons.append("missing_target_amplicon")
+    if len(expected_hits) > 1:
+        failure_reasons.append("multiple_expected_amplicons")
+    if unexpected_hits:
+        failure_reasons.append("unexpected_allele_amplicon")
+    if noncanonical_hits:
+        failure_reasons.append("noncanonical_amplicon")
+
+    return (
+        {
+            "assay_id": assay_id,
+            "genotype": genotype,
+            "expected_allele": allele,
+            "status": "PASS" if not failure_reasons else "FAIL",
+            "failure_reason": ";".join(failure_reasons),
+            "expected_amplicons": len(expected_hits),
+            "target_amplicons": len(target_hits),
+            "unexpected_amplicons": len(unexpected_hits),
+            "noncanonical_amplicons": len(noncanonical_hits),
+        },
+        failure_reasons,
+    )
+
+
+def evaluate_assays(
+    assays: list[dict[str, str]],
+    context: ValidationContext,
+    bad_dimer_assays: set[str],
+    bad_hairpin_assays: set[str],
+) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
+    """Evaluate all assays and return assay- and genotype-level rows."""
     assay_rows: list[dict[str, object]] = []
     genotype_rows: list[dict[str, object]] = []
 
@@ -328,134 +485,44 @@ def main() -> None:
         assay_id = assay["assay_id"]
         snp_id = assay["snp_id"]
 
-        if snp_id not in design_by_snp:
+        if snp_id not in context.design_by_snp:
             raise ValueError(
                 f"{assay_id}: {snp_id} is missing from the "
                 "PolyMarker design status table"
             )
 
-        specificity_results: list[bool] = []
-        assay_failure_reasons: set[str] = set()
+        failure_reasons: set[str] = set()
 
-        for genotype in genotypes:
-            design_key = (snp_id, genotype)
+        for genotype in context.genotypes:
+            genotype_row, genotype_failures = evaluate_assay_in_genotype(
+                assay,
+                genotype,
+                context,
+            )
+            genotype_rows.append(genotype_row)
+            failure_reasons.update(genotype_failures)
 
-            if design_key not in design_by_snp_genotype:
-                raise ValueError(
-                    f"{snp_id}/{genotype} is missing from the "
-                    "PolyMarker by-genotype status table"
-                )
-
-            design_row = design_by_snp_genotype[design_key]
-            allele = design_row["expected_allele"]
-            target_chromosome = design_row["target_chromosome"]
-
-            position_key = (snp_id, genotype)
-            if position_key not in positions_by_genotype:
-                raise ValueError(
-                    f"{snp_id}/{genotype} is missing from "
-                    "snp_positions_long.tsv"
-                )
-
-            position_allele, position = positions_by_genotype[position_key]
-
-            if allele != position_allele:
-                raise ValueError(
-                    f"{snp_id}/{genotype}: expected allele {allele} != "
-                    f"snp_positions_long.tsv allele {position_allele}"
-                )
-
-            if allele == assay["first_allele"]:
-                other_allele = assay["second_allele"]
-
-            elif allele == assay["second_allele"]:
-                other_allele = assay["first_allele"]
-
-            else:
-                raise ValueError(
-                    f"{snp_id}/{genotype}: allele {allele} "
-                    f"is absent from {assay_id}"
-                )
-
-            expected_pair = f"{assay_id}_{allele}_common"
-            unexpected_pair = f"{assay_id}_{other_allele}_common"
-
-            expected_hits = [
-                hit
-                for hit in canonical[genotype]
-                if pair_id(hit) == expected_pair
-            ]
-
-            unexpected_hits = [
-                hit
-                for hit in canonical[genotype]
-                if pair_id(hit) == unexpected_pair
-            ]
-
-            noncanonical_hits = [
-                hit
-                for hit in noncanonical[genotype]
-                if pair_id(hit).startswith(f"{assay_id}_")
-            ]
-
-            target_hits = [
-                hit
-                for hit in expected_hits
-                if target_hit(
-                    hit,
-                    target_chromosome,
-                    position,
-                )
-            ]
-
-            failure_reasons: list[str] = []
-
-            if len(target_hits) == 0:
-                failure_reasons.append("missing_target_amplicon")
-
-            if len(expected_hits) > 1:
-                failure_reasons.append("multiple_expected_amplicons")
-
-            if unexpected_hits:
-                failure_reasons.append("unexpected_allele_amplicon")
-
-            if noncanonical_hits:
-                failure_reasons.append("noncanonical_amplicon")
-
-            passed = not failure_reasons
-
-            specificity_results.append(passed)
-            assay_failure_reasons.update(failure_reasons)
-
-            genotype_rows.append({
-                "assay_id": assay_id,
-                "genotype": genotype,
-                "expected_allele": allele,
-                "status": "PASS" if passed else "FAIL",
-                "failure_reason": ";".join(failure_reasons),
-                "expected_amplicons": len(expected_hits),
-                "target_amplicons": len(target_hits),
-                "unexpected_amplicons": len(unexpected_hits),
-                "noncanonical_amplicons": len(noncanonical_hits),
-            })
-
-        if bad_dimers[assay_id]:
-            assay_failure_reasons.add("dimer")
-
-        if bad_hairpins[assay_id]:
-            assay_failure_reasons.add("hairpin")
-
-        validation_pass = not assay_failure_reasons
+        if assay_id in bad_dimer_assays:
+            failure_reasons.add("dimer")
+        if assay_id in bad_hairpin_assays:
+            failure_reasons.add("hairpin")
 
         assay_rows.append({
             "assay_id": assay_id,
             "snp_id": snp_id,
-            "status": "PASS" if validation_pass else "FAIL",
-            "failure_reason": ";".join(
-                sorted(assay_failure_reasons)
-            ),
+            "status": "PASS" if not failure_reasons else "FAIL",
+            "failure_reason": ";".join(sorted(failure_reasons)),
         })
 
+    return assay_rows, genotype_rows
+
+
+def build_snp_validation_rows(
+    design_status: list[dict[str, str]],
+    assays: list[dict[str, str]],
+    assay_rows: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    """Roll assay-level validation results up to one status per SNP."""
     assay_status_by_id = {
         row["assay_id"]: row
         for row in assay_rows
@@ -463,41 +530,33 @@ def main() -> None:
 
     assays_by_snp: dict[str, list[str]] = defaultdict(list)
     for assay in assays:
-        assays_by_snp[assay["snp_id"]].append(
-            assay["assay_id"]
-        )
+        assays_by_snp[assay["snp_id"]].append(assay["assay_id"])
 
     snp_rows: list[dict[str, object]] = []
 
-    for row in design_status:
-        snp_id = row["snp_id"]
+    for design_row in design_status:
+        snp_id = design_row["snp_id"]
 
-        if row["status"] != "PASS":
+        if design_row["status"] != "PASS":
             status = NOT_RUN
             failure_reason = ""
-
         else:
             assay_ids = assays_by_snp.get(snp_id, [])
-
             if not assay_ids:
                 raise ValueError(
                     f"{snp_id} passed PolyMarker design but has no assay "
                     "in the PolyMarker assay table"
                 )
 
-            any_valid = any(
+            if any(
                 assay_status_by_id[assay_id]["status"] == "PASS"
                 for assay_id in assay_ids
-            )
-
-            if any_valid:
+            ):
                 status = "PASS"
                 failure_reason = ""
             else:
                 status = "FAIL"
-                failure_reason = (
-                    "no_assay_passed_in_silico_validation"
-                )
+                failure_reason = "no_assay_passed_in_silico_validation"
 
         snp_rows.append({
             "snp_id": snp_id,
@@ -505,17 +564,40 @@ def main() -> None:
             "failure_reason": failure_reason,
         })
 
-    write_tsv(
-        args.assay_status,
-        [
-            "assay_id",
-            "snp_id",
-            "status",
-            "failure_reason",
-        ],
+    return snp_rows
+
+
+def main() -> None:
+    args = parse_args()
+
+    design_status = read_tsv(args.design_status)
+    assays = read_tsv(args.assays)
+    context = build_validation_context(args, design_status)
+
+    bad_dimer_assays = find_bad_dimer_assays(
+        args.in_silico_dir / "dimers.tsv"
+    )
+    bad_hairpin_assays = find_bad_hairpin_assays(
+        args.in_silico_dir / "hairpins.tsv"
+    )
+
+    assay_rows, genotype_rows = evaluate_assays(
+        assays,
+        context,
+        bad_dimer_assays,
+        bad_hairpin_assays,
+    )
+    snp_rows = build_snp_validation_rows(
+        design_status,
+        assays,
         assay_rows,
     )
 
+    write_tsv(
+        args.assay_status,
+        ["assay_id", "snp_id", "status", "failure_reason"],
+        assay_rows,
+    )
     write_tsv(
         args.assay_status_by_genotype,
         [
@@ -531,14 +613,9 @@ def main() -> None:
         ],
         genotype_rows,
     )
-
     write_tsv(
         args.validation_status,
-        [
-            "snp_id",
-            "status",
-            "failure_reason",
-        ],
+        ["snp_id", "status", "failure_reason"],
         snp_rows,
     )
 
