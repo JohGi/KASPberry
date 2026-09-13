@@ -17,8 +17,8 @@ TEST_CASES = [
         "case_name": "strong_intra_assay_dimer",
         "target": "results/.work/kasp/in_silico_validation/dimers.tsv",
         "expected_primer_ids": [
-            "snp::2::700::assay::01_A_fw",
-            "snp::2::700::assay::01_G_fw",
+            "snp::2::700::assay::01_A_specific",
+            "snp::2::700::assay::01_G_specific",
         ],
     },
 ]

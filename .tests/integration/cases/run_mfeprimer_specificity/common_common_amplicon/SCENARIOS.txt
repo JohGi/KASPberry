@@ -6,7 +6,7 @@ Purpose
 
 Synthetic setup
 - One KASP genotype: Test.
-- Pair ID: snp::1::100::assay::01_common_common_reverse_self.
+- Pair ID: snp::1::100::assay::01_common_self.
 - The same 24-nt primer is supplied as forward and reverse member of the pair.
 - The mini genome contains the primer sequence and its reverse complement in
   inward-facing orientation, separated by 100 bp.

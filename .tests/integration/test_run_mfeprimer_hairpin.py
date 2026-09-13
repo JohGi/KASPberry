@@ -16,7 +16,7 @@ TEST_CASES = [
     {
         "case_name": "strong_hairpin",
         "target": "results/.work/kasp/in_silico_validation/hairpins.tsv",
-        "expected_primer_id": "snp::2::800::assay::01_A_fw",
+        "expected_primer_id": "snp::2::800::assay::01_A_specific",
     },
 ]
 

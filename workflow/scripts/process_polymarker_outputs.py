@@ -465,35 +465,35 @@ def write_assay_outputs(
 
             noncanonical_pairs.write(
                 f"{assay_id}_{first_allele}_{second_allele}"
-                f"_forward_forward\t"
+                f"_allele_pair\t"
                 f"{first_primer}\t{second_primer}\n"
             )
             noncanonical_pairs.write(
                 f"{assay_id}_{first_allele}_{first_allele}"
-                f"_forward_self\t"
+                f"_allele_self\t"
                 f"{first_primer}\t{first_primer}\n"
             )
             noncanonical_pairs.write(
                 f"{assay_id}_{second_allele}_{second_allele}"
-                f"_forward_self\t"
+                f"_allele_self\t"
                 f"{second_primer}\t{second_primer}\n"
             )
 
             noncanonical_pairs.write(
-                f"{assay_id}_common_common_reverse_self\t"
+                f"{assay_id}_common_self\t"
                 f"{common_primer}\t{common_primer}\n"
             )
 
             fasta.write(
-                f">{assay_id}_comm_rev\n"
+                f">{assay_id}_common\n"
                 f"{common_primer}\n"
             )
             fasta.write(
-                f">{assay_id}_{first_allele}_fw\n"
+                f">{assay_id}_{first_allele}_specific\n"
                 f"{assay['first_primer_with_tail']}\n"
             )
             fasta.write(
-                f">{assay_id}_{second_allele}_fw\n"
+                f">{assay_id}_{second_allele}_specific\n"
                 f"{assay['second_primer_with_tail']}\n"
             )
 

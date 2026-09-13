@@ -20,7 +20,7 @@ TEST_CASES = [
             "specificity/Test/noncanonical.spec.tsv"
         ),
         "expected_pair_id": (
-            "snp::1::100::assay::01_common_common_reverse_self"
+            "snp::1::100::assay::01_common_self"
         ),
     },
 ]

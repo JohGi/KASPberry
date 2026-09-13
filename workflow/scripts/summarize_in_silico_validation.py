@@ -19,7 +19,9 @@ HAIRPIN_VALUES = re.compile(
     r"Score:\s+(\d+),\s+Tm = (-?\d+(?:\.\d+)?) °C, "
     r"Delta G = (-?\d+(?:\.\d+)?)"
 )
-PRIMER_ASSAY = re.compile(r"^(snp::.+::assay::\d+)_(?:comm_rev|[ACGT]_fw)$")
+PRIMER_ASSAY = re.compile(
+    r"^(snp::.+::assay::\d+)_(?:common|[ACGT]_specific)$"
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -209,19 +211,31 @@ def target_hit(
     hit: dict[str, str],
     target_chromosome: str,
     target_position: int,
-    allele_primer: str,
 ) -> bool:
     """Check that the allele-specific primer ends exactly on the target SNP."""
     if hit["chrom"].split("__", 1)[0] != target_chromosome:
         return False
 
-    if hit["fpSeq"].upper() == allele_primer:
+    fp_name = hit["fpName"]
+    rp_name = hit["rpName"]
+    fp_is_input_primer = fp_name.endswith("_fp")
+    rp_is_input_primer = rp_name.endswith("_fp")
+    fp_is_pair_partner = fp_name.endswith("_rp")
+    rp_is_pair_partner = rp_name.endswith("_rp")
+
+    if (
+        fp_is_input_primer + rp_is_input_primer != 1
+        or fp_is_pair_partner + rp_is_pair_partner != 1
+    ):
+        raise ValueError(
+            "Expected exactly one _fp and one _rp member in MFEprimer "
+            f"hit: {fp_name} / {rp_name}"
+        )
+
+    if fp_is_input_primer:
         return int(hit["fpEnd"]) == target_position
 
-    if hit["rpSeq"].upper() == allele_primer:
-        return int(hit["rpEnd"]) == target_position
-
-    return False
+    return int(hit["rpStart"]) == target_position
 
 
 def main() -> None:
@@ -352,11 +366,9 @@ def main() -> None:
                 )
 
             if allele == assay["first_allele"]:
-                allele_primer = assay["first_primer"].upper()
                 other_allele = assay["second_allele"]
 
             elif allele == assay["second_allele"]:
-                allele_primer = assay["second_primer"].upper()
                 other_allele = assay["first_allele"]
 
             else:
@@ -393,7 +405,6 @@ def main() -> None:
                     hit,
                     target_chromosome,
                     position,
-                    allele_primer,
                 )
             ]
 
