@@ -83,7 +83,8 @@ def test_target_hit_accepts_allele_primer_on_reverse_side() -> None:
         "fpName": "snp::12041::343::assay::01_T_common_rp",
         "rpName": "snp::12041::343::assay::01_T_common_fp",
         "fpEnd": "400",
-        "rpStart": "343",
+        "rpEnd": "343",
+        "rpStart": "363",
     }
 
     assert target_hit(
@@ -99,7 +100,8 @@ def test_target_hit_rejects_wrong_reverse_three_prime_position() -> None:
         "fpName": "snp::12041::343::assay::01_T_common_rp",
         "rpName": "snp::12041::343::assay::01_T_common_fp",
         "fpEnd": "400",
-        "rpStart": "344",
+        "rpEnd": "344",
+        "rpStart": "343",
     }
 
     assert not target_hit(

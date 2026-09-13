@@ -282,13 +282,12 @@ def target_hit(
             f"hit: {fp_name} / {rp_name}"
         )
 
-    # The first primer supplied in each canonical pair is allele-specific.
     # MFEprimer keeps that input role as the "_fp" suffix even when genomic
-    # orientation places it in the rpName/rpStart output columns.
+    # orientation places it in the reverse-primer output columns.
     if fp_is_input_primer:
         return int(hit["fpEnd"]) == target_position
 
-    return int(hit["rpStart"]) == target_position
+    return int(hit["rpEnd"]) == target_position
 
 
 def build_validation_context(
