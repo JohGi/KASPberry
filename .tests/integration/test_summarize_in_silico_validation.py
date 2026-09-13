@@ -63,3 +63,7 @@ def test_summarize_in_silico_validation_cases(
         expected_dir=case_dir / "expected" / "results" / ".work" / "kasp" / "validation",
         observed_dir=tmp_path / "results" / ".work" / "kasp" / "validation",
     )
+    compare_directories(
+        expected_dir=case_dir / "expected" / "results" / "kasp",
+        observed_dir=tmp_path / "results" / "kasp",
+    )

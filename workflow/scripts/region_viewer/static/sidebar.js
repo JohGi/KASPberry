@@ -294,9 +294,7 @@ function renderTreeStage(label, children) {
 
 const ASSAY_FAILURE_REASON_ENTRIES = [
   ["missing_target_amplicon", "Missing target amplicon"],
-  ["multiple_expected_amplicons", "Multiple expected amplicons"],
-  ["unexpected_allele_amplicon", "Unexpected allele amplicon"],
-  ["noncanonical_amplicon", "Noncanonical amplicon"],
+  ["unexpected_amplicon", "Unexpected amplicon"],
   ["dimer", "Dimer"],
   ["hairpin", "Hairpin"]
 ];

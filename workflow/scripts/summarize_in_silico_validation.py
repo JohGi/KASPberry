@@ -408,32 +408,55 @@ def evaluate_assay_in_genotype(
             f"snp_positions_long.tsv allele {position_allele}"
         )
 
-    if allele == assay["first_allele"]:
-        other_allele = assay["second_allele"]
-    elif allele == assay["second_allele"]:
-        other_allele = assay["first_allele"]
+    allele1 = assay["first_allele"]
+    allele2 = assay["second_allele"]
+    if allele == allele1:
+        genotype_allele_id = "1"
+    elif allele == allele2:
+        genotype_allele_id = "2"
     else:
         raise ValueError(
             f"{snp_id}/{genotype}: allele {allele} is absent from {assay_id}"
         )
 
+    pair_definitions = {
+        "allele1/common_amplicons": (
+            f"{assay_id}_{allele1}_common",
+            context.canonical[genotype],
+        ),
+        "allele2/common_amplicons": (
+            f"{assay_id}_{allele2}_common",
+            context.canonical[genotype],
+        ),
+        "allele1/allele2_amplicons": (
+            f"{assay_id}_{allele1}_{allele2}_allele_pair",
+            context.noncanonical[genotype],
+        ),
+        "allele1/allele1_amplicons": (
+            f"{assay_id}_{allele1}_{allele1}_allele_self",
+            context.noncanonical[genotype],
+        ),
+        "allele2/allele2_amplicons": (
+            f"{assay_id}_{allele2}_{allele2}_allele_self",
+            context.noncanonical[genotype],
+        ),
+        "common/common_amplicons": (
+            f"{assay_id}_common_self",
+            context.noncanonical[genotype],
+        ),
+    }
+    pair_counts = {
+        column: sum(
+            pair_id(hit) == expected_pair_id
+            for hit in hits
+        )
+        for column, (expected_pair_id, hits) in pair_definitions.items()
+    }
     expected_pair = f"{assay_id}_{allele}_common"
-    unexpected_pair = f"{assay_id}_{other_allele}_common"
-
     expected_hits = [
         hit
         for hit in context.canonical[genotype]
         if pair_id(hit) == expected_pair
-    ]
-    unexpected_hits = [
-        hit
-        for hit in context.canonical[genotype]
-        if pair_id(hit) == unexpected_pair
-    ]
-    noncanonical_hits = [
-        hit
-        for hit in context.noncanonical[genotype]
-        if pair_id(hit).startswith(f"{assay_id}_")
     ]
     target_hits = [
         hit
@@ -448,24 +471,22 @@ def evaluate_assay_in_genotype(
     failure_reasons: list[str] = []
     if not target_hits:
         failure_reasons.append("missing_target_amplicon")
-    if len(expected_hits) > 1:
-        failure_reasons.append("multiple_expected_amplicons")
-    if unexpected_hits:
-        failure_reasons.append("unexpected_allele_amplicon")
-    if noncanonical_hits:
-        failure_reasons.append("noncanonical_amplicon")
+    total_amplicons = sum(pair_counts.values())
+    unexpected_count = total_amplicons - min(len(target_hits), 1)
+    if unexpected_count > 0:
+        failure_reasons.append("unexpected_amplicon")
 
     return (
         {
             "assay_id": assay_id,
             "genotype": genotype,
-            "expected_allele": allele,
+            "allele1": allele1,
+            "allele2": allele2,
+            "genotype_allele_id": genotype_allele_id,
+            "target_amplicons": len(target_hits),
+            **pair_counts,
             "status": "PASS" if not failure_reasons else "FAIL",
             "failure_reason": ";".join(failure_reasons),
-            "expected_amplicons": len(expected_hits),
-            "target_amplicons": len(target_hits),
-            "unexpected_amplicons": len(unexpected_hits),
-            "noncanonical_amplicons": len(noncanonical_hits),
         },
         failure_reasons,
     )
@@ -603,13 +624,18 @@ def main() -> None:
         [
             "assay_id",
             "genotype",
-            "expected_allele",
+            "allele1",
+            "allele2",
+            "genotype_allele_id",
+            "target_amplicons",
+            "allele1/common_amplicons",
+            "allele2/common_amplicons",
+            "allele1/allele2_amplicons",
+            "allele1/allele1_amplicons",
+            "allele2/allele2_amplicons",
+            "common/common_amplicons",
             "status",
             "failure_reason",
-            "expected_amplicons",
-            "target_amplicons",
-            "unexpected_amplicons",
-            "noncanonical_amplicons",
         ],
         genotype_rows,
     )

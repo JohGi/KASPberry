@@ -625,6 +625,7 @@ body {
 
 .primer-tail {
   color: var(--muted);
+  font-size: 10px;
 }
 
 .primer-terminal-base {
@@ -632,7 +633,7 @@ body {
 }
 
 .assay-failure-reason {
-  color: var(--muted);
+  color: #9f1239;
   font-size: 12px;
   line-height: 1.35;
   overflow-wrap: anywhere;

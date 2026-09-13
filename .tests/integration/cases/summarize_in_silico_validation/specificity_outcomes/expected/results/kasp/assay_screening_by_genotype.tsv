@@ -1,11 +1,11 @@
-assay_id	genotype	expected_allele	status	failure_reason	expected_amplicons	target_amplicons	unexpected_amplicons	noncanonical_amplicons
-snp::1::100::assay::01	A	A	PASS		1	1	0	0
-snp::1::100::assay::01	B	G	PASS		1	1	0	0
-snp::1::200::assay::01	A	A	FAIL	missing_target_amplicon	1	0	0	0
-snp::1::200::assay::01	B	G	PASS		1	1	0	0
-snp::1::300::assay::01	A	A	FAIL	multiple_expected_amplicons	2	1	0	0
-snp::1::300::assay::01	B	G	PASS		1	1	0	0
-snp::1::400::assay::01	A	A	FAIL	unexpected_allele_amplicon	1	1	1	0
-snp::1::400::assay::01	B	G	PASS		1	1	0	0
-snp::1::500::assay::01	A	A	FAIL	noncanonical_amplicon	1	1	0	1
-snp::1::500::assay::01	B	G	PASS		1	1	0	0
+assay_id	genotype	allele1	allele2	genotype_allele_id	target_amplicons	allele1/common_amplicons	allele2/common_amplicons	allele1/allele2_amplicons	allele1/allele1_amplicons	allele2/allele2_amplicons	common/common_amplicons	status	failure_reason
+snp::1::100::assay::01	A	A	G	1	1	1	0	0	0	0	0	PASS	
+snp::1::100::assay::01	B	A	G	2	1	0	1	0	0	0	0	PASS	
+snp::1::200::assay::01	A	A	G	1	0	1	0	0	0	0	0	FAIL	missing_target_amplicon;unexpected_amplicon
+snp::1::200::assay::01	B	A	G	2	1	0	1	0	0	0	0	PASS	
+snp::1::300::assay::01	A	A	G	1	1	2	0	0	0	0	0	FAIL	unexpected_amplicon
+snp::1::300::assay::01	B	A	G	2	1	0	1	0	0	0	0	PASS	
+snp::1::400::assay::01	A	A	G	1	1	1	1	0	0	0	0	FAIL	unexpected_amplicon
+snp::1::400::assay::01	B	A	G	2	1	0	1	0	0	0	0	PASS	
+snp::1::500::assay::01	A	A	G	1	1	1	0	1	0	0	0	FAIL	unexpected_amplicon
+snp::1::500::assay::01	B	A	G	2	1	0	1	0	0	0	0	PASS	

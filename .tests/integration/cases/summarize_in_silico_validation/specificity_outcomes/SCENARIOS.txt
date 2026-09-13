@@ -4,9 +4,9 @@ Two KASP genotypes (A and B) are represented. A carries the first assay allele (
 
 SNPs / expected behaviour
 - snp::1::100: exactly one target amplicon for the expected allele in both genotypes -> PASS. In genotype A, the allele-specific input primer (_fp) is reported by MFEprimer on the forward side and its 3' end matches the target via fpEnd. In genotype B, MFEprimer reports the same input-primer role on the reverse side, and its 3' end matches the target via rpStart. This verifies that target detection is independent of MFEprimer output orientation.
-- snp::1::200: genotype A has one expected amplicon, but the allele-specific primer ends one base away from the target SNP -> missing_target_amplicon.
-- snp::1::300: genotype A has two expected amplicons, only one at the target -> multiple_expected_amplicons.
-- snp::1::400: genotype A has the correct expected amplicon plus an amplicon from the other allele-specific primer -> unexpected_allele_amplicon.
-- snp::1::500: genotype A has the correct target amplicon plus a noncanonical amplicon -> noncanonical_amplicon.
+- snp::1::200: genotype A has one allele/common amplicon, but the allele-specific primer ends one base away from the target SNP -> missing_target_amplicon;unexpected_amplicon.
+- snp::1::300: genotype A has two allele/common amplicons, only one at the target -> unexpected_amplicon.
+- snp::1::400: genotype A has the correct target amplicon plus an amplicon from the other allele/common pair -> unexpected_amplicon.
+- snp::1::500: genotype A has the correct target amplicon plus a noncanonical allele1/allele2 amplicon -> unexpected_amplicon.
 
 All correct hits use chromosome alias 2A__001 to verify that the source chromosome prefix 2A is recognized. No dimers or hairpins are present.
