@@ -1,3 +1,29 @@
+const sidebarDetailsState = new Map();
+
+function escapeSidebarStateKey(key) {
+  return escapeHtml(key).replaceAll('"', "&quot;");
+}
+
+function rememberSidebarDetailsState(sidebar) {
+  sidebar.querySelectorAll("details[data-sidebar-state-key]").forEach(details => {
+    sidebarDetailsState.set(details.dataset.sidebarStateKey, details.open);
+  });
+}
+
+function restoreSidebarDetailsState(sidebar) {
+  sidebar.querySelectorAll("details[data-sidebar-state-key]").forEach(details => {
+    const key = details.dataset.sidebarStateKey;
+
+    if (sidebarDetailsState.has(key)) {
+      details.open = sidebarDetailsState.get(key);
+    }
+
+    details.addEventListener("toggle", () => {
+      sidebarDetailsState.set(key, details.open);
+    });
+  });
+}
+
 function formatDistanceValue(value) {
   if (value === null || value === undefined || Number.isNaN(Number(value))) {
     return "NA";
@@ -301,7 +327,7 @@ const ASSAY_FAILURE_REASON_ENTRIES = [
 
 function renderAssayFailureReasonSummary(reasons) {
   return `
-    <details class="analysis-summary-reasons">
+    <details class="analysis-summary-reasons" data-sidebar-state-key="summary:assay-failure-reasons">
       <summary>Failure reasons</summary>
       ${renderSummaryRows(ASSAY_FAILURE_REASON_ENTRIES.map(([reason, label]) => [
         label,
@@ -415,8 +441,9 @@ function renderReasonSummary(title, reasons) {
     return "";
   }
 
+  const stateKey = escapeSidebarStateKey(`summary:reasons:${title}`);
   return `
-    <details class="analysis-summary-reasons">
+    <details class="analysis-summary-reasons" data-sidebar-state-key="${stateKey}">
       <summary>${escapeHtml(title)}</summary>
       ${renderSummaryRows(entries.map(([reason, count]) => [
         humanizeSnpWorkflowValue(reason),
@@ -428,7 +455,7 @@ function renderReasonSummary(title, reasons) {
 
 function renderMashSummary() {
   return `
-    <details class="analysis-summary-mash">
+    <details class="analysis-summary-mash" data-sidebar-state-key="summary:mash-distances">
       <summary>Mash distances, whole region</summary>
       ${renderDistanceMatrix(REGION_DATA.mash_matrix, { embedded: true, showTitle: false })}
     </details>
@@ -757,6 +784,7 @@ function renderSidebarDefault() {
   lastSidebarRenderState.isPinned = false;
 
   const sidebar = document.getElementById("sidebar");
+  rememberSidebarDetailsState(sidebar);
   sidebar.innerHTML = `
     <div class="sidebar-header">
       <h2>Analysis summary</h2>
@@ -768,6 +796,7 @@ function renderSidebarDefault() {
       ${renderSampleRegionStats()}
     </div>
   `;
+  restoreSidebarDetailsState(sidebar);
 }
 
 function renderSidebarHeader(title, isPinned) {
@@ -868,7 +897,9 @@ function renderBlockSidebar(featureId, isPinned) {
     html += "</div>";
   }
 
+  rememberSidebarDetailsState(sidebar);
   sidebar.innerHTML = html;
+  restoreSidebarDetailsState(sidebar);
   attachSidebarUnpinHandler();
 }
 
@@ -1009,14 +1040,11 @@ function renderAlleleSpecificPrimer(label, primer, primerWithTail, allele) {
   }
 
   let renderedSequence = escapeHtml(displayedSequence);
-  if (normalizedPrimer && normalizedWithTail.endsWith(normalizedPrimer)) {
-    const tail = normalizedWithTail.slice(0, -normalizedPrimer.length);
+  if (normalizedPrimer && displayedSequence.endsWith(normalizedPrimer)) {
+    const tail = displayedSequence.slice(0, -normalizedPrimer.length);
     const body = normalizedPrimer.slice(0, -1);
     const terminalBase = normalizedPrimer.slice(-1);
-    const expectedAllele = String(allele || "").toUpperCase();
-    const renderedTerminalBase = terminalBase === expectedAllele
-      ? `<strong class="primer-terminal-base">${escapeHtml(terminalBase)}</strong>`
-      : escapeHtml(terminalBase);
+    const renderedTerminalBase = `<strong class="primer-terminal-base">${escapeHtml(terminalBase)}</strong>`;
 
     renderedSequence = `<span class="primer-tail">${escapeHtml(tail)}</span>${escapeHtml(body)}${renderedTerminalBase}`;
   }
@@ -1043,8 +1071,9 @@ function renderKaspAssays(featureId) {
     for (const assay of assays) {
       const assayId = assay.assay_id || "Assay";
       const validationStatus = assay.validation_status;
+      const stateKey = escapeSidebarStateKey(`snp:${featureId}:assay:${assayId}`);
       content += `
-        <details class="snp-assay-card">
+        <details class="snp-assay-card" data-sidebar-state-key="${stateKey}">
           <summary>
             <span>${escapeHtml(assayId)}</span>
             ${renderSnpWorkflowBadge(validationStatus)}
@@ -1121,9 +1150,10 @@ function renderSnpSidebar(featureId, isPinned) {
   `;
 
   const observationsOpen = REGION_DATA.mode === "kasp" ? "" : " open";
+  const observationsStateKey = escapeSidebarStateKey(`snp:${featureId}:observations`);
   html += `
     <div class="sidebar-section snp-observations-section">
-      <details class="snp-observations"${observationsOpen}>
+      <details class="snp-observations" data-sidebar-state-key="${observationsStateKey}"${observationsOpen}>
         <summary>Alleles and positions</summary>
         <div class="snp-observation-cards">
   `;
@@ -1154,7 +1184,9 @@ function renderSnpSidebar(featureId, isPinned) {
     </div>
   `;
 
+  rememberSidebarDetailsState(sidebar);
   sidebar.innerHTML = html;
+  restoreSidebarDetailsState(sidebar);
   attachSidebarUnpinHandler();
   attachSnpSidebarHandlers(firstInfo.block_id);
 }

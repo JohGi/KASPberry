@@ -1326,6 +1326,7 @@ stage.on("pointermove", () => {
 stage.on("pointerup", stopDrag);
 stage.on("pointerleave", () => {
   _lastResolvedHoverKey = null;
+  clearHoveredFeature();
   stopDrag();
   hideGffGeneTooltip();
   setViewerCursor("");
